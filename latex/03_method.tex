@@ -1,0 +1,157 @@
+\subsection{Liquidity proxy}
+
+ASSUME YOU HAVE TO REWRITE EVERYTHING HERE
+
+\textbf{Amihoud illiquidity ratio adn Liquidity factor portfolio}
+$$\text{Illiquidity} = \text{Average} \left( \frac{|R_{iyd}|}{\text{VOLUME}_{iyd}} \right)
+$$
+
+
+1.
+- Use this for every single stock listed on the SP500 on a day as a proxy for stock illiquidity. Multiply this ratio by 10 to power 6. 
+- Calc the moving average monthly (21 trading days). The first trading day of the month will thus capture the average illiquidity ratio of the previous month.
+
+2.
+- Fama and French approach: Sort the stock based on market cap into 2 groups: small and big (This is basically the SMB variable)
+- Then the stock is INDEPENDENTLY sorted based on their illiquid ratio into 5 groups.Each stock is value weighted, meaning that stocks with a higher marketr capitalization gets a larger weight in the portfolio
+- Now we have $2*5=10$ value weight portfolio based on size and illiquidity
+
+
+3.
+Now we need to construct long-short liquidity factor portfolio:
+
+- Long illiquid portfolios
+- Sell most liquid portfolios
+
+A liquidity long-short portfolio is a trading strategy that profits from the difference in returns between illiquid and liquid stocks
+
+This can be verified with the liquidity factor return, or just the excess return for holding illiquid stocks
+
+$$
+\text{Liquidity Factor Return} = \frac{1}{2} \left( R_{S5} + R_{B5} \right) - \frac{1}{2} \left( R_{S1} + R_{B1} \right)
+$$
+Where:
+
+- \( R_{S5} \) and \( R_{B5} \) are the returns of the **most illiquid** small and big portfolios.
+- \( R_{S1} \) and \( R_{B1} \) are the returns of the **most liquid** small and big portfolios.
+
+
+
+This whole thing captures the return premium associated with illiquidity. Stocks that are harder to trade often earns higher returns
+
+
+In addition to the 10 illiquidity portfolios, lets compute illiquidity portfolios based on size. I first sort the stocks on their firm’s market capitalization in two groups, and afterward sort stocks on their illiquidity measure in their size group. This creates five illiquidity portfolios for small stocks and five illiquidity portfolios for big stocks.
+
+\textbf{Liquidity Risk factor}
+$$
+\beta_{LR} = \frac{\text{Cov}(\text{ILLIQ}_i, \text{ILLIQ}_m)}{\text{Var}(\text{ILLIQ}_m)},
+$$
+
+- How much a firm illiquidity co move with the market wide illiquidity
+- Basically how sensitive it is to liquidity shock 
+The illiquidity ratio for stocks is already computed for the first liquidity factor. I will proxy the market illiquidity ratio by taking the value-weighted average of the illiquidity ratio of all stocks
+listed on the S\&P 500 for the month
+
+
+$$
+\text{Liquidity Risk Factor Return} = \frac{1}{2} \left( R_{S5} + R_{B5} \right) - \frac{1}{2} \left( R_{S1} + R_{B1} \right)
+$$
+
+Where:
+
+- \( R_{S5} \) and \( R_{B5} \) = Returns of the **highest liquidity risk beta** portfolios (most sensitive to liquidity shocks).
+
+- \( R_{S1} \) and \( R_{B1} \) = Returns of the **lowest liquidity risk beta** portfolios (least sensitive to liquidity shocks).
+
+Beside the ten size beta liquid, I compute liquidity risk portfolios conditional on their size,
+which creates five liquidity risk portfolios for small stocks and five liquidity risk portfolios for
+big stocks.
+
+\textbf{Fama French Five Factors models}
+
+The following are its factors:
+
+CAPM
+- Market risk Factor from NYSE, NASDAQ and AMEX (Data taken from CRSP)
+
+Before constructing the factors, Fama and French make 
+1. six value weighted on size (small or big) and book to market ratio (value, neutral, growth)
+2. six value weighted on size and operating profitability (robust, neutral, weak )
+3.six value weighted on size and ivestment activity
+
+Fama french 3
+- Size factor (SMB)
+    - The SMB factor is computed by subtracting the average return of the nine big stock portfolios
+    (Big Value, Big Neutral, Big Growth, Big Robust, Big Neutral, Big Weak, Big Conservative,
+    Big Neutral, and Big Aggressive) from the average return of the nine small stock portfolios
+- Value factor (HML)
+    -  spread between the average of the two value portfolios and the average of the two growth portfolios
+
+Fama French 5
+- Robust minus weak (RMW)
+    - calculated by subtracting the average return of the two
+    weak operating profitability portfolios from the average return of the two robust operating
+    profitability portfolios.
+- Conservative minus aggressive (CMA)
+    - the difference between the average return of
+    the two conservative investment portfolios and the average return of the two aggressive
+    investment portfolios 
+
+- Excess returns:
+    - Return -risk free rate (RF from the kenneth data)
+
+\subsection{Sentiment}
+Enhanced investor sentiment dataset (Sze Nie Ung)
+
+
+\subsection{Modelling}
+
+Time series regression on six asset pricing models.
+
+Seven factor model:
+
+\[
+R_{it} - R_{Ft} = \alpha_i + \beta_1 \text{MktRF}_t + \beta_2 \text{SMB}_t + \beta_3 \text{HML}_t + \beta_4 \text{RMW}_t + \beta_5 \text{CMA}_t + \beta_6 \text{IML}_t + \beta_7 \text{LR}_t, \quad (6)
+\]
+
+I am going to run also the sentiment index on this too, so 8 factors
+
+" Linear
+models are preferred by practitioners because they gen-
+erally present readily understandable and interpretable
+analysis. In contrast, machine learning approaches,
+although useful in uncovering the nonlinear behavior
+of and interaction relationships among variables, are
+often articulated in a way that makes their output unin-
+tuitive, and hence unattractive, to many investment pro-
+fessionals. "
+
+Instead of just looking at the average effect of factors, analyzing different percentiles helps us understand how factors behave across low, median, and high return environments.
+
+We are going to do this with the portfolios constructed before, so no need for percentiles
+
+
+Random Forest Importance compares how important each feature is comparing to others in the same set, it is very useful to offer portfolio guidance such as in  return based style analyis (RBSA). he RF model, however,
+possesses an advantage over a standard RBSA in gener-
+ally providing a much better fit,
+
+"Because the RF model captures hierarchical
+(non-geometric) relationships between factors, it cannot
+be understood as a direct analog of an OLS regression
+or PCA because it does not convey the individual direc-
+tional relationships between factors and assets."
+
+We have to attempt to "beta-tize" the random forest. Beta is basically the elasticity of one variable to another. What we can do is to divide the predicted target variable return by each pre-
+dictor return to gain a raw elasticity value for each factor.
+
+\textbf{Sector rotation strategy}
+
+Apply RF variant to build a sector rotation strategy using ARL (Association rule learning). We can use this to deduct inference rule from epirical data
+
+- RL is a rolling-window learning approach, meaning it continuously updates its understanding of market conditions.
+Instead of using a fixed model trained once on historical data, it adapts dynamically by re-estimating relationships every 18 months.
+This helps capture changing market dynamics—for example, a factor that worked last year may not work the same way today
+
+Two signals are used:
+- Random forest predicted excess within a portfolio
+- Ratio of shorter-term to longer-term realized volatility (24-month vs. 36-month)
