@@ -1,0 +1,99 @@
+Main referenced:
+- Timothy Leo thesis
+- Fama French papers
+- The ML for Fama Simonian
+- Sentiment by Wurgler 
+- Sentiment and fama Dhaoui
+
+OUTLINE: 
+
+- Why Fama French? The evolution of the model (CAPM -> Fama3 -> Fama 5 -> Cahart). Why, at each stage, there is a need to add? What is it still missing according to current researchers. Has there been machine learning attempts to improve?
+- Liquidity risk factors : Why fama french needs this? What are the methodology current researchers use to measure this? What is the current applied research on its effect on the asset pricing models (Fama, cahart)?
+- Sentiment: Why fama french needs this? What are the methodology current researchers use to measure this? What is the current applied research on its effect on the asset pricing models (Fama, cahart)?
+
+- Sector Rotation Strategies using Association Rule Learning: Its application with Fama French? WHat are the methodologies used to perform this? What is it missing? 
+
+%%%%%%%%%%%%%%%%%%%%%
+%%%%%%ACTUAL%%%%%%%%%
+This literature review will examine the theoretical evolution of standard asset pricing models, beginning with the single-factor Capital Asset Pricing Model (CAPM) and extending to the multi-factor Fama-French frameworks. It will highlight the limitations of traditional statistical approaches in asset pricing and explore how advancements in machine learning methodologies may address these shortcomings. Then, the exisiting literature of the proposed enhancements to the asset pricing models will be reviewd. Specifically, the focus will be on the justification for incorporating liquidity risk and investor sentiment as explanatory factors. The ways in which contemporary researchers integrate these factors into their models will also be discussed. Furthermore, the application of asset pricing models within a sector rotation strategy will be explored, including an assessment of how this approach has been implemented in recent studies.
+
+
+\subsection{A review of CAPM and its development}
+%%%%%%%%%%%%
+%%%IDEA%%%%%%
+%%%%%%%%%%%%
+CAPM: Risk return trade off, $\beta$ risk. Early studies found that this one factor is not satisfactory, anomalies were present
+
+%%%%%%%%%%%%
+%%%ACTUAL%%%%
+%%%%%%%%%%%%
+The one factor Capital Asset Pricing Model (CAPM) of \citeA{sharpe_1964} was the first rigorious asset pricing framework, which relates an asset expected return to its market beta. Market beta measures the asset's systematic risk, or its sensitivity to fluctuations in the overall market. An assumption that CAPM makes is that investors hold mean-variance-efficient portfolios, or portfolios that offers the highest expected return for a given level of risk or, conversely, the lowest risk for a given level of expected return. This leads to the prediction that the expected return of an asset is linearly related to its market beta, with higher beta assets commanding higher expected returns as compensation for their increased exposure to market risk. Despite its theoretical appeal and widespread application due to its simplicity, empirical tests have revealed significant deviations from the model's predictions. Studies have found that a one factor could not explain certain stock return patterns. For example, small market capitalization (small-cap) stocks and high book to market ("value") stocks - or stocks that are undervalued- typically perform better than CAPM predicts \cite{capm_2004}.
+
+In response to CAPM's shortcomings, \citeA{ff3_1993} introduced a three-factor model(FF3 hereafter) adding Size (SMB, small minus big) and Value (HML, high minus low book-to-market) factors in addition to the market factor. The SMB factor captures the excess returns of small-cap stocks over large-cap stocks, reflecting how higher volatility and growth potential could cause smaller firms to yield higher average returns. HML accounts for the premium earned by stocks with high book-to-market ratios, often associated with underperforming firms that carry higher risk and, consequently, higher expected returns. The motivation was based on earlier empirical findings that showed firm size and book-to-market equity robustly predict average returns, even when beta does not. By constructing portfolios to mimic these risk factors, the FF3 model significantly improved explanatory power. Indeed, in tests on U.S. stocks, the FF3 alphas (or the intercept of the linear regression model) were near zero, indicating that market, size, and value together “do a good job explaining the cross-section of average stock returns”. Size and value removes systematic mispricing present in the CAPM model. However, the FF3 still left some factors unexplained. \citeA{titman_2004} showed that firms with higher capital investments tend to experience lower future returns, a pattern not captured by the Fama-French three factors. \citeA{novymarx_2013} also found that the profitability of a firm could explain its expected return, similar to book-to-market ratio. Furthermore, some argue that there should be a momentum factor included in the asset pricing model.
+
+\citeA{cahart_1997} introduces an extension of the FF3 by adding a momentum factor (PR1YR), which is the  the prior 12-month return momentum (winners minus losers) as an additional factor. The inclusion of the momentum factor is motivated by empirical evidence, which observes that stocks that have performed well in the past tend to continue outperforming, while past losers continue to underperform. Studies have shown that the size and value factors could not capture this effect. The Cahart 4 factor model (C4F hereafter) became a standard extension when the four factors could describe most of the cross-sectional returns. However, \citeA{huij_2009} indicates that the Carhart model proxies fail to account for real-world constraints. As a result, the premiums associated with the HML and momentum (PR1YR) factors tend to be misestimated.
+
+With new emerging problems, \citeA{ff5_2015} propose a five-factor model (FF5 hereafter), adding profitability (robust minus weak, RMW) and investment (conservative minus aggressive, CMA) factor. RMW accounts for the empirical observation that firms with higher operating profitability tend to earn higher average returns. CMA captures the tendency of firms to aggressively invest in new assets, expecting higher returns in the long run. However, investors may overpay for such firms due to optimism, which results in lower subsequent returns \cite{titman_2004}. The model does not include a momentum factor, as \citeA{ff5_2015} argue that momentum returns are largely short-term and difficult to reconcile with their asset pricing framework, which focuses on long-term risk premia. This update was motivated by research showing that firms with higher profitability or more conservative investment tend to earn higher returns. Interestingly, Fama and French in their own study found that the HML factor became less important in the presence of the new factors.  However, the five-factor model also had its limitations. It did not explicitly include momentum (so momentum remained an “external” anomaly), and it struggled with certain corner cases for instance, it failed to explain the low returns on small stocks that invest a lot despite low profitability. Both \citeA{sarwarff5} and \citeA{benammar_2018} concluded that the FF5 model cannot explain
+the average returns of US stocks. \citeA{cakici_2015} argued that the two additional factors are almost non-existent in large firms. With that said, there are tons of evidence of FF5's validity and robust explanatory power, in both national and regional studies \cite{sohor_litreview_2024}.
+
+In sum, over decades the asset pricing model development (CAPM $\rightarrow$ FF3 $\rightarrow$ C4F $\rightarrow$ FF5) was driven by the need to address empirical gaps. Each new factor was added to account for a systematic return pattern unexplained by prior models. While these multifactor models capture much of the cross-section, research continues to find gaps, suggesting even more factors may be needed.
+
+
+
+
+
+
+%%%%%%%%%%%%
+%%%IDEA%%%%%%
+%%%%%%%%%%%%
+
+-> response fama french carhart: Adds momentum factor (Winners minus losers WML). this then became the standard.  Momentum’s success challenges traditional efficient market thinking and contrarian strategies.
+
+
+-> response by fama french: Add profitability (Robust minus weak) and investment (conservative minus agressive). Motivation:  motivated by research showing that firms with higher profitability or more conservative investment tend to earn higher returns, beyond what size and value explain. With this five factor model, value (HML) factor becomes less important. Limits: does not include momentum
+
+
+Over decades the asset pricing model evolution (CAPM → 3-factor → 4-factor → 5-factor) was driven by the need to address empirical gaps: each new factor was added to account for a systematic return pattern unexplained by prior models (size, value, momentum, profitability, investment). While these multifactor models capture much of the cross-section, research continues to find gaps, suggesting even more factors or new approaches (e.g. behavioral factors or macro risks) may be needed.
+
+
+\subsection{Role of machine learning}
+Gu predict cross sectional stocks return. Tree based and NN outperform  (x2)linear models due to the ability to non-linear interatcions. these models also converge on the same key predictors (signals) as classic linear models. Therefore, these methods models known predictors more effectively.
+
+Prior attempts include nonparametric approaches to detect which characteristics truly drive returns (e.g. regression trees that allow different factor impacts in different segments of data)
+
+The consensus is that ML-based models can capture a wider information set and adapt to changing patterns, potentially improving predictive power when added to or combined with traditional factor frameworks.
+
+-> Brings the black box problem
+
+
+\subsection{Factor model enhancement: Liquidity Risk}
+
+\textbf{Direct measures}
+Liquidity risk is .... 
+
+Researchers create factors and measures to incorporate it into models. -> Amihoud(2002) for indiv stocks. This measure the price impact of trading: how much prices move per unit of volume. In his cross-sectional tests, expected stock returns increased with expected illiquidity, consistent with liquidity being priced. This along with other literature suggests that investors demand extra return for holding assets that are costly to trade.
+
+Theres also a market wide liquidity factor by Pastor and Stambaugh. The aggregate risk factor is based on the tendency for stock prices to reverse after high- volume trading days. They showed that this traded liquidity factor (long low-liquidity-beta stocks, short high-liquidity-beta stocks) carries a significant risk premium. In fact, one striking finding was that liquidity risk appeared to account for a substantial portion of the momentum anomaly: “the liquidity risk factor accounts for half of the profits of the momentum strategy” over their sample
+
+-> momentum returns accounts partly compensate for liquidity risk (momentum sotck usually crash when liquidity decrease) -> momentum strats have hidden liquidity exposure
+
+Subsequent studies confirmed that adding a liquidity factor can improve asset pricing models by capturing return patterns during liquidity crises
+
+\textbf{model intergration}
+Acharya and Pedersen added a liquidity adjusted CAPM. Simply put, an investor in a stock expects higher returns if (a) the stock is generally illiquid on average, or (b) the stocks own returns and liquidity worsen exactly when the market is down or illiquid (i.e. it performs poorly in “bad times” when trading is difficult) . 
+
+Liquidity proxies:
+- bid-ask spreads, trading volume, frequency of zero-return days, turnover ratios, etc., all generally indicating that worse liquidity predicts higher subsequent returns.
+
+These proxies usually have a unifying effect on asset pricing models: often improves the model’s fit and reduces unexplained alpha
+
+- Liquidity adjusted Cahart: explain asset classes like small growth stocks better, as those tend to be illiquid and earn abnormal returns in standard models.
+
+\subsection{Factor model enhancement: Investor sentiment}
+
+Investor sentiment is ....
+
+Baker and Wurgler construct quantitative sentiment index. They aggregated several proxies (such as the volume of IPOs, first-day IPO returns, the equity share in new issues, market turnover, the closed-end fund discount, etc.) into a single sentiment indicator using principal component analysis. This index captures waves of excessive optimism or pessimism in the market. aker and Wurgler’s key insight was that sentiment affects certain stocks more than others: “when beginning-of-period proxies for sentiment are low, subsequent returns are relatively high” for stocks that are speculative and hard to arbitrage (small, young, high-volatility, unprofitable, non-dividend-paying, or distressed stocks)Conversely, when sentiment is high, those same categories of stocks earn low future returns . during euphoric periods, speculative stocks become overpriced (and later underperform), whereas after pessimistic periods they are underpriced (and subsequently outperform). This pattern suggests that sentiment-driven mispricing occurs and then corrects, especially for stocks that are difficult for arbitrageurs to short or value objectively.Classic finance theory would predict no role for sentiment (prices = fundamental value), but Baker and Wurgler provide evidence that broad waves of optimism/pessimism can create return predictability across stock types, beyond what risk factors explain.
+
+
+
