@@ -1,28 +1,7 @@
-Main referenced:
-- Timothy Leo thesis
-- Fama French papers
-- The ML for Fama Simonian
-- Sentiment by Wurgler 
-- Sentiment and fama Dhaoui
-
-OUTLINE: 
-
-- Why Fama French? The evolution of the model (CAPM -> Fama3 -> Fama 5 -> Cahart). Why, at each stage, there is a need to add? What is it still missing according to current researchers. Has there been machine learning attempts to improve?
-- Liquidity risk factors : Why fama french needs this? What are the methodology current researchers use to measure this? What is the current applied research on its effect on the asset pricing models (Fama, cahart)?
-- Sentiment: Why fama french needs this? What are the methodology current researchers use to measure this? What is the current applied research on its effect on the asset pricing models (Fama, cahart)?
-
-- Sector Rotation Strategies using Association Rule Learning: Its application with Fama French? WHat are the methodologies used to perform this? What is it missing? 
-
-%%%%%%%%%%%%%%%%%%%%%
-%%%%%%ACTUAL%%%%%%%%%
-This literature review will examine the theoretical evolution of standard asset pricing models, beginning with the single-factor Capital Asset Pricing Model (CAPM) and extending to the multi-factor Fama-French frameworks. It will highlight the limitations of traditional statistical approaches in asset pricing and explore how advancements in machine learning methodologies may address these shortcomings. Then, the exisiting literature of the proposed enhancements to the asset pricing models will be reviewd. Specifically, the focus will be on the justification for incorporating liquidity risk and investor sentiment as explanatory factors. The ways in which contemporary researchers integrate these factors into their models will also be discussed. Furthermore, the application of asset pricing models within a sector rotation strategy will be explored, including an assessment of how this approach has been implemented in recent studies.
+This literature review will examine the theoretical evolution of standard asset pricing models, beginning with the single-factor Capital Asset Pricing Model (CAPM) and extending to the multi-factor Fama-French frameworks. It will highlight the limitations of traditional statistical approaches in asset pricing and explore how advancements in machine learning methodologies may address these shortcomings. Then, the existing literature of the proposed enhancements to the asset pricing models will be reviewed. Specifically, the focus will be on the justification for incorporating liquidity risk and investor sentiment as explanatory factors. The ways in which contemporary researchers integrate these factors into their models will also be discussed. Furthermore, the application of asset pricing models within a sector rotation strategy will be explored, including an assessment of how this approach has been implemented in recent studies.
 
 
 \subsection{A review of CAPM and its development}
-%%%%%%%%%%%%
-%%%IDEA%%%%%%
-%%%%%%%%%%%%
-CAPM: Risk return trade off, $\beta$ risk. Early studies found that this one factor is not satisfactory, anomalies were present
 
 %%%%%%%%%%%%
 %%%ACTUAL%%%%
@@ -39,38 +18,35 @@ the average returns of US stocks. \citeA{cakici_2015} argued that the two additi
 In sum, over decades the asset pricing model development (CAPM $\rightarrow$ FF3 $\rightarrow$ C4F $\rightarrow$ FF5) was driven by the need to address empirical gaps. Each new factor was added to account for a systematic return pattern unexplained by prior models. While these multifactor models capture much of the cross-section, research continues to find gaps, suggesting even more factors may be needed.
 
 
-
-
-
+\subsection{Role of machine learning in factor models}
 
 %%%%%%%%%%%%
-%%%IDEA%%%%%%
+%%%ACTUAL%%%%%%
 %%%%%%%%%%%%
+Despite the discourse between which model perfoms the best, one common characteristic they all have is that they are all linear models, which could potentially struggle with complex interactions or non-linear effects among predictors. \citeA{mcdonald_1962} highlights that traditional factor analysis methods assume linear relationships between manifest variables and latent factors, yet real-world financial markets often exhibit nonlinear interactions that linear models fail to capture. The author solidify this claim with another paper in 1983, which argue that factor models with polynomial regression functions, including interaction terms, provide a better framework that can accommodate these relationships \cite{mcdonald_1983}. As the research in ML produce better methods, the wave of its application in asset pricing started to come in. \citeA{hutchinson_1994}  provide one of the earliest applications of machine learning in finance by demonstrating how learning networks can be used for derivative pricing.More recent studies attempted to improve factor models return prediction performance. These ML methods can ingest a wide range of firm characteristics (including standard factors and many others) and capture nonlinear patterns. \citeA{gu_2020} provide a seminal example, applying various ML algorithms to predict the cross-section of U.S. stock returns. They find that flexible models, notably tree-based ensembles and neural networks substantially outperform linear methods in forecasting returns. \citeA{freyberger_2018} similarly show that a non-parametric ML approach uses far fewer predictors than a linear model yet attains a much higher out-of-sample Sharpe ratio indicating less overfitting and better true predictive power.
 
--> response fama french carhart: Adds momentum factor (Winners minus losers WML). this then became the standard.  Momentum’s success challenges traditional efficient market thinking and contrarian strategies.
+However, an improved predictive performance within ML models often comes with a decrease in interpretability,  leading to what is commonly known as the "black box" problem.Black-box models refer to algorithms whose internal decision-making processes are opaque or difficult for humans to understand. This is problematic in sectors where regulatory requirements and risk management demand transparency and accountability in decision-making \cite{brozek_2024}.  Moreover, financial markets are dynamic, and models trained on historical data may fail when market conditions change, a phenomenon known as "model drift". Therefore, it is essential to diagnose errors, biases or overfitting to historical data, which these black-box models cannot inherently do \cite{cohen_2021}. \citeA{lipton_2018} even critiques the common perception of linear models being inherently interpretable while deep neural networks are not. The author argues that interpretability depends on context, model complexity, and the availability of meaningful explanations. Several methods have been developed to mitigate the black-box problem by enhancing interpretability without significantly compromising predictive power. Model-specific approaches include decision trees and rule-based models, which allow users to enjoy the predictive power of black-box models while offering human-readable explanations. Feature importance techniques, such as SHAP (SHapley Additive exPlanations) and LIME (Local Interpretable Model-agnostic Explanations), analyze how individual input features contribute to model predictions. Other methods attempts to extract rules from the black box, such as surrogate trees which trains a more interpretable tree from the predictions of an ensemble.
 
+Building upon this body of research, \citeA{simonian_2019} introduced a ML approach to factor modeling by using the Random Forest (RF) algorithm on the C4F model. The authors argue that traditional factor models, including those used in commercial risk platforms, suffer from redundancy created by nonlinearity and multicollinearity. \citeA{simonian_2019} chose the RF model due to how RF could get rid of multicollinearity concerns while allowing for complex interactions. Furthermore, with the RF implementation, the author departs from the classical portfolio-sorting methodology, where stocks are first classified into groups (e.g., small-cap vs. large-cap) before factor loadings are estimated. Instead of forming factor-mimicking portfolios, RF treats each observation individually and evaluates how different factors contribute to returns at various points in time. To address the interpretability challenges inherent in ML-based factor models, \citeA{simonian_2019} incorporated feature importance metrics as an interpretable structure akin to $\beta$ coefficients in traditional factor model regressions. Additionally, they propose a method to construct pseudo-betas by weighting the raw factor elasticities with their respective relative feature importance (RFI hereafter) scores, effectively translating the RF model's output into a form that is more familiar to practitioners in finance. Beyond risk factor analysis, the interpretability of RF-derived predictions is used in a sector rotation strategy. Trading rules are established using RF predicted sector future return alongside volatility ratio signal. If both the predicted return exceeds a threshold and the short-term volatility is lower than long-term volatility, the sector is included in the portfolio. This research demonstrated how black-box models can be structured to provide actionable investment decisions while maintaining interpretability.
 
--> response by fama french: Add profitability (Robust minus weak) and investment (conservative minus agressive). Motivation:  motivated by research showing that firms with higher profitability or more conservative investment tend to earn higher returns, beyond what size and value explain. With this five factor model, value (HML) factor becomes less important. Limits: does not include momentum
-
-
-Over decades the asset pricing model evolution (CAPM → 3-factor → 4-factor → 5-factor) was driven by the need to address empirical gaps: each new factor was added to account for a systematic return pattern unexplained by prior models (size, value, momentum, profitability, investment). While these multifactor models capture much of the cross-section, research continues to find gaps, suggesting even more factors or new approaches (e.g. behavioral factors or macro risks) may be needed.
-
-
-\subsection{Role of machine learning}
-Gu predict cross sectional stocks return. Tree based and NN outperform  (x2)linear models due to the ability to non-linear interatcions. these models also converge on the same key predictors (signals) as classic linear models. Therefore, these methods models known predictors more effectively.
-
-Prior attempts include nonparametric approaches to detect which characteristics truly drive returns (e.g. regression trees that allow different factor impacts in different segments of data)
-
-The consensus is that ML-based models can capture a wider information set and adapt to changing patterns, potentially improving predictive power when added to or combined with traditional factor frameworks.
-
--> Brings the black box problem
-
-
-\subsection{Factor model enhancement: Liquidity Risk}
-
+\subsection{Emerging additions to factor models}
+An attractive feature of ML-enhanced models is their ability to incorporate a wide array of features that traditional econometrics models cannot - at least without constricting assumptions. This allows for the opportunity to include more factors within the factor models.
+\subsubsection{Liquidity Risk}
 \textbf{Direct measures}
-Liquidity risk is .... 
 
+%%%%%%%%%%%ACTUAL%%%%%%%%
+A liquid investment can be bought and sold quickly without a significant change in its price. Liquidity risk occurs when the same investment faces an imbalance of buyers and sellers in the market or when external factors cause price volatility. \citeA{pastor_2003} provide strong empirical evidence that marketwide liquidity is a state variable that influences expected stock returns. Their study finds that stocks with higher sensitivities to liquidity fluctuations comes with a premium, as investors require additional compensation for holding assets that become difficult to trade when there is a decrease in liquidity. When liquidity "dries up" in the market, liquidity risk amplifies transaction costs and price impacts. Then, investors that use leverage or have liquidity constraints are almost "forced" into liquidating with a premium, further reinforce the pricing of liquidity risk. The authors also conducted a study on portfolios sorted on liquidity betas and found that there is still a significant spread on return, even after controlling for factors within the C4F model.
+
+. Therefore, the factor has long been recognized as a key missing factor from asset pricing models, and researchers have been developing measures and theoretical models for its incorporation. 
+
+
+
+%%%Why liquidity risk to factor models
+\citeA{acharya_2005} extend the traditional CAPM by incorporating liquidity risk, stating that market risk must be accompanied by three additional risk factors:  commonality in liquidity with the market, sensitivity of asset returns to market-wide liquidity fluctuations, and the tendency for an asset's liquidity to decline when the market is in distress.
+
+
+
+%%%%%%%%%GUIDELINE$$$$$$$$$
 Researchers create factors and measures to incorporate it into models. -> Amihoud(2002) for indiv stocks. This measure the price impact of trading: how much prices move per unit of volume. In his cross-sectional tests, expected stock returns increased with expected illiquidity, consistent with liquidity being priced. This along with other literature suggests that investors demand extra return for holding assets that are costly to trade.
 
 Theres also a market wide liquidity factor by Pastor and Stambaugh. The aggregate risk factor is based on the tendency for stock prices to reverse after high- volume trading days. They showed that this traded liquidity factor (long low-liquidity-beta stocks, short high-liquidity-beta stocks) carries a significant risk premium. In fact, one striking finding was that liquidity risk appeared to account for a substantial portion of the momentum anomaly: “the liquidity risk factor accounts for half of the profits of the momentum strategy” over their sample
@@ -89,7 +65,7 @@ These proxies usually have a unifying effect on asset pricing models: often impr
 
 - Liquidity adjusted Cahart: explain asset classes like small growth stocks better, as those tend to be illiquid and earn abnormal returns in standard models.
 
-\subsection{Factor model enhancement: Investor sentiment}
+\subsubsection{Investors' sentiment}
 
 Investor sentiment is ....
 
