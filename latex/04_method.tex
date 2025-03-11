@@ -151,6 +151,14 @@ tional relationships between factors and assets."
 We have to attempt to "beta-tize" the random forest. Beta is basically the elasticity of one variable to another. What we can do is to divide the predicted target variable return by each pre-
 dictor return to gain a raw elasticity value for each factor.
 
+\textbf{Sentiment}
+\cite{antoniou_2016} improved on \cite{wurgler_2007}
+
+%%%%%%%%%OUTLINE%%%%%%%%%%%
+Baker and Wurgler construct quantitative sentiment index. They aggregated several proxies (such as the volume of IPOs, first-day IPO returns, the equity share in new issues, market turnover, the closed-end fund discount, etc.) into a single sentiment indicator using principal component analysis. This index captures waves of excessive optimism or pessimism in the market. aker and Wurglers key insight was that sentiment affects certain stocks more than others: “when beginning-of-period proxies for sentiment are low, subsequent returns are relatively high” for stocks that are speculative and hard to arbitrage (small, young, high-volatility, unprofitable, non-dividend-paying, or distressed stocks)Conversely, when sentiment is high, those same categories of stocks earn low future returns . during euphoric periods, speculative stocks become overpriced (and later underperform), whereas after pessimistic periods they are underpriced (and subsequently outperform). This pattern suggests that sentiment-driven mispricing occurs and then corrects, especially for stocks that are difficult for arbitrageurs to short or value objectively.Classic finance theory would predict no role for sentiment (prices = fundamental value), but Baker and Wurgler provide evidence that broad waves of optimism/pessimism can create return predictability across stock types, beyond what risk factors explain.
+
+
+
 \textbf{Sector rotation strategy}
 
 Apply RF variant to build a sector rotation strategy using ARL (Association rule learning). We can use this to deduct inference rule from epirical data
@@ -162,3 +170,5 @@ This helps capture changing market dynamics—for example, a factor that worked 
 Two signals are used:
 - Random forest predicted excess within a portfolio
 - Ratio of shorter-term to longer-term realized volatility (24-month vs. 36-month)
+
+iterative add factor de xem la feature importance co doi ko 
