@@ -1,6 +1,105 @@
-OUTLINE:
+%%%OUTLINE:%%%%
 
-- Amihud Illiquidity
+- liquidity risk factors construction
+- sentiment construction
+- fama and carhart models/factors 
+- random forest
+- Rule based model
+- sector rotation strategy: Association rule learning
+
+This chapter outlines the methodological approach adopted to measure liquidity risk and investors' sentiment, along with their rationale. These factors are integrated into an enhanced asset pricing framework based on the FF5 and C4F. Subsequently, the implementation of the Random Forest (RF) algorithm is detailed. Next, the rule-based model will be extracted from the RF for comparison and application to the Association Rule Learning Sector Rotation Strategy.
+
+\textbf{Liquidity Risk factor}
+%%%%% ACTUAL%%%%%%%%%%%
+The construction of liquidity factors closely align with the methodology outlined by \citeA{gu_2020}. The authors include multiple liquidity related variables, including turnover and turnover volatility (\texttt{turn}, \texttt{SDturn}), log market equity (\texttt{mvel1}), dollar volume (\texttt{dolvol}), Amihud illiquidity (\texttt{ILLQ}), number of zero trading days (\texttt{zerotrade}), and bid-ask spread (\texttt{baspread}). \citeA{amihud_2002} defined their illiquidity measure \texttt{ILLQ} as the "average ratio of the daily absolute return to the(dollar)trading volume on that day. This index captures waves of excessive optimism or pessimism in the market.  The calculation for Amihud illiquidity is as follows:
+
+\begin{equation}
+    \label{eq:amihud}
+    \text{ILLIQ}_{i,y} = \frac{1}{D_i^y} \sum_{d=1}^{D_i^y} \frac{|R_{i,d}|}{VOL_{i,d}}
+\end{equation}
+    
+with $R_{i,d}$ being the return on stock $i$ on day $d$. $VOL_{i,d}$ being trading volume (in dollars) for stock $i$ on day $d$ and $D_i^{y}$ being the number of days for which data is available for stock $i$ in year $y$. \citeA{amihud_2002} suggested that this measure be multipled with the ratio of $10^6$, as the ratio would be tiny. Each stock-level liquidity characteristic is cross-sectionally ranked period-by-period, then mapped into a standardized interval ranging from -1 to 1 \cite{gu_2020}. 
+
+%(is batch normalization needed?)
+
+%Add a part that says unlike the literature on this topic, no portfolio sorting is needed.
+
+\textbf{Sentiment}
+%% OUTLINE: wurgler -> antoniu -> XU enhanced
+\citeA{wurgler_2006} constructed a sentiment index by capturing the principal components within six proxies: closed-end fund discount (\texttt{CEFD}), NYSE share turnover (\texttt{TURN}), the number and average first-day returns of IPOs (\texttt{NIPO, RIPO} respectively), equity share in new issues (\texttt{S}) and dividend premium (\texttt{P}). \footnote{However, by March 2025, the NYSE share turnover proxy has been dropped in the database due to "the explosion of institutional high-frequency trading and the migration of trading to a variety of venues"}%can definitely add more after the proposal here, from the paper
+
+The sentiment is calculated as follows:
+\begin{equation}
+    \label{eq:sentiment}
+    \begin{split}
+    \text{SENTIMENT}_t = -0.241\,\text{CEFD}_t + 0.242\,\text{TURN}_{t-1} \\ + 0.253\,\text{NIPO}_t 
+    + 0.257\,\text{RIPO}_{t-1} \\ + 0.112\,S_t - 0.283\,P^{D-ND}_{t-1} , 
+    \end{split}
+\end{equation}
+where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Since both market sentiment and the business cycle can drive common variation in financial data, the Principal Component Analysis(PCA) will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the "pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
+\begin{equation} %BEQ
+    \label{eq:sentiment_orth}
+    \begin{split}
+    \text{SENTIMENT}^{\perp}_t = &-0.198\,\text{CEFD}^{\perp}_t + 0.225\,\text{TURN}^{\perp}_{t-1} \\
+    &+ 0.234\,\text{NIPO}^{\perp}_t + 0.263\,\text{RIPO}^{\perp}_{t-1} \\
+    &+ 0.211\,S^{\perp}_t - 0.243\,\text{P}^{\text{D} - \text{ND},\perp}_{t-1}
+    \end{split}
+\end{equation}
+
+
+
+%%%%%%%%%OUTLINE%%%%%%%%%%%
+This index captures waves of excessive optimism or pessimism in the market. aker and Wurglers key insight was that sentiment affects certain stocks more than others: “when beginning-of-period proxies for sentiment are low, subsequent returns are relatively high” for stocks that are speculative and hard to arbitrage (small, young, high-volatility, unprofitable, non-dividend-paying, or distressed stocks)Conversely, when sentiment is high, those same categories of stocks earn low future returns . during euphoric periods, speculative stocks become overpriced (and later underperform), whereas after pessimistic periods they are underpriced (and subsequently outperform). This pattern suggests that sentiment-driven mispricing occurs and then corrects, especially for stocks that are difficult for arbitrageurs to short or value objectively.Classic finance theory would predict no role for sentiment (prices = fundamental value), but Baker and Wurgler provide evidence that broad waves of optimism/pessimism can create return predictability across stock types, beyond what risk factors explain.
+
+
+\subsection{Factor models}
+%%%%%%%%OUTLINE%%%%%%%%%%
+- Fama French 3
+- Fama Carhart 4
+- Fama French 5
+
+- Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
+- Since there are debate for which factor model is best, we want to test FF3, C4F and FF5
+
+Time series regression on six asset pricing models.
+
+Seven factor model:
+
+\[
+R_{it} - R_{Ft} = \alpha_i + \beta_1 \text{MktRF}_t + \beta_2 \text{SMB}_t + \beta_3 \text{HML}_t + \beta_4 \text{RMW}_t + \beta_5 \text{CMA}_t + \beta_6 \text{IML}_t + \beta_7 \text{LR}_t, \quad (6)
+\]
+
+I am going to run also the sentiment index on this too, so 8 factors
+
+" Linear
+models are preferred by practitioners because they gen-
+erally present readily understandable and interpretable
+analysis. In contrast, machine learning approaches,
+although useful in uncovering the nonlinear behavior
+of and interaction relationships among variables, are
+often articulated in a way that makes their output unin-
+tuitive, and hence unattractive, to many investment pro-
+fessionals. "
+
+Also, you don't even need to do the portfolio sortings like in thesis
+
+Instead of just looking at the average effect of factors, analyzing different percentiles helps us understand how factors behave across low, median, and high return environments.
+
+We are going to do this with the portfolios constructed before, so no need for percentiles
+
+
+Random Forest Importance compares how important each feature is comparing to others in the same set, it is very useful to offer portfolio guidance such as in  return based style analyis (RBSA). he RF model, however,
+possesses an advantage over a standard RBSA in gener-
+ally providing a much better fit,
+
+"Because the RF model captures hierarchical
+(non-geometric) relationships between factors, it cannot
+be understood as a direct analog of an OLS regression
+or PCA because it does not convey the individual direc-
+tional relationships between factors and assets."
+
+We have to attempt to "beta-tize" the random forest. Beta is basically the elasticity of one variable to another. What we can do is to divide the predicted target variable return by each pre-
+dictor return to gain a raw elasticity value for each factor.
 
 \subsection{Liquidity proxy}
 
@@ -47,30 +146,7 @@ This whole thing captures the return premium associated with illiquidity. Stocks
 
 In addition to the 10 illiquidity portfolios, lets compute illiquidity portfolios based on size. I first sort the stocks on their firm’s market capitalization in two groups, and afterward sort stocks on their illiquidity measure in their size group. This creates five illiquidity portfolios for small stocks and five illiquidity portfolios for big stocks.
 
-\textbf{Liquidity Risk factor}
-$$
-\beta_{LR} = \frac{\text{Cov}(\text{ILLIQ}_i, \text{ILLIQ}_m)}{\text{Var}(\text{ILLIQ}_m)},
-$$
 
-- How much a firm illiquidity co move with the market wide illiquidity
-- Basically how sensitive it is to liquidity shock 
-The illiquidity ratio for stocks is already computed for the first liquidity factor. I will proxy the market illiquidity ratio by taking the value-weighted average of the illiquidity ratio of all stocks
-listed on the S\&P 500 for the month
-
-
-$$
-\text{Liquidity Risk Factor Return} = \frac{1}{2} \left( R_{S5} + R_{B5} \right) - \frac{1}{2} \left( R_{S1} + R_{B1} \right)
-$$
-
-Where:
-
-- \( R_{S5} \) and \( R_{B5} \) = Returns of the **highest liquidity risk beta** portfolios (most sensitive to liquidity shocks).
-
-- \( R_{S1} \) and \( R_{B1} \) = Returns of the **lowest liquidity risk beta** portfolios (least sensitive to liquidity shocks).
-
-Beside the ten size beta liquid, I compute liquidity risk portfolios conditional on their size,
-which creates five liquidity risk portfolios for small stocks and five liquidity risk portfolios for
-big stocks.
 
 \textbf{Fama French Five Factors models}
 
@@ -109,53 +185,9 @@ Fama French 5
 Enhanced investor sentiment dataset (Sze Nie Ung)
 
 
-\subsection{Modelling}
-
-Time series regression on six asset pricing models.
-
-Seven factor model:
-
-\[
-R_{it} - R_{Ft} = \alpha_i + \beta_1 \text{MktRF}_t + \beta_2 \text{SMB}_t + \beta_3 \text{HML}_t + \beta_4 \text{RMW}_t + \beta_5 \text{CMA}_t + \beta_6 \text{IML}_t + \beta_7 \text{LR}_t, \quad (6)
-\]
-
-I am going to run also the sentiment index on this too, so 8 factors
-
-" Linear
-models are preferred by practitioners because they gen-
-erally present readily understandable and interpretable
-analysis. In contrast, machine learning approaches,
-although useful in uncovering the nonlinear behavior
-of and interaction relationships among variables, are
-often articulated in a way that makes their output unin-
-tuitive, and hence unattractive, to many investment pro-
-fessionals. "
-
-Also, you don't even need to do the portfolio sortings like in thesis
-
-Instead of just looking at the average effect of factors, analyzing different percentiles helps us understand how factors behave across low, median, and high return environments.
-
-We are going to do this with the portfolios constructed before, so no need for percentiles
 
 
-Random Forest Importance compares how important each feature is comparing to others in the same set, it is very useful to offer portfolio guidance such as in  return based style analyis (RBSA). he RF model, however,
-possesses an advantage over a standard RBSA in gener-
-ally providing a much better fit,
 
-"Because the RF model captures hierarchical
-(non-geometric) relationships between factors, it cannot
-be understood as a direct analog of an OLS regression
-or PCA because it does not convey the individual direc-
-tional relationships between factors and assets."
-
-We have to attempt to "beta-tize" the random forest. Beta is basically the elasticity of one variable to another. What we can do is to divide the predicted target variable return by each pre-
-dictor return to gain a raw elasticity value for each factor.
-
-\textbf{Sentiment}
-\cite{antoniou_2016} improved on \cite{wurgler_2007}
-
-%%%%%%%%%OUTLINE%%%%%%%%%%%
-Baker and Wurgler construct quantitative sentiment index. They aggregated several proxies (such as the volume of IPOs, first-day IPO returns, the equity share in new issues, market turnover, the closed-end fund discount, etc.) into a single sentiment indicator using principal component analysis. This index captures waves of excessive optimism or pessimism in the market. aker and Wurglers key insight was that sentiment affects certain stocks more than others: “when beginning-of-period proxies for sentiment are low, subsequent returns are relatively high” for stocks that are speculative and hard to arbitrage (small, young, high-volatility, unprofitable, non-dividend-paying, or distressed stocks)Conversely, when sentiment is high, those same categories of stocks earn low future returns . during euphoric periods, speculative stocks become overpriced (and later underperform), whereas after pessimistic periods they are underpriced (and subsequently outperform). This pattern suggests that sentiment-driven mispricing occurs and then corrects, especially for stocks that are difficult for arbitrageurs to short or value objectively.Classic finance theory would predict no role for sentiment (prices = fundamental value), but Baker and Wurgler provide evidence that broad waves of optimism/pessimism can create return predictability across stock types, beyond what risk factors explain.
 
 
 

@@ -1,0 +1,9 @@
+# msc_thesis
+latex/main.aux
+latex/main.bbl
+latex/main.blg
+latex/main.log
+latex/main.synctex.gz
+latex/main.toc
+latex/main.pdf
+py/.env
