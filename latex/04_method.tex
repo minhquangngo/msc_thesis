@@ -9,7 +9,7 @@
 
 This chapter outlines the methodological approach adopted to measure liquidity risk and investors' sentiment, along with their rationale. These factors are integrated into an enhanced asset pricing framework based on the FF5 and C4F. Subsequently, the implementation of the Random Forest (RF) algorithm is detailed. Next, the rule-based model will be extracted from the RF for comparison and application to the Association Rule Learning Sector Rotation Strategy.
 
-\textbf{Liquidity Risk factor}
+\subsection{Liquidity Risk factor}
 %%%%% ACTUAL%%%%%%%%%%%
 The construction of liquidity factors closely align with the methodology outlined by \citeA{gu_2020}. The authors include multiple liquidity related variables, including turnover and turnover volatility (\texttt{turn}, \texttt{SDturn}), log market equity (\texttt{mvel1}), dollar volume (\texttt{dolvol}), Amihud illiquidity (\texttt{ILLQ}), number of zero trading days (\texttt{zerotrade}), and bid-ask spread (\texttt{baspread}). \citeA{amihud_2002} defined their illiquidity measure \texttt{ILLQ} as the "average ratio of the daily absolute return to the(dollar)trading volume on that day. This index captures waves of excessive optimism or pessimism in the market.  The calculation for Amihud illiquidity is as follows:
 
@@ -24,9 +24,9 @@ with $R_{i,d}$ being the return on stock $i$ on day $d$. $VOL_{i,d}$ being tradi
 
 %Add a part that says unlike the literature on this topic, no portfolio sorting is needed.
 
-\textbf{Sentiment}
+\subsection{Sentiment}
 %% OUTLINE: wurgler -> antoniu -> XU enhanced
-\citeA{wurgler_2006} constructed a sentiment index by capturing the principal components within six proxies: closed-end fund discount (\texttt{CEFD}), NYSE share turnover (\texttt{TURN}), the number and average first-day returns of IPOs (\texttt{NIPO, RIPO} respectively), equity share in new issues (\texttt{S}) and dividend premium (\texttt{P}). \footnote{However, by March 2025, the NYSE share turnover proxy has been dropped in the database due to "the explosion of institutional high-frequency trading and the migration of trading to a variety of venues"}%can definitely add more after the proposal here, from the paper
+\citeA{wurgler_2006} constructed a sentiment index (BW index hereafter) by capturing the principal components within six proxies: closed-end fund discount (\texttt{CEFD}), NYSE share turnover (\texttt{TURN}), the number and average first-day returns of IPOs (\texttt{NIPO, RIPO} respectively), equity share in new issues (\texttt{S}) and dividend premium (\texttt{P}). \footnote{However, by March 2016, the NYSE share turnover proxy has been dropped in the database due to "the explosion of institutional high-frequency trading and the migration of trading to a variety of venues" \cite{ung_2023}}%can definitely add more after the proposal here, from the paper
 
 The sentiment is calculated as follows:
 \begin{equation}
@@ -36,7 +36,9 @@ The sentiment is calculated as follows:
     + 0.257\,\text{RIPO}_{t-1} \\ + 0.112\,S_t - 0.283\,P^{D-ND}_{t-1} , 
     \end{split}
 \end{equation}
-where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Since both market sentiment and the business cycle can drive common variation in financial data, the Principal Component Analysis(PCA) will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the "pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
+
+where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Principal Component Analysis(PCA) reveals the hidden common factor from this group of factors by transforming the data into principal components (PCs) that would capture as much variance in the data as possible. PC1 should capture the maximum variation from the sentiment proxies, thereby serving as an aggregate measure of investor sentiment. Since both market sentiment and the business cycle can drive common variation in financial data, the PCA will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the "pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
+
 \begin{equation} %BEQ
     \label{eq:sentiment_orth}
     \begin{split}
@@ -46,10 +48,7 @@ where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference b
     \end{split}
 \end{equation}
 
-
-
-%%%%%%%%%OUTLINE%%%%%%%%%%%
-This index captures waves of excessive optimism or pessimism in the market. aker and Wurglers key insight was that sentiment affects certain stocks more than others: “when beginning-of-period proxies for sentiment are low, subsequent returns are relatively high” for stocks that are speculative and hard to arbitrage (small, young, high-volatility, unprofitable, non-dividend-paying, or distressed stocks)Conversely, when sentiment is high, those same categories of stocks earn low future returns . during euphoric periods, speculative stocks become overpriced (and later underperform), whereas after pessimistic periods they are underpriced (and subsequently outperform). This pattern suggests that sentiment-driven mispricing occurs and then corrects, especially for stocks that are difficult for arbitrageurs to short or value objectively.Classic finance theory would predict no role for sentiment (prices = fundamental value), but Baker and Wurgler provide evidence that broad waves of optimism/pessimism can create return predictability across stock types, beyond what risk factors explain.
+However, \citeA{ung_2023} pointed out several problems with the BW index. First, though it has robust predictive perfomance on a cross- sectional level, it is weak for aggregate market retuerns in time series regressions - even \citeA{wurgler_2007} pointed this out themselves in the paper. Second, the BW index assumes that the contributions of each sentiment proxy to the aggregate index are fixed over time. Finally, the index has `look ahead bias': PCA uses the whole sample, and forecasts at time $t$ should not rely on data that would only become available after $t$. Therefore, \citeA{ung_2023} constructed an enhanced index to address these problems. The time-varying BW sentiment index ($S^{TV}$ hereafter) is constructed on a three years rolling window basis to use the most up-to-date information at each $t$, and is built upon \cref{eq:sentiment_orth}. This rolling window allows the model to adjust to structural breaks in the market without distorting the sentiment index. Furthermore, adjustments to the sign of the RICO proxy display a negative initial loading. This paper will use \citeA{ung_2023} $S^{TV}$ index to measure investors' sentiment.
 
 
 \subsection{Factor models}
@@ -144,7 +143,7 @@ Where:
 This whole thing captures the return premium associated with illiquidity. Stocks that are harder to trade often earns higher returns
 
 
-In addition to the 10 illiquidity portfolios, lets compute illiquidity portfolios based on size. I first sort the stocks on their firm’s market capitalization in two groups, and afterward sort stocks on their illiquidity measure in their size group. This creates five illiquidity portfolios for small stocks and five illiquidity portfolios for big stocks.
+In addition to the 10 illiquidity portfolios, lets compute illiquidity portfolios based on size. I first sort the stocks on their firm's market capitalization in two groups, and afterward sort stocks on their illiquidity measure in their size group. This creates five illiquidity portfolios for small stocks and five illiquidity portfolios for big stocks.
 
 
 
