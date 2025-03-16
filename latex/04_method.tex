@@ -53,20 +53,32 @@ However, \citeA{ung_2023} pointed out several problems with the BW index. First,
 
 \subsection{Factor models}
 %%%%%%%%OUTLINE%%%%%%%%%%
-- Fama French 3
 - Fama Carhart 4
 - Fama French 5
 
-- Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
-- Since there are debate for which factor model is best, we want to test FF3, C4F and FF5
+%%%%%%ACTUAL%%%%%%
+This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF5 of \citeA{ff5_2015}. The following are their respective formulas:
 
-Time series regression on six asset pricing models.
+\begin{equation}
+    \label{eq:c4f}
+    \begin{split}
+        R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
+        &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
+        &\quad + \beta_{MOM} \cdot MOM_t + \epsilon_{i,t}
+    \end{split}
+\end{equation}
 
-Seven factor model:
+\begin{equation}
+    \label{eq:ff5}
+    \begin{split}
+        R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
+        &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
+        &\quad + \beta_{RMW} \cdot RMW_t + \beta_{CMA} \cdot CMA_t + \epsilon_{i,t}
+    \end{split}
+\end{equation}
 
-\[
-R_{it} - R_{Ft} = \alpha_i + \beta_1 \text{MktRF}_t + \beta_2 \text{SMB}_t + \beta_3 \text{HML}_t + \beta_4 \text{RMW}_t + \beta_5 \text{CMA}_t + \beta_6 \text{IML}_t + \beta_7 \text{LR}_t, \quad (6)
-\]
+where \cref{eq:c4f} is the C4F and \cref{eq:ff5} is the FF5. $R_{i,t}$ is the return on security and $R_{f,t}$ is the risk-free return; which makes $R_{i,t} - R_{f,t}$ is the excess return on a security. $SMB$ (small minus big) is the size factor, capturing the excess returns of small-cap stocks over large-cap stocks, reflecting how higher volatility and growth potential could cause smaller firms to yield higher average returns. $HML$ (high minus low), or the value factor, accounts for the premium earned by stocks with high book-to-market ratios, often associated with underperforming firms that carry higher risk and, consequently, higher expected returns \cite{ff3_1993}. $MOM$ is the one year momentum factor \footnote{In literature, researchers can refer to this factor as PR1YR, UMD (ups minus downs), or WML (winners minus losers.)} \cite{cahart_1997}. In response to \citeA{titman_2004} and \citeA{novymarx_2013} criticisms, two additional factors were added in to the FF3 model \cite{ff5_2015}. $RMW$ (robust minus weak) is the profitability factor, which derives from the empirical observation that firms with higher operating profitability tend to earn higher average returns. $CMA$ (conservative minus aggressive) is the investment factor, which captures the tendency of firms to aggressively invest in new assets, expecting higher returns in the long run. Investors may overpay for such firms due to optimism, which results in lower subsequent returns \cite{titman_2004}.
+
 
 I am going to run also the sentiment index on this too, so 8 factors
 
@@ -100,91 +112,10 @@ tional relationships between factors and assets."
 We have to attempt to "beta-tize" the random forest. Beta is basically the elasticity of one variable to another. What we can do is to divide the predicted target variable return by each pre-
 dictor return to gain a raw elasticity value for each factor.
 
-\subsection{Liquidity proxy}
+\subsection{Random Forest}
+- Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
 
-\textbf{Amihoud illiquidity ratio and Liquidity factor portfolio}
-$$\text{Illiquidity} = \text{Average} \left( \frac{|R_{iyd}|}{\text{VOLUME}_{iyd}} \right)
-$$
-
-%%%%%%%%%%ACTUAL%%%%%%%%
-One widely used metric is the Amihud illiquidity measure, which measures the price impact of trading. It could be intuitively understood as how much prices move per unit of volume - higher values mean the stock is harder to trade without moving the price. Amihud also found a significant illiquidity premium, which are stocks with higher Amihud's illiquidity values earn higher average returns, presumably compensating investors for bearing liquidity risk. In his cross-sectional tests, expected stock returns increased with expected illiquidity \cite{amihud_2002}
-
-
-1.
-- Use this for every single stock listed on the SP500 on a day as a proxy for stock illiquidity. Multiply this ratio by 10 to power 6. 
-- Calc the moving average monthly (21 trading days). The first trading day of the month will thus capture the average illiquidity ratio of the previous month.
-
-2.
-- Fama and French approach: Sort the stock based on market cap into 2 groups: small and big (This is basically the SMB variable)
-- Then the stock is INDEPENDENTLY sorted based on their illiquid ratio into 5 groups.Each stock is value weighted, meaning that stocks with a higher marketr capitalization gets a larger weight in the portfolio
-- Now we have $2*5=10$ value weight portfolio based on size and illiquidity
-
-
-3.
-Now we need to construct long-short liquidity factor portfolio:
-
-- Long illiquid portfolios
-- Sell most liquid portfolios
-
-A liquidity long-short portfolio is a trading strategy that profits from the difference in returns between illiquid and liquid stocks
-
-This can be verified with the liquidity factor return, or just the excess return for holding illiquid stocks
-
-$$
-\text{Liquidity Factor Return} = \frac{1}{2} \left( R_{S5} + R_{B5} \right) - \frac{1}{2} \left( R_{S1} + R_{B1} \right)
-$$
-Where:
-
-- \( R_{S5} \) and \( R_{B5} \) are the returns of the **most illiquid** small and big portfolios.
-- \( R_{S1} \) and \( R_{B1} \) are the returns of the **most liquid** small and big portfolios.
-
-
-
-This whole thing captures the return premium associated with illiquidity. Stocks that are harder to trade often earns higher returns
-
-
-In addition to the 10 illiquidity portfolios, lets compute illiquidity portfolios based on size. I first sort the stocks on their firm's market capitalization in two groups, and afterward sort stocks on their illiquidity measure in their size group. This creates five illiquidity portfolios for small stocks and five illiquidity portfolios for big stocks.
-
-
-
-\textbf{Fama French Five Factors models}
-
-The following are its factors:
-
-CAPM
-- Market risk Factor from NYSE, NASDAQ and AMEX (Data taken from CRSP)
-
-Before constructing the factors, Fama and French make 
-1. six value weighted on size (small or big) and book to market ratio (value, neutral, growth)
-2. six value weighted on size and operating profitability (robust, neutral, weak )
-3.six value weighted on size and ivestment activity
-
-Fama french 3
-- Size factor (SMB)
-    - The SMB factor is computed by subtracting the average return of the nine big stock portfolios
-    (Big Value, Big Neutral, Big Growth, Big Robust, Big Neutral, Big Weak, Big Conservative,
-    Big Neutral, and Big Aggressive) from the average return of the nine small stock portfolios
-- Value factor (HML)
-    -  spread between the average of the two value portfolios and the average of the two growth portfolios
-
-Fama French 5
-- Robust minus weak (RMW)
-    - calculated by subtracting the average return of the two
-    weak operating profitability portfolios from the average return of the two robust operating
-    profitability portfolios.
-- Conservative minus aggressive (CMA)
-    - the difference between the average return of
-    the two conservative investment portfolios and the average return of the two aggressive
-    investment portfolios 
-
-- Excess returns:
-    - Return -risk free rate (RF from the kenneth data)
-
-\subsection{Sentiment}
-Enhanced investor sentiment dataset (Sze Nie Ung)
-
-
-
+Time series regression on six asset pricing models.
 
 
 
