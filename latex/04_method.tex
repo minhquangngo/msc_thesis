@@ -37,7 +37,7 @@ The sentiment is calculated as follows:
     \end{split}
 \end{equation}
 
-where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Principal Component Analysis(PCA) reveals the hidden common factor from this group of factors by transforming the data into principal components (PCs) that would capture as much variance in the data as possible. PC1 should capture the maximum variation from the sentiment proxies, thereby serving as an aggregate measure of investor sentiment. Since both market sentiment and the business cycle can drive common variation in financial data, the PCA will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the "pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
+where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Principal Component Analysis(PCA) reveals the hidden common factor from this group of factors by transforming the data into principal components (PCs) that would capture as much variance in the data as possible. PC1 should capture the maximum variation from the sentiment proxies, thereby serving as an aggregate measure of investor sentiment. Since both market sentiment and the business cycle can drive common variation in financial data, the PCA will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the 'pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
 
 \begin{equation} %BEQ
     \label{eq:sentiment_orth}
@@ -52,10 +52,6 @@ However, \citeA{ung_2023} pointed out several problems with the BW index. First,
 
 
 \subsection{Factor models}
-%%%%%%%%OUTLINE%%%%%%%%%%
-- Fama Carhart 4
-- Fama French 5
-
 %%%%%%ACTUAL%%%%%%
 This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF5 of \citeA{ff5_2015}. The following are their respective formulas:
 
@@ -79,58 +75,80 @@ This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF
 
 where \cref{eq:c4f} is the C4F and \cref{eq:ff5} is the FF5. $R_{i,t}$ is the return on security and $R_{f,t}$ is the risk-free return; which makes $R_{i,t} - R_{f,t}$ is the excess return on a security. $SMB$ (small minus big) is the size factor, capturing the excess returns of small-cap stocks over large-cap stocks, reflecting how higher volatility and growth potential could cause smaller firms to yield higher average returns. $HML$ (high minus low), or the value factor, accounts for the premium earned by stocks with high book-to-market ratios, often associated with underperforming firms that carry higher risk and, consequently, higher expected returns \cite{ff3_1993}. $MOM$ is the one year momentum factor \footnote{In literature, researchers can refer to this factor as PR1YR, UMD (ups minus downs), or WML (winners minus losers.)} \cite{cahart_1997}. In response to \citeA{titman_2004} and \citeA{novymarx_2013} criticisms, two additional factors were added in to the FF3 model \cite{ff5_2015}. $RMW$ (robust minus weak) is the profitability factor, which derives from the empirical observation that firms with higher operating profitability tend to earn higher average returns. $CMA$ (conservative minus aggressive) is the investment factor, which captures the tendency of firms to aggressively invest in new assets, expecting higher returns in the long run. Investors may overpay for such firms due to optimism, which results in lower subsequent returns \cite{titman_2004}.
 
+The empirical analysis will begin by establishing a baseline for each asset pricing variant using time series regressions, employing Ordinary Least Squares (OLS) as outlined by \citeA{simonian_2019}. \cref{eq:c4f} and \cref{eq:ff5}, the two baseline variants will be referred to as C4F-B and FF5-B hereafter. Subsequently, liquidity risk and sentiment indicators will be integrated into these variants, thereby forming an enhanced baseline. The following are the enhanced baseline models:
 
-I am going to run also the sentiment index on this too, so 8 factors
+\begin{equation}
+    \label{eq:c4f_expanded}
+    \begin{split}
+    R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
+    &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
+    &\quad + \beta_{MOM} \cdot MOM_t \\
+    &\quad + \beta_{turn} \cdot TURN_{i,t} + \beta_{SDturn} \cdot SDTURN_{i,t} \\
+    &\quad + \beta_{mvel1} \cdot MVEL1_{i,t} + \beta_{DOLVOL} \cdot DOLVOL{i,t} \\
+    &\quad + \beta_{ILLQ} \cdot ILLQ_{i,t} + \beta{zerotrade} \cdot ZEROTRADE_{i,t} \\
+    &\quad + \beta_{baspread} \cdot BASPREAD_{i,t} + \epsilon{i,t}
+    \end{split}
+\end{equation}
 
-" Linear
-models are preferred by practitioners because they gen-
-erally present readily understandable and interpretable
-analysis. In contrast, machine learning approaches,
-although useful in uncovering the nonlinear behavior
-of and interaction relationships among variables, are
-often articulated in a way that makes their output unin-
-tuitive, and hence unattractive, to many investment pro-
-fessionals. "
+\begin{equation}
+    \label{eq:ff5_expanded}
+    \begin{split}
+    R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
+    &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
+    &\quad + \beta_{RMW} \cdot RMW_t + \beta_{CMA} \cdot CMA_t\\
+    &\quad + \beta_{turn} \cdot TURN_{i,t} + \beta_{SDturn} \cdot SDTURN_{i,t} \\
+    &\quad + \beta_{mvel1} \cdot MVEL1_{i,t} + \beta_{DOLVOL} \cdot DOLVOL{i,t} \\
+    &\quad + \beta_{ILLQ} \cdot ILLQ_{i,t} + \beta{zerotrade} \cdot ZEROTRADE_{i,t} \\
+    &\quad + \beta_{baspread} \cdot BASPREAD_{i,t} + \epsilon{i,t}
+    \end{split}
+\end{equation}
 
-Also, you don't even need to do the portfolio sortings like in thesis
+where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:ff5_expanded} the enhanced FF5 enhanced baseline (FF5-BE). %explain why no portfolio sortings here? 
 
-Instead of just looking at the average effect of factors, analyzing different percentiles helps us understand how factors behave across low, median, and high return environments.
-
-We are going to do this with the portfolios constructed before, so no need for percentiles
-
-
-Random Forest Importance compares how important each feature is comparing to others in the same set, it is very useful to offer portfolio guidance such as in  return based style analyis (RBSA). he RF model, however,
-possesses an advantage over a standard RBSA in gener-
-ally providing a much better fit,
-
-"Because the RF model captures hierarchical
-(non-geometric) relationships between factors, it cannot
-be understood as a direct analog of an OLS regression
-or PCA because it does not convey the individual direc-
-tional relationships between factors and assets."
-
-We have to attempt to "beta-tize" the random forest. Beta is basically the elasticity of one variable to another. What we can do is to divide the predicted target variable return by each pre-
-dictor return to gain a raw elasticity value for each factor.
 
 \subsection{Random Forest}
-- Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
 
-Time series regression on six asset pricing models.
-
-
+%%%%%%%%OUTLINE%%%%%%%%%%
+%Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
 
 
+%%%%%%%%%%ACTUAL%%%%%%%%%%%%%%%
+The C4F-B, C4F-BE, FF5-B and FF5-BE, since based on OLS, are linear in nature. These models are favored by finance practitioners because they produce interpretable results. The main results that the practitioners look for is the sensitivities of the factor within the models, or the beta coefficients within the OLS. However, the method is constraint to several assumptions. The features and the target variables of this method are assummed to be linear and the features themselves are not multicollinear. Furthermore, homoskedactiy is assumed, where the residuals have constant variance at every level of the features. The residuals should also be independent.
 
-\textbf{Sector rotation strategy}
+%maybe motivate more why tree based methods.
+ML models offer a more robust framework, especially Random Forest (RF). Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively C4F-RF, C4F-RFE, FF5-RF, FF5-RFE. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
 
-Apply RF variant to build a sector rotation strategy using ARL (Association rule learning). We can use this to deduct inference rule from epirical data
+A downside of RF (and most other ML models) is their "black-box" nature, where their inner workings are unintuitive, which makes it unattractive to many investment professionals. RF captures non-geometric relationships between factors, therefore it is not analogous to the interpretation of common methods in the financial field (OLS, PCA). However, there are still multiple ways that can give investors insights into the RF black-box. The most common method utilized is the Relative Feature Importance (RFI hereafter), which weighs all of the factors within the RF according to their predictive robustness. \citeA{simonian_2019} attemted to generate what is similar to "betas" in traditional asset pricing models from RFI. An accepted understanding of "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed:
 
-- RL is a rolling-window learning approach, meaning it continuously updates its understanding of market conditions.
-Instead of using a fixed model trained once on historical data, it adapts dynamically by re-estimating relationships every 18 months.
-This helps capture changing market dynamics—for example, a factor that worked last year may not work the same way today
+\begin{equation}
+    \label{eq:psuedo}
+    \frac{\text{Target Variable value}}{\text{{Feature value}}}* \text{RFI}
+\end{equation}
 
-Two signals are used:
-- Random forest predicted excess within a portfolio
-- Ratio of shorter-term to longer-term realized volatility (24-month vs. 36-month)
+By utilizing this method, the interpretation of the RF models could be communicated with investment professionals who are more familiar with OLS betas or PCA loadings.
 
-iterative add factor de xem la feature importance co doi ko 
+\subsection{Rule-based models}
+There are statistical methods that only sacrifice a small amount of accuracy, but its inner workings are translated into "if-then" statements that could be communicated to investment managers. Rule-based models turns the “black box” RF into a transparent collection of "if-then" statements \cite{benard_2021}. Each rule summarizes a path of decisions about factor values. In this particular context, a rule could be “If $\texttt{ILLQ}$ exceeds a certain threshold and \texttt{HML} remains below a specific level, then $\texttt{Expected Excess Return} = x$.”. Such structures mirror how a practitioner might articulate investment strategies.
+
+This intepretable rule based model is outlined in \citeA{benard_2021}, which introduces \textbf{S}table and \textbf{I}nterpretable \textbf{RU}le \textbf{S}et (SIRUS) for regression, based on RF. After the Random Forest is built, every possible condition-based rule that can come out of the trees is examined. Because each tree splits the data in different ways, some rules will appear in multiple trees, whereas others might appear only once. Rules that show up more frequently across the entire forest are considered more reliable because their conditions hold under various random draws and data subsets. Next, we choose a cutoff point to decide when a rule appears “often enough” to be considered important. If a rule meets or exceeds this cutoff in how frequently it shows up in the RF, we keep it; if not, we discard it. After keeping only the important rules, we bring them together into a single model. Essentially, each rule can give a “low” or “high” prediction, depending on whether its condition applies or not. We then assign a weight to each rule, so that the final prediction is just the sum of these weighted rules plus an overall baseline value. Because we only keep a handful of the most frequent rules, the end result is both more concise and easier to understand, resembling a clear list of if-then statements with associated weights. The best performing RF model out of C4F-RF, C4F-RFE, FF5-RF and FF5-RFE in predicting returns will be eligible for SIRUS rule extraction. This model will be referred to as RF-SIRUS hereafter.
+ 
+
+\subsection{Sector rotation strategy}
+The best RF variant and its SIRUS extraction will be adapted to a practical trading application, providing investors and practitioners in the field a tool that provide insights and guide them on investment decisions. After the RF and SIRUS forecasts, the excess returns of each sector will be aggregated by sector for the month ahead. With a sector rotation strategy, the sector that is held in the portfolio is the one that signals outperformance on the market. The sector rotation strategy implemented in this paper closely follows \citeA{simonian_2019} methods, using Association Rule Learning (ARL). The signals utilized by the authors are the one month ahead predicted returns and ratio of shorter-term to longer-term realized volatility (24-month vs. 36-month), which is calculated as follows:
+
+\begin{equation}
+    \label{eq:vol_ratio}
+    VR_t = \text{Volatility ratio at time } t = \frac{\text{Volatility}(t-24, t)}{\text{Volatility}(t-36, t)}
+\end{equation}
+    
+
+Generally, ARL searches through large observations to find association rules. It is a rolling-window learning approach, meaning it updates on new data that comes in. Instead of using a fixed model trained once on historical data, it re-estimates the relationships every 18 months, which is called a "look-back" window.  The idea is to discover whether certain thresholds of “predicted return” and “volatility ratio” tend to coincide with above-average returns in the following month. The sector will be owned in the portfolio if the following conditions are sastisfied \footnote{A more formal description will be provided in the Methods section of the thesis}:
+
+\begin{equation}
+    \label{eq:arl}
+    (\text{Volatility ratio} < 1) \land (\text{RF-predicted return} > \alpha) \implies (\text{Sector return} > \beta)
+\end{equation}
+    
+
+
+%iterative add factor de xem la feature importance co doi ko 

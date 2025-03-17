@@ -20,8 +20,8 @@
   primaryclass = {cs},
   publisher = {arXiv},
   doi = {10.48550/arXiv.2104.10751},
-  urldate = {2025-02-18},
-  abstract = {Rules embody a set of if-then statements which include one or more conditions to classify a subset of samples in a dataset. In various applications such classification rules are considered to be interpretable by the decision makers. We introduce two new algorithms for interpretability and learning. Both algorithms take advantage of linear programming, and hence, they are scalable to large data sets. The first algorithm extracts rules for interpretation of trained models that are based on tree/rule ensembles. The second algorithm generates a set of classification rules through a column generation approach. The proposed algorithms return a set of rules along with their optimal weights indicating the importance of each rule for classification. Moreover, our algorithms allow assigning cost coefficients, which could relate to different attributes of the rules, such as; rule lengths, estimator weights, number of false negatives, and so on. Thus, the decision makers can adjust these coefficients to divert the training process and obtain a set of rules that are more appealing for their needs. We have tested the performances of both algorithms on a collection of datasets and presented a case study to elaborate on optimal rule weights. Our results show that a good compromise between interpretability and accuracy can be obtained by the proposed algorithms.},
+  urldate = {2025-03-17},
+  abstract = {We introduce a new rule-based optimization method for classification with constraints. The proposed method leverages column generation for linear programming, and hence, is scalable to large datasets. The resulting pricing subproblem is shown to be NP-Hard. We recourse to a decision tree-based heuristic and solve a proxy pricing subproblem for acceleration. The method returns a set of rules along with their optimal weights indicating the importance of each rule for learning. We address interpretability and fairness by assigning cost coefficients to the rules and introducing additional constraints. In particular, we focus on local interpretability and generalize a separation criterion in fairness to multiple sensitive attributes and classes. We test the performance of the proposed methodology on a collection of datasets and present a case study to elaborate on its different aspects. The proposed rule-based learning method exhibits a good compromise between local interpretability and fairness on the one side, and accuracy on the other side.},
   archiveprefix = {arXiv},
   langid = {english},
   keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
@@ -80,6 +80,13 @@
   issn = {03784266},
   doi = {10.1016/j.jbankfin.2018.09.008},
   urldate = {2025-03-06},
+  langid = {english}
+}
+
+@article{benard_2021,
+  title = {Interpretable {{Random Forests}} via {{Rule Extraction}}},
+  author = {B{\'e}nard, Cl{\'e}ment and Biau, G{\'e}rard and Veiga, S{\'e}bastien Da and Scornet, Erwan},
+  abstract = {We introduce SIRUS (Stable and Interpretable RUle Set) for regression, a stable rule learning algorithm, which takes the form of a short and simple list of rules. State-of-the-art learning algorithms are often referred to as ``black boxes'' because of the high number of operations involved in their prediction process. Despite their powerful predictivity, this lack of interpretability may be highly restrictive for applications with critical decisions at stake. On the other hand, algorithms with a simple structure---typically decision trees, rule algorithms, or sparse linear models---are well known for their instability. This undesirable feature makes the conclusions of the data analysis unreliable and turns out to be a strong operational limitation. This motivates the design of SIRUS, based on random forests, which combines a simple structure, a remarkable stable behavior when data is perturbed, and an accuracy comparable to its competitors. We demonstrate the efficiency of the method both empirically (through experiments) and theoretically (with the proof of its asymptotic stability). A R/C++ software implementation sirus is available from CRAN.},
   langid = {english}
 }
 
