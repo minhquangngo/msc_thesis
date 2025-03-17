@@ -4,7 +4,7 @@
 
 % FILL OUT THE DETAILS BELOW:
 \author{Minh Quang Ngo}
-\title{Thesis proposal \\ Enhancing Asset Pricing Models with Liquidity Factors and Sentiment: A Rule-Based Approach}
+\title{T Enhancing Asset Pricing Models with Liquidity Factors and Sentiment: A Rule-Based Approach}
 % \date{An optional custom date, the default is today}
 \newcommand{\studentnumber}{597115}
 \newcommand{\program}{Data Science and Marketing Analytics}
@@ -27,6 +27,9 @@
 
 %cleverref
 \usepackage{cleveref} 
+
+%pdflandscae
+\usepackage{pdflscape}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -65,14 +68,6 @@
 \makeatother
 \end{titlepage}
 
-\begin{abstract}
-	\textbf{NOT APPLICABLE FOR PROPOSAL}
-\end{abstract}
-\newpage
-
-\tableofcontents
-\newpage
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%CONTENT STARTS HERE%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -85,6 +80,65 @@
 \section{Methodology}
     \input{04_method}
 \section{Planning}
+
+
+
+\begin{landscape} % Begin landscape mode
+	\begin{tikzpicture}[x=1cm, y=1cm, every node/.style={font=\small}]
+	
+		% Draw the horizontal timeline line
+		\draw[thick] (0,0) -- (20,0);
+		
+		% Define styles for nodes above and below the timeline with fixed text width
+		\tikzset{
+			timeline above/.style={above=5mm, align=center, text width=4cm},
+			timeline below/.style={below=5mm, align=center, text width=4cm}
+		};
+		
+		% Event 1 (above): 1/4: Proposal submitted
+		\draw[fill] (0,0) circle (2pt);
+		\node[timeline above] at (0,0) {1/4: Proposal submitted};
+		
+		% Event 2 (below): 1/4-7/4 with midpoint 4/4: Proposal comments implemented + Data collection
+		\draw[fill] (2,0) circle (2pt);
+		\node[timeline below] at (2,0) {4/4: Proposal comments implemented + Data collection};
+		
+		% Event 3 (above): 8/4-19/4 with midpoint 13/4: Data cleaning and its documentation
+		\draw[fill] (5,0) circle (2pt);
+		\node[timeline above] at (5,0) {13/4: Data cleaning and its documentation};
+		
+		% Event 4 (below): 21/4-30/4 with midpoint approx.\,25.5/4: Results for Baseline models and its documentation
+		\draw[fill] (8,0) circle (2pt);
+		\node[timeline below] at (8,0) {25.5/4: Results for Baseline models and its documentation};
+		
+		% Event 5 (above): 1/5-9/5 with midpoint 5/5: Results for the Random forest and its documentation
+		\draw[fill] (10,0) circle (2pt);
+		\node[timeline above] at (10,0) {5/5: Results for the Random forest and its documentation};
+		
+		% Event 6 (below): 12/5-19/5 with midpoint 15.5/5: SIRUS extraction and its documentation
+		\draw[fill] (12,0) circle (2pt);
+		\node[timeline below] at (12,0) {15.5/5: SIRUS extraction and its documentation};
+		
+		% Event 7 (above): 20/5-26/5 with midpoint 23/5: Sector rotation strategy and its documentation
+		\draw[fill] (14,0) circle (2pt);
+		\node[timeline above] at (14,0) {23/5: Sector rotation strategy and its documentation};
+		
+		% Event 8 (below): 2/6: First draft
+		\draw[fill] (16,0) circle (2pt);
+		\node[timeline below] at (16,0) {2/6: First draft};
+		
+		% Event 9 (above): 16/6: Second draft
+		\draw[fill] (18,0) circle (2pt);
+		\node[timeline above] at (18,0) {16/6: Second draft};
+		
+		% Event 10 (below): 4/7: Final draft
+		\draw[fill] (20,0) circle (2pt);
+		\node[timeline below] at (20,0) {4/7: Final draft};
+	\end{tikzpicture}
+	
+	In addition to the timeline provided, I intend to frequently send my current work to Professor Akyuz for feedback. Meaning, for each of the steps listed in the timeline, the latest update to the first draft of the thesis will be sent to Professor Akyuz. While waiting for his feedback on a particular section, I will continue to work on the next section.
+\end{landscape}
+
 
 
 
