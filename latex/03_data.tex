@@ -2,7 +2,10 @@
 %- CRSP %dsf crsp_a_indexes.dsp500list_v2})
     %- Amihud ill :permno, ret, vol 
 
-The period of this research will be from 2002 until 2023, due to data availability and quality. The main datasets in this thesis will be gathered from Wharton Research Data Services (WRDS)\footnote{https://wrds-www.wharton.upenn.edu} via Python API queries with the \texttt{wrds}, which contains all of the data points relating to liquidity risk,FF5/C4F factors and excess returns. The \texttt{permno}, or stocks the stocks' permanent identifier is specifically queried from the \texttt{crsp\_a\_indexes.dsp500list\_v2}
+The period of this research will be from 1990 until 2018, due to data availability and quality. Data for the most recent years are not included due to the COVID-19 pandemic, in which liquidity, sentiment and the economy of the entire world was affected. The main datasets in this thesis will be gathered from Wharton Research Data Services (WRDS)\footnote{https://wrds-www.wharton.upenn.edu} via Python API queries with the \texttt{wrds}, which contains all of the data points relating to liquidity risk,FF5/C4F factors and excess returns. The \texttt{permno}, or stocks the stocks' permanent identifier is specifically queried from the \texttt{crsp\_a\_indexes.dsp500list\_v2}
 file. All of the other data points relating to liquidity risk, Fama-French factors and excess returns are either queried or calculated using the data points from the \texttt{crps.dsf} database. The sector classification is specifically derived from the \texttt{comp.company} file. With the same \texttt{gvkey, permno} keys, the datasets queried could be joined.
 
 The enhanced sentiment index from the \citeA{ung_2023} is available directly from the paper's journal homepage, under "Supplemental Material" \footnote{https://doi.org/10.1080/1351847X.2023.2247440.}.
+
+
+%more about the sentiment reddit thing on Paulus Pietiläinen thesis

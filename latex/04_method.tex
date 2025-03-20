@@ -1,9 +1,9 @@
 
-This chapter outlines the methodological approach adopted to measure liquidity risk and investors' sentiment, along with their rationale. These factors are integrated into an enhanced asset pricing framework based on the FF5 and C4F. Subsequently, the implementation of the Random Forest (RF) algorithm is detailed. Next, the rule-based model will be extracted from the RF for comparison and application to the Association Rule Learning Sector Rotation Strategy.
+This chapter outlines the methodological approach adopted to measure liquidity risk and investors' sentiment, along with their rationale. These factors are integrated into an enhanced asset pricing framework based on the FF5 and C4F. Subsequently, the implementation of the Random Forest (RF) algorithm is detailed. Next, the rule-based model will extract rules from the RF for comparison. The forecasts for both the rule-based models and the RF will be used for the Sector Rotation Strategy.
 
 \subsection{Liquidity Risk factor}
 %%%%% ACTUAL%%%%%%%%%%%
-The construction of liquidity factors closely align with the methodology outlined by \citeA{gu_2020}. The authors include multiple liquidity related variables, including turnover and turnover volatility (\texttt{turn}, \texttt{SDturn}), log market equity (\texttt{mvel1}), dollar volume (\texttt{dolvol}), Amihud illiquidity (\texttt{ILLQ}), number of zero trading days (\texttt{zerotrade}), and bid-ask spread (\texttt{baspread}). \citeA{amihud_2002} defined their illiquidity measure \texttt{ILLQ} as the "average ratio of the daily absolute return to the(dollar)trading volume on that day. This index captures waves of excessive optimism or pessimism in the market.  The calculation for Amihud illiquidity is as follows:
+The construction of liquidity factors closely align with the methodology outlined by \citeA{gu_2020}. The authors include multiple liquidity related variables, including turnover and turnover volatility (\texttt{turn}, \texttt{SDturn}), log market equity (\texttt{mvel1}), dollar volume (\texttt{dolvol}), Amihud illiquidity (\texttt{ILLQ}), number of zero trading days (\texttt{zerotrade}), and bid-ask spread (\texttt{baspread}). All of these liquidity proxies will be utilized in the asset pricing models. The Amihud illiquidity measure is the only measure that needs calculations, the remaining measures is directly available in a database.\citeA{amihud_2002} defined their illiquidity measure \texttt{ILLQ} as the "average ratio of the daily absolute return to the(dollar)trading volume on that day. This index captures waves of excessive optimism or pessimism in the market.  The calculation for Amihud illiquidity is as follows:
 
 \begin{equation}
     \label{eq:amihud}
@@ -29,7 +29,7 @@ The sentiment is calculated as follows:
     \end{split}
 \end{equation}
 
-where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Principal Component Analysis(PCA) reveals the hidden common factor from this group of factors by transforming the data into principal components (PCs) that would capture as much variance in the data as possible. PC1 should capture the maximum variation from the sentiment proxies, thereby serving as an aggregate measure of investor sentiment. Since both market sentiment and the business cycle can drive common variation in financial data, the PCA will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the 'pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
+where each proxy has been standardized. $\text{D}-\text{ND}$ is the difference between dividend payers and non-dividend payers. Principal Component Analysis (PCA) reveals the hidden common factor from this group of factors by transforming the data into principal components (PCs) that would capture as much variance in the data as possible. PC1 should capture the maximum variation from the sentiment proxies, thereby serving as an aggregate measure of investor sentiment. Since both market sentiment and the business cycle can drive common variation in financial data, the PCA will treat both as sources of variance without distinguishing whether that variance comes from changes in investor sentiment or broader macroeconomic factors. A second orthogonalized index is formed by regressing each of the proxy with independent variables that explains the business cycle. The residuals of this regression will be the 'pure" sentiment, which is the variation that the macroeconomic factors fail to explain. The following is the orthogonalized index, with $\perp$ labelling the removal of business cycle. 
 
 \begin{equation} %BEQ
     \label{eq:sentiment_orth}
@@ -47,8 +47,10 @@ However, \citeA{ung_2023} pointed out several problems with the BW index. First,
 %%%%%%ACTUAL%%%%%%
 This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF5 of \citeA{ff5_2015}. The following are their respective formulas:
 
+
 \begin{equation}
     \label{eq:c4f}
+    \text{C4F:} 
     \begin{split}
         R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
         &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
@@ -56,8 +58,10 @@ This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF
     \end{split}
 \end{equation}
 
+
 \begin{equation}
     \label{eq:ff5}
+    \text{FF5:} 
     \begin{split}
         R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
         &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
@@ -65,37 +69,12 @@ This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF
     \end{split}
 \end{equation}
 
-where \cref{eq:c4f} is the C4F and \cref{eq:ff5} is the FF5. $R_{i,t}$ is the return on security and $R_{f,t}$ is the risk-free return; which makes $R_{i,t} - R_{f,t}$ is the excess return on a security. $SMB$ (small minus big) is the size factor, capturing the excess returns of small-cap stocks over large-cap stocks, reflecting how higher volatility and growth potential could cause smaller firms to yield higher average returns. $HML$ (high minus low), or the value factor, accounts for the premium earned by stocks with high book-to-market ratios, often associated with underperforming firms that carry higher risk and, consequently, higher expected returns \cite{ff3_1993}. $MOM$ is the one year momentum factor \footnote{In literature, researchers can refer to this factor as PR1YR, UMD (ups minus downs), or WML (winners minus losers.)} \cite{cahart_1997}. In response to \citeA{titman_2004} and \citeA{novymarx_2013} criticisms, two additional factors were added in to the FF3 model \cite{ff5_2015}. $RMW$ (robust minus weak) is the profitability factor, which derives from the empirical observation that firms with higher operating profitability tend to earn higher average returns. $CMA$ (conservative minus aggressive) is the investment factor, which captures the tendency of firms to aggressively invest in new assets, expecting higher returns in the long run. Investors may overpay for such firms due to optimism, which results in lower subsequent returns \cite{titman_2004}.
 
-The empirical analysis will begin by establishing a baseline for each asset pricing variant using time series regressions, employing Ordinary Least Squares (OLS) as outlined by \citeA{simonian_2019}. \cref{eq:c4f} and \cref{eq:ff5}, the two baseline variants will be referred to as C4F-B and FF5-B hereafter. Subsequently, liquidity risk and sentiment indicators will be integrated into these variants, thereby forming an enhanced baseline. The following are the enhanced baseline models:
 
-\begin{equation}
-    \label{eq:c4f_expanded}
-    \begin{split}
-    R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
-    &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
-    &\quad + \beta_{MOM} \cdot MOM_t \\
-    &\quad + \beta_{turn} \cdot TURN_{i,t} + \beta_{SDturn} \cdot SDTURN_{i,t} \\
-    &\quad + \beta_{mvel1} \cdot MVEL1_{i,t} + \beta_{DOLVOL} \cdot DOLVOL{i,t} \\
-    &\quad + \beta_{ILLQ} \cdot ILLQ_{i,t} + \beta{zerotrade} \cdot ZEROTRADE_{i,t} \\
-    &\quad + \beta_{baspread} \cdot BASPREAD_{i,t} + \epsilon{i,t}
-    \end{split}
-\end{equation}
 
-\begin{equation}
-    \label{eq:ff5_expanded}
-    \begin{split}
-    R_{i,t} - R_{f,t} &= \alpha_i + \beta_{MKT} (R_{MKT,t} - R_{f,t}) \\
-    &\quad + \beta_{SMB} \cdot SMB_t + \beta_{HML} \cdot HML_t \\
-    &\quad + \beta_{RMW} \cdot RMW_t + \beta_{CMA} \cdot CMA_t\\
-    &\quad + \beta_{turn} \cdot TURN_{i,t} + \beta_{SDturn} \cdot SDTURN_{i,t} \\
-    &\quad + \beta_{mvel1} \cdot MVEL1_{i,t} + \beta_{DOLVOL} \cdot DOLVOL{i,t} \\
-    &\quad + \beta_{ILLQ} \cdot ILLQ_{i,t} + \beta{zerotrade} \cdot ZEROTRADE_{i,t} \\
-    &\quad + \beta_{baspread} \cdot BASPREAD_{i,t} + \epsilon{i,t}
-    \end{split}
-\end{equation}
+where \cref{eq:c4f} is the C4F and \cref{eq:ff5} is the FF5. $R_{i,t}$ is the return on security and $R_{f,t}$ is the risk-free return; which makes $R_{i,t} - R_{f,t}$ is the excess return on a security. \( R_{MKT,t} \) is the market return at time \(t\), making \(\beta_{MKT} (R_{MKT,t} - R_{f,t}\))  the excess return of the market over the risk-free rate. $SMB$ (small minus big) is the size factor, capturing the excess returns of small-cap stocks over large-cap stocks, reflecting how higher volatility and growth potential could cause smaller firms to yield higher average returns. $HML$ (high minus low), or the value factor, accounts for the premium earned by stocks with high book-to-market ratios, often associated with underperforming firms that carry higher risk and, consequently, higher expected returns \cite{ff3_1993}. $MOM$ is the one year momentum factor \footnote{In literature, researchers can refer to this factor as PR1YR, UMD (ups minus downs), or WML (winners minus losers.)} \cite{cahart_1997}. In response to \citeA{titman_2004} and \citeA{novymarx_2013} criticisms, two additional factors were added in to the FF3 model \cite{ff5_2015}. $RMW$ (robust minus weak) is the profitability factor, which derives from the empirical observation that firms with higher operating profitability tend to earn higher average returns. $CMA$ (conservative minus aggressive) is the investment factor, which captures the tendency of firms to aggressively invest in new assets, expecting higher returns in the long run. Investors may overpay for such firms due to optimism, which results in lower subsequent returns \cite{titman_2004}.
 
-where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:ff5_expanded} the enhanced FF5 enhanced baseline (FF5-BE). %explain why no portfolio sortings here? 
+The empirical analysis will begin by establishing a baseline for each asset pricing variant using time series regressions, employing Ordinary Least Squares (OLS) as outlined by \citeA{simonian_2019}. \cref{eq:c4f} and \cref{eq:ff5}, the two baseline variants will be referred to as C4F-B and FF5-B hereafter. Subsequently, liquidity risk and sentiment indicators will be integrated into these variants. Hereafter, asset pricing models denoted "B" at the end are OLS baseline models, meaning that they only consists of factors in their definition. Models denoted "BE" at the end are OLS "enhanced" models, which are OLS models with liquidity risks and sentiment intergrated. Therefore, C4F-BE and FF5-BE are OLS baseline models with liquidity and sentiment factors.
 
 
 \subsection{Random Forest}
@@ -110,7 +89,7 @@ The C4F-B, C4F-BE, FF5-B and FF5-BE, since based on OLS, are linear in nature. T
 %maybe motivate more why tree based methods.
 ML models offer a more robust framework, especially Random Forest (RF). Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively C4F-RF, C4F-RFE, FF5-RF, FF5-RFE. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
 
-A downside of RF (and most other ML models) is their "black-box" nature, where their inner workings are unintuitive, which makes it unattractive to many investment professionals. RF captures non-geometric relationships between factors, therefore it is not analogous to the interpretation of common methods in the financial field (OLS, PCA). However, there are still multiple ways that can give investors insights into the RF black-box. The most common method utilized is the Relative Feature Importance (RFI hereafter), which weighs all of the factors within the RF according to their predictive robustness. \citeA{simonian_2019} attemted to generate what is similar to "betas" in traditional asset pricing models from RFI. An accepted understanding of "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed:
+A downside of RF (and most other ML models) is their "black-box" nature, where their inner workings are unintuitive, which makes it unattractive to many investment professionals. RF captures non-geometric relationships between factors, therefore it is not analogous to the interpretation of common methods in the financial field (OLS, PCA). However, there are still multiple ways that can give investors insights into the RF black-box. The most common method utilized is the Relative Feature Importance (RFI hereafter), which weighs all of the factors within the RF according to their predictive robustness. Additional methods such as SHAP and LIME will also be utilized to confirm the RFI results, adding more to the discussion.\citeA{simonian_2019} attemted to generate what is similar to "betas" in traditional asset pricing models from RFI. An accepted understanding of "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed:
 
 \begin{equation}
     \label{eq:psuedo}
