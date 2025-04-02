@@ -7,3 +7,6 @@ latex/main.synctex.gz
 latex/main.toc
 latex/main.pdf
 py/.env
+.pgpass
+todo.md
+py/test.ipynb
