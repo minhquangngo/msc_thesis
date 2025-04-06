@@ -12,11 +12,14 @@
 proc contents data= crsp.dsf;
 run
 ```
+## Database Schema
+![Database Schema] (./attachments/dbdiagram.png)
 
 **Notes:**
 - As of July 202, Compustat no longer has S&P Dow Jones Indices. Access it through CRSP.
 - For data after February 2025, you will need to change the data tables to their "*_V2" counterpart.
 
 ## License and Usage
-© [Minh Quang Ngo] [2025]. All rights reserved.  
+© Minh Quang Ngo 2025. All rights reserved.
+
 This repository is provided for viewing and discussion purposes only. No license is granted for reuse, reproduction, or distribution of the code contained herein. Contact the author for permission regarding any use outside of this repository.

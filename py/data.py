@@ -1,5 +1,6 @@
 import wrds
-
+from pathlib import Path
+import pandas as pd
 '''
 Importing all of the data in
 Period: 1990 -2018 (monthly)
@@ -11,8 +12,8 @@ Stocks:
 
 
 Sector:
-[x] cmp.sector
-[] Sector names
+[x] cmp.sectorc
+[] Sector names - match when pickled data is imported
 
 
 Liquidity risk factors
@@ -24,7 +25,7 @@ Liquidity risk factors
 [x] # zero trading days (zero trade) ( zero trading day:vol =0)
 [x] bid-ask spread (baspread)
 
-Sentiment
+[x]Sentiment
 
 Factor variables:
 [x] Excess return of a stock
@@ -36,7 +37,7 @@ Factor variables:
 [x] Profitability factor (Robust minus weak (RMW))
 [x] Investment factor (CMA)
 
-[] SAVE IT
+[x] SAVE IT
 '''
 
 #Establish wrds connection
@@ -53,55 +54,27 @@ Database:
 - crsp.dsenames: permno, ticker, sector
 - crsp.ccmxpf_linktable : gvkey match with permno
 - comp.company: gsector
-
 '''
 
 
+def load_query(name: str) -> str:
+    """Load SQL query from a file in the `queries` folder."""
+    return Path(f"{name}.sql").read_text()
 
-stock_ff_sector = db.raw_sql(
-    f"""
-    select
-        stock.date,
-        stock.permno,
-        names.ticker,
-        stock.vol,
-        stock.ret,
-        stock.shrout,
-        stock.prc,
-        stock.ask,
-        stock.bid,
-        cmp.gsector,
-        ff5.mktrf,
-        ff5.smb,
-        ff5.hml,
-        ff5.rmw,
-        ff5.umd,
-        ff5.cma,
-        ff5.rf
-    from crsp.dsf as stock
-
-    inner join crsp_a_indexes.dsp500list_v2 as sp500
-        on stock.permno = sp500.permno
-        and stock.date between sp500.mbrstartdt and coalesce(sp500.mbrenddt, stock.date)
-
-    left join crsp.dsenames as names
-        on stock.permno = names.permno
-        and stock.date between names.namedt and coalesce(names.nameendt, stock.date)
-
-    left join crsp.ccmxpf_linktable as link -- query this in to get the gvkey, connecting stock with comp
-        on stock.permno = link.lpermno
-        and link.usedflag = 1 --primary link specific to the 2 joined 
-        and stock.date between link.linkdt and coalesce(link.linkenddt, stock.date)
-
-    left join comp.company as cmp on link.gvkey=cmp.gvkey 
-
-    left join ff.fivefactors_daily as ff5 on stock.date = ff5.date
-
-    where stock.date between '{start_date}' and '{end_date}'
-    order by stock.date, stock.permno;
-    """
-)
+query = load_query("query")
+params = (start_date, end_date)
+stock_ff_sector = db.raw_sql(query, params=params)
 
 stock_ff_sector['permno'].unique()
+stock_ff_sector.shape
+
+##pickle it
+stock_ff_sector.to_pickle("../data/stock_ff_sector.pkl")
+stock_ff_sector = pd.read_pickle("../data/stock_ff_sector.pkl")
+stock_ff_sector.dtypes
+#TODO: change types, merge with sentiment
+#Sentiment data
+sentiment = pd.read_csv("../data/sentiment_ung.csv",sep = ',')
+sentiment.iloc[:, 0] = pd.to_datetime(sentiment.iloc[:, 0], format='%Y%m')
 #Close WRDS connection
 db.close()
