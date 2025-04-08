@@ -10,3 +10,4 @@ py/.env
 .pgpass
 todo.md
 py/test.ipynb
+data/

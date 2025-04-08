@@ -7,14 +7,15 @@
 - pip install wrds
 - Establish connection via `wrds.Connection()`
 - The easiest way to look at the data is to go to WRDS SAS Studio.
-- Get the content of any table: 
+- Get the variable schema of any table on SAS studio: 
 ```sql 
 proc contents data= crsp.dsf;
 run
 ```
 ## Database Schema
-![Database Schema] (./attachments/dbdiagram.png)
+![Database Schema](./attachments/dbdiagram.png)
 
+- Sentiment file: Provide link here 
 **Notes:**
 - As of July 202, Compustat no longer has S&P Dow Jones Indices. Access it through CRSP.
 - For data after February 2025, you will need to change the data tables to their "*_V2" counterpart.
