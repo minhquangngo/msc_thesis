@@ -58,6 +58,7 @@ NEWS_DATA_PATH = "data/news_sentiment_data.csv"
 
 def load_query(name: str) -> str:
     """Load SQL query from a file in the query.sql."""
+    print("Query loaded")
     return Path(f"{name}.sql").read_text()
 
 print(os.path.exists(STOCK_DATA_PATH))
@@ -67,7 +68,7 @@ def load_stock_data(start_date: str, end_date: str) -> pd.DataFrame:
     otherwise query the WRDS database.
     """
     if os.path.exists(STOCK_DATA_PATH):
-        print("Loading parquet")
+        print("Loading stock parquet")
         df = pd.read_parquet(STOCK_DATA_PATH, engine='pyarrow')
     else:
         print("No local parquet found -> Querying WRDS")
@@ -96,11 +97,8 @@ def load_vix_data(start_date: str, end_date: str) -> pd.DataFrame:
         vix.to_parquet(VIX_DATA_PATH)
     return vix
 
-def load_process():
-    # DATES
-    start_date = "1998-01-01"
-    end_date = "2018-12-31"
-
+def load_process(start_date = "1998-01-01", end_date = "2018-12-31"):
+    
     # Load stock_ff_sect
     stock_ff_sector = load_stock_data(start_date, end_date)
     stock_ff_sector['date'] = pd.to_datetime(stock_ff_sector['date'], format='%Y-%m-%d')
