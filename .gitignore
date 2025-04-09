@@ -11,3 +11,4 @@ py/.env
 todo.md
 py/test.ipynb
 data/
+py/__pycache__
