@@ -2,6 +2,10 @@ import wrds
 from pathlib import Path
 import pandas as pd
 import yfinance as yf
+
+#Dates
+start_date = "1998-01-01"
+end_date = "2018-12-31"
 '''
 Importing all of the data in
 Period: 1990 -2018 (monthly)
@@ -30,7 +34,7 @@ Sentiment (new)
 [x] Volatility index
 [] Put call ratio
 [x] Turnover
-[] Daily news sentiment
+[x] Daily news sentiment
 [x] enhanced sentiment
 
 Factor variables:
@@ -48,9 +52,6 @@ Factor variables:
 #Establish wrds connection
 db = wrds.Connection()
 
-#Dates
-start_date = "1998-01-01"
-end_date = "2018-12-31"
 #------------------------------------------------------------------
 #Stocks 
 '''
@@ -72,15 +73,16 @@ stock_ff_sector = db.raw_sql(query, params=params)
 stock_ff_sector['permno'].unique()
 stock_ff_sector.shape
 
-##pickle it
-stock_ff_sector.to_pickle("../data/stock_ff_sector.pkl")
+##parquet it
+stock_ff_sector.to_parquet("../data/stock_ff_sector.parquet")
 
 #------------------------------------------------------------------
 #Data conversions
-stock_ff_sector = pd.read_pickle("../data/stock_ff_sector.pkl")
+stock_ff_sector = pd.read_parquet("../data/stock_ff_sector.parquet", engine = 'pyarrow')
 stock_ff_sector.dtypes
 stock_ff_sector['date'] = pd.to_datetime(stock_ff_sector['date'], format='%Y-%m-%d')
 stock_ff_sector['gsector'] = pd.to_numeric(stock_ff_sector['gsector'], errors = 'coerce')
+stock_ff_sector = stock_ff_sector.set_index('date')
 #------------------------------------------------------------------
 #GICS matching
 gsector_map = {
@@ -96,21 +98,31 @@ gsector_map = {
     55: "Utilities",
     60: "Real Estate"
 }
-stock_ff_sector['gsector_name'] = stock_ff_sector['gsector'].map(gsector_mcrsp_fundnor']
-stock_ff_sector[stock_ff_sector['gsector'].isna() == True]
-print("Unmapped gsector codes:", unmapped)
+stock_ff_sector['gsector_name'] = stock_ff_sector['gsector'].map(gsector_map)
+
 #------------------------------------------------------------------
 #Sentiment data
 ##Ung enhanced baker
 sentiment = pd.read_csv("../data/sentiment_ung.csv",sep = ',')
-sentiment.iloc[:, 0] = pd.to_datetime(sentiment.iloc[:, 0], format='%Y%m')
-sentiment.dtypes
+sentiment['Date'] = pd.to_datetime(sentiment['Date'], format='%Y%m')
+sentiment = sentiment.set_index('Date').resample("D").ffill()
+pd.api.types.is_datetime64_any_dtype(sentiment.index) ## Sentiment date is date-time
 
 ## VIX
 vix = yf.download("^VIX", start=start_date, end=end_date)
+vix.columns = vix.columns.get_level_values(0)  # Keep just 'Open', 'Close', etc.
+vix= vix[['Close']].rename(columns={'Close':'vix_close'})
+vix = vix.iloc[:, :2]
+pd.api.types.is_datetime64_any_dtype(vix.index) ## index VIX is date-time
 
-## Put call ratio
 
+## Daily news sentiment
+news_sentiment = pd.read_csv("../data/news_sentiment_data.csv", sep = ",")
+news_sentiment['date'] = pd.to_datetime(news_sentiment['date'], format = '%d/%m/%Y')
+news_sentiment = news_sentiment.set_index('date')
 
+full_df = stock_ff_sector.merge(sentiment, left_index=True, right_index=True, how='left')
+full_df = full_df.merge(vix, left_index= True, right_index= True, how = 'left')
+full_df = full_df.merge(news_sentiment,left_index = True, right_index = True, how = 'left')
 #Close WRDS connection
 db.close()
