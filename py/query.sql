@@ -16,7 +16,9 @@ WITH StockData AS (
         ff5.rmw,
         ff5.umd,
         ff5.cma,
-        ff5.rf
+        ff5.rf,
+        sp500.mbrstartdt,
+        sp500.mbrenddt
     FROM crsp.dsf AS stock
 
     INNER JOIN crsp_a_indexes.dsp500list_v2 AS sp500
@@ -80,6 +82,8 @@ SELECT
     s.umd,
     s.cma,
     s.rf,
+    s.mbrstartdt,
+    s.mbrenddt,
     o.put_volume,
     o.call_volume,
     o.put_call_ratio

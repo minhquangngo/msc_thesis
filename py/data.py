@@ -49,19 +49,28 @@ Factor variables:
 [x] Investment factor (CMA)
 
 '''
-
+#--------------------------------------------------------
 # File paths
-STOCK_DATA_PATH = "data/stock_ff_sector.parquet"
-VIX_DATA_PATH = "data/vix_data.parquet"
-SENTIMENT_DATA_PATH = "data/sentiment_ung.csv"
-NEWS_DATA_PATH = "data/news_sentiment_data.csv"
+BASE_DIR = Path(__file__).parent.parent
+STOCK_DATA_PATH = BASE_DIR / "data" / "stock_ff_sector.parquet"
+VIX_DATA_PATH = BASE_DIR / "data" / "vix_data.parquet"
+SENTIMENT_DATA_PATH = BASE_DIR / "data" / "sentiment_ung.csv"
+NEWS_DATA_PATH = BASE_DIR / "data" / "news_sentiment_data.csv"
+#sanity checks
+print("Resolved STOCK_DATA_PATH:", STOCK_DATA_PATH.resolve())
+print("Resolved VIX_DATA_PATH:", VIX_DATA_PATH.resolve())
+print("Resolved SENTIMENT_DATA_PATH:", SENTIMENT_DATA_PATH.resolve())
+print("Resolved SENTIMENT_DATA_PATH:", NEWS_DATA_PATH.resolve())
+#--------------------------------------------------------
 
 def load_query(name: str) -> str:
-    """Load SQL query from a file in the query.sql."""
-    print("Query loaded")
-    return Path(f"{name}.sql").read_text()
+    """Load SQL query from a file in the query.sql directory."""
+    query_path = Path(__file__).parent / f"{name}.sql"
+    if not query_path.exists():
+        raise FileNotFoundError(f"Query file not found: {query_path}")
+    print(f"Query '{name}.sql' loaded successfully from: {query_path.resolve()}")
+    return query_path.read_text()
 
-print(os.path.exists(STOCK_DATA_PATH))
 def load_stock_data(start_date: str, end_date: str) -> pd.DataFrame:
     """
     Load stock data from local file if it exists, 
@@ -73,7 +82,7 @@ def load_stock_data(start_date: str, end_date: str) -> pd.DataFrame:
     else:
         print("No local parquet found -> Querying WRDS")
         db = wrds.Connection()
-        query = load_query("query.sql")
+        query = load_query("query")
         params = (start_date, end_date)
         df = db.raw_sql(query, params=params)
         df.to_parquet(STOCK_DATA_PATH)
