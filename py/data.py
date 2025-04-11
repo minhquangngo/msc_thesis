@@ -111,6 +111,8 @@ def load_process(start_date = "1998-01-01", end_date = "2018-12-31"):
     # Load stock_ff_sect
     stock_ff_sector = load_stock_data(start_date, end_date)
     stock_ff_sector['date'] = pd.to_datetime(stock_ff_sector['date'], format='%Y-%m-%d')
+    stock_ff_sector['mbrenddt'] = pd.to_datetime(stock_ff_sector['mbrenddt'], format='%Y-%m-%d')
+    stock_ff_sector['mbrstartdt'] = pd.to_datetime(stock_ff_sector['mbrstartdt'], format='%Y-%m-%d')
     stock_ff_sector['gsector'] = pd.to_numeric(stock_ff_sector['gsector'], errors='coerce')
     stock_ff_sector = stock_ff_sector.set_index('date')
 
