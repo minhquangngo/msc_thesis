@@ -33,10 +33,6 @@ def na_month_plot_bypermno(permno: int, year: int, month: int, df: pd.DataFrame)
     plt.tight_layout()
     plt.show()
 
-if __name__ == '__main__':
-    print("Import to use this module")
-
-
 def na_meanfill(param:str, df:pd.DataFrame):
     """
     Imputes missing value with the mean of the day before and after
@@ -48,8 +44,35 @@ def na_meanfill(param:str, df:pd.DataFrame):
     Mean impute missing with mean of nonmissings 
     """
     df_copy = df.copy()
-    param_df = df_copy[['permno',param]]
-    missing_permno = param_df['permno'][param_df[param].isna()].unique()
-    for permno in missing_permno:
-        filtered_df = param_df[param][param_df['permno'] == permno]
+    def impute_series(series:pd.Series) -> pd.Series:
+        series = series.sort_index()
+        is_na = series[series.isna()].index 
+        for i in is_na:
+            #get the nearest before
+            before = series.loc[:i].dropna()
+            before_validation = before.iloc[-1] if not before.empty else None
+            #get the nearest after
+            after = series.loc[i:].dropna()
+            after_validation = after.iloc[0] if not after.empty else None
+            # Possible edge case:
+            # - Missing value in the first day or last day of the month
+            if before_validation is not None and after_validation is not None:
+                impute_mean = (before_validation + after_validation)/2
+            elif before_validation == None:
+                impute_mean = after_validation
+            elif after_validation == None:
+                impute_mean = before_validation
+            else:
+                impute_mean = None
+            if impute_mean is not None:
+                series.at[i] = impute_mean
+        return series
+    
+    for permno in df_copy['permno'].unique():
+        mask = df_copy['permno'] == permno
+        df_copy.loc[mask, param] = impute_series(df_copy.loc[mask, param])
+    return df_copy
+
+if __name__ == '__main__':
+    print("Import to use this module")
 
