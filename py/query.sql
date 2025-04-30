@@ -47,23 +47,30 @@ OptionData AS (
         p.date,
         p.secid,
         linktab.permno,
-        p.volume AS put_volume,
-        c.volume AS call_volume,
-        CAST(p.volume AS FLOAT) / NULLIF(c.volume, 0) AS put_call_ratio
+        /* Laplace smoothing */
+        COALESCE(p.volume, 0) + 1 AS put_volume, -- this ins ran last, therefore all of the null will be filtered
+        -- out first this is just to make sure that there is individual call or puts missing
+        COALESCE(c.volume, 0) + 1 AS call_volume,
+        /* Smoothed ratio */
+        (COALESCE(p.volume, 0) + 1)::FLOAT
+          / NULLIF(COALESCE(c.volume, 0) + 1, 0)
+        AS put_call_ratio
     
     FROM optionm.opvold AS p
-    
     JOIN optionm.opvold AS c
-        ON p.secid = c.secid
-        AND p.date = c.date
-        AND c.cp_flag = 'C'
-    
+      ON p.secid   = c.secid
+     AND p.date    = c.date
+     AND c.cp_flag = 'C'
+
     JOIN wrdsapps.opcrsphist AS linktab
-        ON p.secid = linktab.secid
-        AND p.date BETWEEN linktab.sdate AND COALESCE(linktab.edate, CURRENT_DATE)
-    
-    WHERE p.cp_flag = 'P'
+      ON p.secid = linktab.secid
+     AND p.date  BETWEEN linktab.sdate
+     AND COALESCE(linktab.edate, CURRENT_DATE)
+
+    WHERE p.cp_flag = 'P' -- where is run last, that is why it is down here
+      AND (p.volume IS NOT NULL OR c.volume IS NOT NULL)
 )
+
 SELECT 
     s.date,
     s.permno,
