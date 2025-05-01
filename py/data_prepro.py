@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def na_month_plot_bypermno(permno: int, year: int, month: int, df: pd.DataFrame):
+def vol_na_month_plot_bypermno(permno: int, year: int, month: int, df: pd.DataFrame):
     """
     Plot monthly volume of a permo. If it is missing a value then have an 'x' mark
     """
@@ -27,6 +27,38 @@ def na_month_plot_bypermno(permno: int, year: int, month: int, df: pd.DataFrame)
     ax.set_title(f'Volume for PERMNO {permno} in {month_name}')
     ax.set_xlabel('Date')
     ax.set_ylabel('Volume')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+def ret_na_month_plot_bypermno(permno: int, year: int, month: int, df: pd.DataFrame):
+    """
+    Plot monthly volume of a permo. If it is missing a value then have an 'x' mark
+    """
+    # Filter 
+    mask = (
+        (df.index.year == year) &
+        (df.index.month == month) &
+        (df['permno'] == permno)
+    )
+    filtered_df = df.loc[mask]
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(filtered_df.index, filtered_df['ret'], marker='o', linestyle='-', label='ret')
+
+    # Highlight missing vol
+    missing_vol = filtered_df[filtered_df['ret'].isna()]
+    if not missing_vol.empty:
+        ax.plot(missing_vol.index, [0] * len(missing_vol), 'rx', markersize=10, label='Missing ret')
+
+    # format plot
+    month_name = pd.Timestamp(year=year, month=month, day=1).strftime("%B %Y")
+    ax.set_title(f'Ret for PERMNO {permno} in {month_name}')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Return')
     ax.grid(True, alpha=0.3)
     ax.legend()
     plt.xticks(rotation=45)
@@ -75,4 +107,5 @@ def na_meanfill(param:str, df:pd.DataFrame):
 
 if __name__ == '__main__':
     print("Import to use this module")
+
 

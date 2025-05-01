@@ -1,8 +1,9 @@
+import os
 import wrds
 from pathlib import Path
 import pandas as pd
 import yfinance as yf
-import os
+
 
 #Dates
 start_date = "1998-01-01"
@@ -23,7 +24,7 @@ Sector:
 
 
 Liquidity risk factors
-[x] Turn over (turn) (vol/shrout)
+[x] Turn over (turn) (vol/shrout) 
 [x] Turn over volatility (SDTurn) (std. of turn)
 [x] log market equity (mvel1) (prc)
 [x] dollar volume (dolvol) (#shares *price)
@@ -51,7 +52,7 @@ Factor variables:
 '''
 #--------------------------------------------------------
 # File paths
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path()__file__.parent.parent
 STOCK_DATA_PATH = BASE_DIR / "data" / "stock_ff_sector.parquet"
 VIX_DATA_PATH = BASE_DIR / "data" / "vix_data.parquet"
 SENTIMENT_DATA_PATH = BASE_DIR / "data" / "sentiment_ung.csv"
