@@ -52,7 +52,7 @@ Factor variables:
 '''
 #--------------------------------------------------------
 # File paths
-BASE_DIR = Path()__file__.parent.parent
+BASE_DIR = Path(__file__).parent.parent
 STOCK_DATA_PATH = BASE_DIR / "data" / "stock_ff_sector.parquet"
 VIX_DATA_PATH = BASE_DIR / "data" / "vix_data.parquet"
 SENTIMENT_DATA_PATH = BASE_DIR / "data" / "sentiment_ung.csv"
