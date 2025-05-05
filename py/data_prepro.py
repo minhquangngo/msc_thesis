@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy  as np
 
 def vol_na_month_plot_bypermno(permno: int, year: int, month: int, df: pd.DataFrame):
     """
@@ -104,6 +105,17 @@ def na_meanfill(param:str, df:pd.DataFrame):
         mask = df_copy['permno'] == permno
         df_copy.loc[mask, param] = impute_series(df_copy.loc[mask, param])
     return df_copy
+
+def feats_sect(df: pd.DataFrame):
+    df_pro = df.copy()
+    # liquidity feats
+    df_pro.loc[:,'turn_sd'] = df_pro['turn'].std()
+    df_pro['sect_mktcap'] = df_pro['prc'] * df_pro['shrout']
+    df_pro.loc[:,"mvel1"] = np.log(abs(df_pro['mktcap']))
+    df_pro.loc[:,'dolvol'] = df_pro.loc[:,'vol'] *abs(df_pro.loc[:,'prc'])
+    #amihud
+    df_pro['daily_illq']=(abs(df_pro['ret']) / df_pro['dolvol'])*10**6
+    return df_pro
 
 if __name__ == '__main__':
     print("Import to use this module")
