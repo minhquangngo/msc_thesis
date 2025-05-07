@@ -12,13 +12,17 @@
 proc contents data= crsp.dsf;
 run
 ```
-## Database Schema
+## Database Structure
 ![Database Schema](./attachments/dbdiagram.png)
 
 - Sentiment file: Provide link here 
 **Notes:**
 - As of July 202, Compustat no longer has S&P Dow Jones Indices. Access it through CRSP.
 - For data after February 2025, you will need to change the data tables to their "*_V2" counterpart.
+
+## Codebase 
+
+query.sql -> data -> preprocessing.ipynb & data_prepro.py -> models_expl & models
 
 ## License and Usage
 © Minh Quang Ngo 2025. All rights reserved.

@@ -13,3 +13,6 @@ py/test.ipynb
 data/
 py/__pycache__
 .DS_Store
+mlruns/
+mlartifacts/
+py/mlruns/

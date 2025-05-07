@@ -45,10 +45,10 @@ Factor variables:
 [x] Market return 
 [x] Size factor( Small minus big)
 [x] Value factor (High minus low)
-[x] Momentum factor (MOM)
+[x] Momentum factor (MOM) (Ups minus downs)
 [x] Profitability factor (Robust minus weak (RMW))
 [x] Investment factor (CMA)
-
+B
 '''
 #--------------------------------------------------------
 # File paths
