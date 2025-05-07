@@ -6,9 +6,20 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from arch.unitroot import ADF
+import hashlib,json
 
 def _fingerprint(df,y, features, lags):
-    
+    """
+    Hash the result of the models.
+    """
+    meta = dict(
+        target = y, 
+        features =sorted(features),
+        lags= lags,
+        n_rows = len(df),
+        data_hash=hashlib.md5(pd.util.hash_pandas_object(df,index = True).values).hexdigest()
+    )
+    return hashlib.md5(json.dumps(meta, sort_keys=True).encode()).hexdigest()
 
 
 def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experiment_name=None):
@@ -19,28 +30,66 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
 
     - Durbin Watson: Auto correlation check
     """
-  
+    #missing params check
+    missing = []
+    params = {
+    "run_name": run_name,
+    "fama_french_ver": fama_french_ver,
+    "experiment_name": experiment_name
+    }
+    for name, val in params.items():
+        # If the value is exactly None, record its name
+        if val is None:
+            missing.append(name)
+
+    if missing:
+        raise ValueError(
+            f"The following parameter(s) must be provided and not None: {', '.join(missing)}"
+        )
+    
+    #experiment exist check    
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(experiment_name)
+        print(f'Experiment {experiment_id} created')
+    else:
+        experiment_id = experiment.experiment_id
+        print(f"Experiment already exists with ID: {experiment_id}")
+        
+            
+    mlflow.set_experiment(experiment_name)
+
+    #model exists check
+    hash_fp = _fingerprint(df,y,features,lags)
+    exists = mlflow.search_runs(
+        experiment_ids= [experiment_id],
+        filter_string=f"tags.fingerprint = '{hash_fp}' and tags.status = 'completed'",
+        max_results=1
+    )
+
+    if not exists.empty:
+        print("Skipping- already logged this model") 
+        return mlflow.get_run(exists.loc[0,"run_id"])
+
+    #Model training
     X = sm.add_constant(df[features])
     y = df[y]
     ols_model = sm.OLS(y, X).fit(cov_type='HAC', cov_kwds={'maxlags': lags})
-    
-    if experiment_name is not None:
-        try: # if experiment does not exist ( no errors raised), create experiment
-            experiment_id = mlflow.create_experiment(experiment_name)
-            print('Experiment {experiment_id} created')
-        except mlflow.exceptions.MlflowException: # if experiment does exist, retrieve ID
-            experiment = mlflow.get_experiment_by_name(experiment_name)
-            experiment_id = experiment.experiment_id
-            print(f"Experiment already exists with ID: {experiment_id}")
-            
-        mlflow.set_experiment(experiment_name)
 
+    
     run_name = f'{run_name}_OLS' if run_name else 'OLS'
-    with mlflow.start_run(run_name=f'{run_name}_OLS'):
+    with mlflow.start_run(
+        run_name=run_name, 
+        tags = {
+            "fingerprint":hash_fp,
+            "status": "completed"
+            }):
         #params
         mlflow.log_param('sector', run_name)
         mlflow.log_param('factors', features)
-        mlflow.set_tag('OLS_raw', 'baseline', fama_french_ver)
+        mlflow.set_tag("model_type", "OLS_raw_baseline")
+        mlflow.set_tag("fama_french_ver", fama_french_ver)
+
 
         #metrics
         mlflow.log_metric('R2_adj', ols_model.rsquared_adj)
