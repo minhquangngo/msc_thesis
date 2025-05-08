@@ -1,4 +1,3 @@
-import mlflow.exceptions
 import pandas as pd
 import statsmodels.api as sm
 import mlflow
@@ -6,7 +5,8 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from arch.unitroot import ADF
-import hashlib,json
+import hashlib
+import json
 
 def _fingerprint(df,y, features, lags):
     """
@@ -33,9 +33,9 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
     #missing params check
     missing = []
     params = {
-    "run_name": run_name,
-    "fama_french_ver": fama_french_ver,
-    "experiment_name": experiment_name
+        "run_name": run_name,
+        "fama_french_ver": fama_french_ver,
+        "experiment_name": experiment_name  
     }
     for name, val in params.items():
         # If the value is exactly None, record its name
@@ -80,21 +80,51 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
     run_name = f'{run_name}_OLS' if run_name else 'OLS'
     with mlflow.start_run(
         run_name=run_name, 
-        tags = {
-            "fingerprint":hash_fp,
-            "status": "completed"
-            }):
+        tags={
+        "fingerprint":hash_fp,
+        "status":"completed",
+        "sector":run_name,      
+        "factors":",".join(features), # tags must be strings
+        "model_type":"OLS_raw_baseline",
+        "fama_french_ver": fama_french_ver
+      }):
+        
         #params
+        params = {
+            'sector':run_name,
+            'factors':features
+        }
         mlflow.log_param('sector', run_name)
         mlflow.log_param('factors', features)
-        mlflow.set_tag("model_type", "OLS_raw_baseline")
+        mlflow.set_tag("model_type", "OLS_raw")
         mlflow.set_tag("fama_french_ver", fama_french_ver)
 
 
         #metrics
-        mlflow.log_metric('R2_adj', ols_model.rsquared_adj)
-        mlflow.log_metric('durbin_watson', durbin_watson(ols_model.resid)) # auto-corr
-        mlflow.log_metric('Breuschpagan', het_breuschpagan(ols_model.resid, ols_model.model.exog)[1]) # exogeneity presence of first-order autocorrelation in the residuals
+        metrics = {
+            'R2_adj': ols_model.rsquared_adj,
+            'durbin_watson': durbin_watson(ols_model.resid),
+            'Breuschpagan': het_breuschpagan(ols_model.resid, ols_model.model.exog)[1],
+            'aic': ols_model.aic,
+            'bic': ols_model.bic,
+            'centered_tss': ols_model.centered_tss,
+            'condition_number': ols_model.condition_number,
+            'df_model': ols_model.df_model,
+            'df_resid': ols_model.df_resid,
+            'ess': ols_model.ess,
+            'f_pvalue': ols_model.f_pvalue,
+            'fvalue': ols_model.fvalue,
+            'llf': ols_model.llf,
+            'mse_model': ols_model.mse_model,
+            'mse_resid': ols_model.mse_resid,
+            'mse_total': ols_model.mse_total,
+            'rsquared': ols_model.rsquared,
+            'rsquared_adj': ols_model.rsquared_adj,
+            'scale': ols_model.scale,
+            'ssr': ols_model.ssr,
+            'uncentered_tss': ols_model.uncentered_tss
+        }
+        mlflow.log_metrics(metrics)
         
         #coefs and p-vals
         for coefname, coef in ols_model.params.items():
@@ -108,10 +138,9 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
 
         # VIF
         vif = {}
-        for i, col in enumerate(features):
-            vif[col] = {
-                variance_inflation_factor(X.values, i+1) # skip constant
-            }
+        for i in range (1,X.shape[1]):
+            col = X.columns[i]
+            vif[col] = variance_inflation_factor(X.values,i)
         
         mlflow.log_dict(vif, 'vif.json')
 
@@ -122,6 +151,5 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
         # full model summary
         mlflow.log_text(ols_model.summary().as_text(), 'ols_summary.txt')
 
-        
 if __name__ == '__main__':
     print("Import to use")
