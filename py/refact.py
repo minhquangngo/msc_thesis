@@ -1,3 +1,6 @@
+from abc import abstractmethod, ABC
+import hashlib
+import json
 import pandas as pd
 import statsmodels.api as sm
 import mlflow
@@ -5,9 +8,7 @@ from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from arch.unitroot import ADF
-from abc import abstractmethod, ABC
-import hashlib
-import json
+import matplotlib.pyplot as plt
 
 # Stateless helpers
 def _fingerprint(df:pd.DataFrame,y:str, features:list[str], lags:int) -> str:
@@ -73,9 +74,9 @@ class BaseModel(ABC):
             print("Skipping- already logged this model") 
             return mlflow.get_run(fingerprint_check)
         #------TODO:add args ||| Fit------
-        X,y = self._var_prep() 
-        self.model_ = self.train_()
-        
+        X,y = self._var_prep(df = df) 
+        self.model_ = self.train_(X = X,y =y)
+        self._log_run(X,y,self.run_name)
     
     #------------abstracts--------------------------
     @abstractmethod
@@ -85,7 +86,7 @@ class BaseModel(ABC):
     def train_(self,X,y):
         pass
     @abstractmethod
-    def _log_metrics(self): #TODO: add metrics
+    def _log_metrics(self,X,y,run_name): 
         pass
     
     #----------internal helpers---------------------
@@ -95,24 +96,24 @@ class BaseModel(ABC):
         On that experiment id, check whether fingerprint already exists or not
          -If exists - skip
         """
-        exists = mlflow.seach_runs(
+        exists = mlflow.search_runs(
             experiment_ids = [experiment_check(self.experiment_name)],
-            filter_string = f"tags.fingerprint='{self.hash_fp}' and tags.status = "completed",
-            max_results = 1
-        )
+            filter_string = f"tags.fingerprint='{self.hash_fp}' and tags.status = 'completed'",
+            max_results = 1)
+        
         if not exists.empty:
             return exists.loc[0,"run_id"]
         return None
-    def _log_run(self,run_name):
-        run_name = f'{self.run_name}_OLS' if self.run_name else 'OLS'
+    def _log_run(self,X,y,run_name):
+        run_name = f'{self.run_name}' if self.run_name else 'blank'
         with mlflow.start_run(
-            run_name=self.run_name,
+            run_name=run_name,
             tags={
                 "fingerprint":self.hash_fp,
                 "status":"completed",
                 "sector":run_name,      
                 "factors":",".join(self.features), # tags must be strings
-                "model_type":"",
+                "model_type":self.__class__.__name__,
                 "fama_french_ver": self.fama_french_ver
       }):
             params = {
@@ -120,21 +121,87 @@ class BaseModel(ABC):
             'factors':self.features
         }
             mlflow.log_params(params=params)
-            self._log_metrics() #TODO:add args
+            mlflow.set_tag("fama_french_ver", self.fama_french_ver)
+            self._log_metrics(X,y,run_name)
+
+    def plot_residuals(self, fitted_values, residuals, run_name):
+        """Plot residuals vs fitted values and save to MLflow"""
+        plt.figure(figsize=(10, 6))
+        plt.scatter(fitted_values, residuals, alpha=0.5)
+        plt.xlabel('Fitted Values')
+        plt.ylabel('Residuals')
+        plt.title(f'Residuals vs Fitted Values - {run_name}')
+        plt.axhline(y=0, color='r', linestyle='--')
+        plt.show()
+        # Add plot to MLflow
+        plt.savefig('residuals_plot.png')
+        mlflow.log_artifact('residuals_plot.png')
+        plt.close()
 
 class olsmodel(BaseModel):
+    """takes the basemodel subclass and bring it to here."""
     #--------BaseModel inheritance--------
     def _var_prep(self,df:pd.DataFrame):
         X = sm.add_constant(df[self.features])
-        y = df[y]
+        y = df[self.y]
         return X,y 
     def train_(self,X,y):
         ols_model = sm.OLS(y,X).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
         return ols_model
-    def _log_metrics(self):
-        return super()._log_metrics()
+    def _log_metrics(self,X,y,run_name):
+        metrics = {
+            'R2_adj': self.model_.rsquared_adj,
+            'durbin_watson': durbin_watson(self.model_.resid),
+            'Breuschpagan': het_breuschpagan(self.model_.resid, self.model_.model.exog)[1],
+            'aic': self.model_.aic,
+            'bic': self.model_.bic,
+            'centered_tss': self.model_.centered_tss,
+            'condition_number': self.model_.condition_number,
+            'df_model': self.model_.df_model,
+            'df_resid': self.model_.df_resid,
+            'ess': self.model_.ess,
+            'f_pvalue': self.model_.f_pvalue,
+            'fvalue': self.model_.fvalue,
+            'llf': self.model_.llf,
+            'mse_model': self.model_.mse_model,
+            'mse_resid': self.model_.mse_resid,
+            'mse_total': self.model_.mse_total,
+            'rsquared': self.model_.rsquared,
+            'rsquared_adj': self.model_.rsquared_adj,
+            'scale': self.model_.scale,
+            'ssr': self.model_.ssr,
+            'uncentered_tss': self.model_.uncentered_tss}
+        mlflow.log_metrics(metrics)
+        
+        #coefs and p-vals
+        for coefname, coef in self.model_.params.items():
+            mlflow.log_param(coefname, coef)
+        for coefname, pvalue in self.model_.pvalues.items():
+            mlflow.log_param(f'pval {coefname}', pvalue)
+        
+        # assumption tests
+        jb_stat, jb_p, _, _ = jarque_bera(self.model_.resid)
+        mlflow.log_metric('jarque_bera_normality', jb_p)
 
-            
+        # VIF
+        vif = {}
+        for i in range (1,X.shape[1]):
+            col = X.columns[i]
+            vif[col] = variance_inflation_factor(X.values,i)
+        
+        mlflow.log_dict(vif, 'vif.json')
+
+        # ADF stationarity
+        adf_p = ADF(self.model_.resid).pvalue
+        mlflow.log_metric('adf_resid_pval', adf_p)
+        
+        # Add residuals plot
+        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name)
+        
+        # full model summary
+        mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
+
+
 
 
 
