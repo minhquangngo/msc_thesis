@@ -1,14 +1,18 @@
+from abc import abstractmethod, ABC
+import hashlib
+import json
 import pandas as pd
 import statsmodels.api as sm
 import mlflow
 from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-from arch.unitroot import ADF
-import hashlib
-import json
+from statsmodels.tsa.stattools import adfuller
+import matplotlib.pyplot as plt
+import scienceplots
 
-def _fingerprint(df,y, features, lags):
+# Stateless helpers
+def _fingerprint(df:pd.DataFrame,y:str, features:list[str], lags:int) -> str:
     """
     Hash the result of the models.
     """
@@ -21,33 +25,10 @@ def _fingerprint(df,y, features, lags):
     )
     return hashlib.md5(json.dumps(meta, sort_keys=True).encode()).hexdigest()
 
-
-def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experiment_name=None):
+def experiment_check(experiment_name:str):
     """
-    Fitting OLS with HAC, adjusting for heteroskedacity autocorrelation up to a certain
-    point (defined with cov_kwds). This adjust the problem of the homoskedacity assumption. We allow 
-    lags of up to 5 business days
-
-    - Durbin Watson: Auto correlation check
+    Check if an experiment with the same name exists or not.
     """
-    #missing params check
-    missing = []
-    params = {
-        "run_name": run_name,
-        "fama_french_ver": fama_french_ver,
-        "experiment_name": experiment_name  
-    }
-    for name, val in params.items():
-        # If the value is exactly None, record its name
-        if val is None:
-            missing.append(name)
-
-    if missing:
-        raise ValueError(
-            f"The following parameter(s) must be provided and not None: {', '.join(missing)}"
-        )
-    
-    #experiment exist check    
     experiment = mlflow.get_experiment_by_name(experiment_name)
     if experiment is None:
         experiment_id = mlflow.create_experiment(experiment_name)
@@ -55,85 +36,159 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
     else:
         experiment_id = experiment.experiment_id
         print(f"Experiment already exists with ID: {experiment_id}")
-        
-            
     mlflow.set_experiment(experiment_name)
+    return experiment_id
 
-    #model exists check
-    hash_fp = _fingerprint(df,y,features,lags)
-    exists = mlflow.search_runs(
-        experiment_ids= [experiment_id],
-        filter_string=f"tags.fingerprint = '{hash_fp}' and tags.status = 'completed'",
-        max_results=1
-    )
-
-    if not exists.empty:
-        print("Skipping- already logged this model") 
-        return mlflow.get_run(exists.loc[0,"run_id"])
-
-    #Model training
-    X = sm.add_constant(df[features])
-    y = df[y]
-    ols_model = sm.OLS(y, X).fit(cov_type='HAC', cov_kwds={'maxlags': lags})
-
+#the "*" indicates the class call arguments must be stated in the function. For example target ="", lags = 
+class BaseModel(ABC):
+    def __init__(
+            self,
+            *,
+            y: str,
+            features: list[str],
+            lags:int = 5,
+            run_name: str = None,
+            fama_french_ver: str = None,
+            experiment_name: str = None) -> None:
+        self.y = y
+        self.features = features
+        self.lags = lags
+        self.run_name = run_name
+        self.fama_french_ver = fama_french_ver
+        self.experiment_name = experiment_name
     
-    run_name = f'{run_name}_OLS' if run_name else 'OLS'
-    with mlflow.start_run(
-        run_name=run_name, 
-        tags={
-        "fingerprint":hash_fp,
-        "status":"completed",
-        "sector":run_name,      
-        "factors":",".join(features), # tags must be strings
-        "model_type":"OLS_raw_baseline",
-        "fama_french_ver": fama_french_ver
-      }):
+    def fit(self,df:pd.DataFrame):
+        """
+        Step 1: Fingerprint the model -> pass to model_fingerprint_check
+        - Model_fingerprint_check will see if there is a model
+        with that fingerprint in the experiment already
+        Step 2: model_fingerprint_check will
+         - Check if the experiment name already exists
+         - If yes, go into that experiment
+    
+        Step 3: prep var -> train
+        """
+        self.hash_fp = _fingerprint(df,self.y, self.features, self.lags)
+        fingerprint_check = self.model_fingerprint_check()
+        #----check existing run---
+        if fingerprint_check is not None:
+            print("Skipping- already logged this model") 
+            return mlflow.get_run(fingerprint_check)
+        #------TODO:add args ||| Fit------
+        X,y = self._var_prep(df = df) 
+        self.model_ = self.train_(X = X,y =y)
+        self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.model_.resid, maxlag=None, autolag='AIC')
+        self._log_run(X,y,self.run_name)
+    
+    #------------abstracts--------------------------
+    @abstractmethod
+    def _var_prep(self,df:pd.DataFrame): 
+        pass
+    @abstractmethod
+    def train_(self,X,y):
+        pass
+    @abstractmethod
+    def _log_metrics(self,X,y,run_name): 
+        pass
+    
+    #----------internal helpers---------------------
+    def model_fingerprint_check(self)-> str | None:
+        """
+        Use the experiment_check external func to get the list of experiment_id
+        On that experiment id, check whether fingerprint already exists or not
+         -If exists - skip
+        """
+        exists = mlflow.search_runs(
+            experiment_ids = [experiment_check(self.experiment_name)],
+            filter_string = f"tags.fingerprint='{self.hash_fp}' and tags.status = 'completed'",
+            max_results = 1)
         
-        #params
-        params = {
+        if not exists.empty:
+            return exists.loc[0,"run_id"]
+        return None
+    def _log_run(self,X,y,run_name):
+        run_name = f'{self.run_name}' if self.run_name else 'blank'
+        with mlflow.start_run(
+            run_name=run_name,
+            tags={
+                "fingerprint":self.hash_fp,
+                "status":"completed",
+                "sector":run_name,      
+                "factors":",".join(self.features), # tags must be strings
+                "model_type":self.__class__.__name__,
+                "fama_french_ver": self.fama_french_ver
+      }):
+            params = {
             'sector':run_name,
-            'factors':features
+            'factors':self.features
         }
-        mlflow.log_param('sector', run_name)
-        mlflow.log_param('factors', features)
-        mlflow.set_tag("model_type", "OLS_raw")
-        mlflow.set_tag("fama_french_ver", fama_french_ver)
+            mlflow.log_params(params=params)
+            mlflow.set_tag("fama_french_ver", self.fama_french_ver)
+            self._log_metrics(X,y,run_name)
+
+    def plot_residuals(self, fitted_values, residuals, run_name):
+        """Plot residuals vs fitted values and save to MLflow"""
+        plt.style.use(['science','ieee','apa_custom.mplstyle'])
+        plt.figure(figsize=(10, 6))
+        plt.scatter(fitted_values, residuals,color= 'C1', alpha=0.5) # C1 = the first color cycle of scienceplot
+        plt.xlabel('Fitted Values')
+        plt.ylabel('Residuals')
+        plt.title(f'Residuals vs Fitted Values - {run_name}')
+        plt.axhline(y=0,linestyle='--')
+        # Add plot to MLflow
+        plt.savefig(f'{run_name}_residuals_plot.png') 
+        mlflow.log_artifact(f'{run_name}_residuals_plot.png')
+        plt.show()
+        plt.close()
 
 
-        #metrics
+class olsmodel(BaseModel):
+    """takes the basemodel subclass and bring it to here."""
+
+    #--------BaseModel inheritance--------
+    def _var_prep(self,df:pd.DataFrame):
+        X = sm.add_constant(df[self.features])
+        y = df[self.y]
+        return X,y 
+    def train_(self,X,y):
+        ols_model = sm.OLS(y,X).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
+        return ols_model
+    
+    def _log_metrics(self,X,y,run_name):
         metrics = {
-            'R2_adj': ols_model.rsquared_adj,
-            'durbin_watson': durbin_watson(ols_model.resid),
-            'Breuschpagan': het_breuschpagan(ols_model.resid, ols_model.model.exog)[1],
-            'aic': ols_model.aic,
-            'bic': ols_model.bic,
-            'centered_tss': ols_model.centered_tss,
-            'condition_number': ols_model.condition_number,
-            'df_model': ols_model.df_model,
-            'df_resid': ols_model.df_resid,
-            'ess': ols_model.ess,
-            'f_pvalue': ols_model.f_pvalue,
-            'fvalue': ols_model.fvalue,
-            'llf': ols_model.llf,
-            'mse_model': ols_model.mse_model,
-            'mse_resid': ols_model.mse_resid,
-            'mse_total': ols_model.mse_total,
-            'rsquared': ols_model.rsquared,
-            'rsquared_adj': ols_model.rsquared_adj,
-            'scale': ols_model.scale,
-            'ssr': ols_model.ssr,
-            'uncentered_tss': ols_model.uncentered_tss
-        }
+            'R2_adj': self.model_.rsquared_adj,
+            'durbin_watson': durbin_watson(self.model_.resid),
+            'Breuschpagan': het_breuschpagan(self.model_.resid, self.model_.model.exog)[1],
+            'aic': self.model_.aic,
+            'bic': self.model_.bic,
+            'centered_tss': self.model_.centered_tss,
+            'condition_number': self.model_.condition_number,
+            'df_model': self.model_.df_model,
+            'df_resid': self.model_.df_resid,
+            'ess': self.model_.ess,
+            'f_pvalue': self.model_.f_pvalue,
+            'fvalue': self.model_.fvalue,
+            'llf': self.model_.llf,
+            'mse_model': self.model_.mse_model,
+            'mse_resid': self.model_.mse_resid,
+            'mse_total': self.model_.mse_total,
+            'rsquared': self.model_.rsquared,
+            'rsquared_adj': self.model_.rsquared_adj,
+            'scale': self.model_.scale,
+            'ssr': self.model_.ssr,
+            'uncentered_tss': self.model_.uncentered_tss,
+            'adf_stats': self.adf_stat,
+            'adf_pval': self.adf_p}
         mlflow.log_metrics(metrics)
         
         #coefs and p-vals
-        for coefname, coef in ols_model.params.items():
+        for coefname, coef in self.model_.params.items():
             mlflow.log_param(coefname, coef)
-        for coefname, pvalue in ols_model.pvalues.items():
+        for coefname, pvalue in self.model_.pvalues.items():
             mlflow.log_param(f'pval {coefname}', pvalue)
         
         # assumption tests
-        jb_stat, jb_p, _, _ = jarque_bera(ols_model.resid)
+        jb_stat, jb_p, _, _ = jarque_bera(self.model_.resid)
         mlflow.log_metric('jarque_bera_normality', jb_p)
 
         # VIF
@@ -144,12 +199,15 @@ def ols_sm(df, y, features, lags=5, run_name=None, fama_french_ver=None, experim
         
         mlflow.log_dict(vif, 'vif.json')
 
-        # ADF stationarity
-        adf_p = ADF(ols_model.resid).pvalue
-        mlflow.log_metric('adf_resid_pval', adf_p)
+        #----------Plotting-----------
+        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name)
         
         # full model summary
-        mlflow.log_text(ols_model.summary().as_text(), 'ols_summary.txt')
+        mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 
-if __name__ == '__main__':
-    print("Import to use")
+    
+
+
+
+
+

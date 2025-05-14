@@ -1,0 +1,34 @@
+font.family     : sans-serif  
+font.sans-serif : Arial  
+font.size       : 11.0
+
+figure.titlesize:   large	# size of the figure title (``Figure.suptitle()``)
+figure.titleweight: bold	# weight of the figure title
+figure.subplot.wspace: 0.3     # the amount of width reserved for space between subplots,
+                               # expressed as a fraction of the average axis width
+
+figure.subplot.hspace: 0.3
+
+axes.titlesize  : 11.0
+axes.autolimit_mode: round_numbers
+axes.axisbelow:     line 
+
+xtick.labelsize:     small	# fontsize of the x any y ticks
+ytick.labelsize:     small
+xtick.color:         black
+ytick.color:         black
+
+axes.labelpad:      5.0        # space between label and axis
+
+axes.spines.top:    False	# display axis spines
+axes.spines.right:  False
+axes.spines.bottom:    True	# display axis spines
+axes.spines.left:  True
+
+axes.grid:          True
+grid.color        : 0.85
+grid.linestyle    : -
+grid.linewidth    : 0.5
+
+axes.labelweight:   bold
+axes.titleweight:   bold

@@ -4,7 +4,6 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-
 #Dates
 start_date = "1998-01-01"
 end_date = "2018-12-31"
@@ -17,11 +16,9 @@ Stocks:
 [x] Returns
 [x] Volume
 
-
 Sector:
 [x] cmp.sectorc
 [x] Sector names - match when pickled data is imported
-
 
 Liquidity risk factors
 [x] Turn over (turn) (vol/shrout) 

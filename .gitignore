@@ -16,3 +16,4 @@ py/__pycache__
 mlruns/
 mlartifacts/
 py/mlruns/
+py/*.png

@@ -19,6 +19,9 @@ run
 **Notes:**
 - As of July 202, Compustat no longer has S&P Dow Jones Indices. Access it through CRSP.
 - For data after February 2025, you will need to change the data tables to their "*_V2" counterpart.
+- Plotting styles
+    - [APA mplstyle repo](https://github.com/sollan/apa.mplstyle)
+    - [SciencePlot](https://github.com/garrettj403/SciencePlots) 
 
 ## Codebase 
 
