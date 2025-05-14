@@ -7,8 +7,9 @@ import mlflow
 from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
-from arch.unitroot import ADF
+from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
+import scienceplots
 
 # Stateless helpers
 def _fingerprint(df:pd.DataFrame,y:str, features:list[str], lags:int) -> str:
@@ -77,6 +78,8 @@ class BaseModel(ABC):
         X,y = self._var_prep(df = df) 
         self.model_ = self.train_(X = X,y =y)
         self._log_run(X,y,self.run_name)
+        self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.model_.resid, maxlag=None, autolag='AIC')
+        
     
     #------------abstracts--------------------------
     @abstractmethod
@@ -88,6 +91,7 @@ class BaseModel(ABC):
     @abstractmethod
     def _log_metrics(self,X,y,run_name): 
         pass
+    
     
     #----------internal helpers---------------------
     def model_fingerprint_check(self)-> str | None:
@@ -126,20 +130,23 @@ class BaseModel(ABC):
 
     def plot_residuals(self, fitted_values, residuals, run_name):
         """Plot residuals vs fitted values and save to MLflow"""
+        plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
-        plt.scatter(fitted_values, residuals, alpha=0.5)
+        plt.scatter(fitted_values, residuals,color= 'C1', alpha=0.5) # C1 = the first color cycle of scienceplot
         plt.xlabel('Fitted Values')
         plt.ylabel('Residuals')
         plt.title(f'Residuals vs Fitted Values - {run_name}')
-        plt.axhline(y=0, color='r', linestyle='--')
-        plt.show()
+        plt.axhline(y=0,linestyle='--')
         # Add plot to MLflow
-        plt.savefig('residuals_plot.png')
-        mlflow.log_artifact('residuals_plot.png')
+        plt.savefig(f'{run_name}_residuals_plot.png') 
+        mlflow.log_artifact(f'{run_name}_residuals_plot.png')
+        plt.show()
         plt.close()
+
 
 class olsmodel(BaseModel):
     """takes the basemodel subclass and bring it to here."""
+
     #--------BaseModel inheritance--------
     def _var_prep(self,df:pd.DataFrame):
         X = sm.add_constant(df[self.features])
@@ -148,6 +155,7 @@ class olsmodel(BaseModel):
     def train_(self,X,y):
         ols_model = sm.OLS(y,X).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
         return ols_model
+    
     def _log_metrics(self,X,y,run_name):
         metrics = {
             'R2_adj': self.model_.rsquared_adj,
@@ -170,7 +178,10 @@ class olsmodel(BaseModel):
             'rsquared_adj': self.model_.rsquared_adj,
             'scale': self.model_.scale,
             'ssr': self.model_.ssr,
-            'uncentered_tss': self.model_.uncentered_tss}
+            'uncentered_tss': self.model_.uncentered_tss,
+            'adf_stats': self.adf_stat,
+            'adf_pval': self.adf_p,
+            'adf_critval': self.crit_vals}
         mlflow.log_metrics(metrics)
         
         #coefs and p-vals
@@ -191,16 +202,13 @@ class olsmodel(BaseModel):
         
         mlflow.log_dict(vif, 'vif.json')
 
-        # ADF stationarity
-        adf_p = ADF(self.model_.resid).pvalue
-        mlflow.log_metric('adf_resid_pval', adf_p)
-        
-        # Add residuals plot
+        #----------Plotting-----------
         self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name)
         
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 
+    
 
 
 
