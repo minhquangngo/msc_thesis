@@ -10,8 +10,12 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 import scienceplots
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from random import randint, uniform
 
-# Stateless helpers
+seed = 3011
+#-----------Stateless helpers---------------
 def _fingerprint(df:pd.DataFrame,y:str, features:list[str], lags:int) -> str:
     """
     Hash the result of the models.
@@ -39,6 +43,7 @@ def experiment_check(experiment_name:str):
     mlflow.set_experiment(experiment_name)
     return experiment_id
 
+#---------------MODELS--------------------------
 #the "*" indicates the class call arguments must be stated in the function. For example target ="", lags = 
 class BaseModel(ABC):
     def __init__(
@@ -205,7 +210,47 @@ class olsmodel(BaseModel):
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 
+class randomforest(BaseModel):
+    """
+    Put randomforest on top of basemodel:
+    - expanding window walk forward
+    - log the final model params and metrics
+    """
+    def _var_prep(self, df):
+        self._df = df
+        X= df[self.features]
+        y=df[self.y]
+        return X,y
+    def train_(self,X,y):
+        #test size = 80 due to 4quarters*20years
+        #TODO: Could add an argument here to allow to switch between rolling and expanding
+        split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5) #TODO: test size determine
+        params = {
+            "n_estimators":      randint(200, 1000),
+            "max_depth":         randint(3, 20),     # None is allowed via extra prob mass:
+            "min_samples_split": randint(2, 10),
+            "min_samples_leaf":  randint(1, 10),
+            "max_features":      uniform(0.3, 0.7)   # fraction of features
+        }
+        rf = RandomForestRegressor(
+            random_state= seed,
+            oob_score= True
+        )
+        random_search = RandomizedSearchCV(
+            estimator= rf, 
+            param_distributions= params,
+            n_iter = 5, #TODO: change numb iter
+            scoring = 'mean_squared_error',
+            n_jobs = -1,
+            refit = True,
+            cv = split_timeseries,
+            random_state = seed
+        )
+        return random_search
     
+    def _log_metrics(self, X, y, run_name):
+        
+
 
 
 
