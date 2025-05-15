@@ -11,7 +11,8 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 import scienceplots
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV, cross_val_predict
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from random import randint, uniform
 
 seed = 3011
@@ -161,7 +162,6 @@ class olsmodel(BaseModel):
     
     def _log_metrics(self,X,y,run_name):
         metrics = {
-            'R2_adj': self.model_.rsquared_adj,
             'durbin_watson': durbin_watson(self.model_.resid),
             'Breuschpagan': het_breuschpagan(self.model_.resid, self.model_.model.exog)[1],
             'aic': self.model_.aic,
@@ -178,7 +178,7 @@ class olsmodel(BaseModel):
             'mse_resid': self.model_.mse_resid,
             'mse_total': self.model_.mse_total,
             'rsquared': self.model_.rsquared,
-            'rsquared_adj': self.model_.rsquared_adj,
+            'R2_adj': self.model_.rsquared_adj,
             'scale': self.model_.scale,
             'ssr': self.model_.ssr,
             'uncentered_tss': self.model_.uncentered_tss,
@@ -217,7 +217,6 @@ class randomforest(BaseModel):
     - log the final model params and metrics
     """
     def _var_prep(self, df):
-        self._df = df
         X= df[self.features]
         y=df[self.y]
         return X,y
@@ -236,7 +235,7 @@ class randomforest(BaseModel):
             random_state= seed,
             oob_score= True
         )
-        random_search = RandomizedSearchCV(
+        self.random_search = RandomizedSearchCV(
             estimator= rf, 
             param_distributions= params,
             n_iter = 5, #TODO: change numb iter
@@ -244,12 +243,32 @@ class randomforest(BaseModel):
             n_jobs = -1,
             refit = True,
             cv = split_timeseries,
+            verbose = 0,
             random_state = seed
-        )
-        return random_search
+        ).fit(X,y)  
+        #the prediction here is for every fold.cross_val_predict internally builds a full-sized y_pred aligned with y.index,
+        pred_y_sample = random_search.predict(X)
+        pred_fold = cross_val_predict(
+            estimator = random_search.best_estimator_,X=X, y=y,cv=split_timeseries,n_jobs= -1
+            )
+        self.mse_fold = mean_squared_error(y_true= y, y_pred= pred_fold)
+        self.r2_sample = r2_score(y_true=y,y_pred=pred_y_sample)
+        self.r2_fold = r2_score(y_true = y, y_pred = pred_fold) 
+        self.mae = mean_absolute_error(y_true= y, y_pred = pred_fold)
+
+        return random_search.best_estimator_
     
     def _log_metrics(self, X, y, run_name):
+        metrics = {
+            'mse_model': self.mse_fold,
+            'rsquared_sample': self.r2_sample,
+            'rsquared_oof': self.r2_fold,
+            'mae':self.mae,
+            'out_of_bag_score':self.random_search.best_estimator_.oob_score_
+        }
+        mlflow.log_metrics
         
+        #TODO: residuals, plot residuals,feature imp, shap, coeff from simonian, plot shap, lime, surrogate as well.
 
 
 
