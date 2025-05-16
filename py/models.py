@@ -11,9 +11,10 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 import scienceplots
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV, cross_val_predict
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV, cross_val_predict, cross_val_score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from random import randint, uniform
+import shap
 
 seed = 3011
 #-----------Stateless helpers---------------
@@ -32,7 +33,7 @@ def _fingerprint(df:pd.DataFrame,y:str, features:list[str], lags:int) -> str:
 
 def experiment_check(experiment_name:str):
     """
-    Check if an experiment with the same name exists or not.
+    Check if an experiment with the same name exists or not.2
     """
     experiment = mlflow.get_experiment_by_name(experiment_name)
     if experiment is None:
@@ -81,9 +82,8 @@ class BaseModel(ABC):
             print("Skipping- already logged this model") 
             return mlflow.get_run(fingerprint_check)
         #------TODO:add args ||| Fit------
-        X,y = self._var_prep(df = df) 
+        X,y = self._var_prep(df = df) #TODO: change to train and hold out
         self.model_ = self.train_(X = X,y =y)
-        self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.model_.resid, maxlag=None, autolag='AIC')
         self._log_run(X,y,self.run_name)
     
     #------------abstracts--------------------------
@@ -161,6 +161,7 @@ class olsmodel(BaseModel):
         return ols_model
     
     def _log_metrics(self,X,y,run_name):
+        self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.model_.resid, maxlag=None, autolag='AIC')
         metrics = {
             'durbin_watson': durbin_watson(self.model_.resid),
             'Breuschpagan': het_breuschpagan(self.model_.resid, self.model_.model.exog)[1],
@@ -183,7 +184,8 @@ class olsmodel(BaseModel):
             'ssr': self.model_.ssr,
             'uncentered_tss': self.model_.uncentered_tss,
             'adf_stats': self.adf_stat,
-            'adf_pval': self.adf_p}
+            'adf_pval': self.adf_p
+            }
         mlflow.log_metrics(metrics)
         
         #coefs and p-vals
@@ -217,10 +219,19 @@ class randomforest(BaseModel):
     - log the final model params and metrics
     """
     def _var_prep(self, df):
+        #TODO: hold out sample
+        hold_out_size = 360
+        break_point = len(df) - hold_out_size
+        
         X= df[self.features]
         y=df[self.y]
-        return X,y
-    def train_(self,X,y):
+        X_train = X.iloc[:break_point]
+        X_hold = X.iloc[break_point:]
+
+        y_train = y.iloc[:break_point]
+        y_hold = y.iloc[break_point:]
+        return X_train, X_hold, y_train, y_hold
+    def train_(self,X_train,,X_hold,y_train,y_hold):
         #test size = 80 due to 4quarters*20years
         #TODO: Could add an argument here to allow to switch between rolling and expanding
         split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5) #TODO: test size determine
@@ -245,30 +256,109 @@ class randomforest(BaseModel):
             cv = split_timeseries,
             verbose = 0,
             random_state = seed
-        ).fit(X,y)  
-        #the prediction here is for every fold.cross_val_predict internally builds a full-sized y_pred aligned with y.index,
-        pred_y_sample = random_search.predict(X)
-        pred_fold = cross_val_predict(
-            estimator = random_search.best_estimator_,X=X, y=y,cv=split_timeseries,n_jobs= -1
-            )
-        self.mse_fold = mean_squared_error(y_true= y, y_pred= pred_fold)
-        self.r2_sample = r2_score(y_true=y,y_pred=pred_y_sample)
-        self.r2_fold = r2_score(y_true = y, y_pred = pred_fold) 
-        self.mae = mean_absolute_error(y_true= y, y_pred = pred_fold)
+        ).fit(X_train,y_train)
 
-        return random_search.best_estimator_
+        self.best_rf = self.random_search.best_estimator_
+        
+        #-----------Sample Prediction------------
+        pred_y_sample = self.random_search.predict(X_train)
+        #the prediction here is for every fold.cross_val_predict internally builds a full-sized y_pred aligned with y.index,
+        self.pred_fold = cross_val_predict(
+            estimator = self.best_rf,X=X_train, y=y_train,cv=split_timeseries,n_jobs= -1
+            )
+        r2_fold_array = cross_val_score(    
+            estimator= self.best_rf,
+            X=X_train,y=y_train,
+            cv=split_timeseries,
+            n_jobs=-1
+        )
+
+        #------------Hold-out-----------------------
+        pred_y_hold = self.random_search.predict(X_hold)
+        
+        self.pred_fold_hold = cross_val_predict(
+            estimator = self.best_rf,X=X_hold, y=y_hold,cv=split_timeseries,n_jobs= -1
+            )
+
+        r2_fold_array = cross_val_score(    
+            estimator= self.best_rf,
+            X=X_hold,y=y_hold,
+            cv=split_timeseries,
+            n_jobs=-1
+        )
+        #-----------Metrics------------------------------
+        self.mse_sample = mean_squared_error(y_true = y_hold,y_pred = pred_y_sample)
+        self.mse_fold = mean_squared_error(y_true= y_hold, y_pred= self.pred_fold)
+        self.mse_bootstrap_oob = mean_squared_error (y_true= y_hold, y_pred = self.best_rf.oob_prediction_)
+        
+        self.mse_sample_hold = mean_squared_error(y_true = y_hold,y_pred = pred_y_hold)
+        self.mse_fold_hold = mean_squared_error(y_true= y_hold, y_pred= self.pred_fold_hold)
+
+        self.r2_sample = r2_score(y_true=y_hold,y_pred=pred_y_sample)
+        self.r2_glob_fold = r2_score(y_true = y_hold, y_pred = self.pred_fold) 
+        self.r2_bootstrap_oob = r2_score(y_true=y_hold,y_pred = self.best_rf.oob_prediction_)
+        self.r2_loc_fold_mean = r2_fold_array.mean()
+        self.r2_loc_fold_std = r2_fold_array.std()
+        
+        self.mae = mean_absolute_error(y_true= y_hold, y_pred = self.pred_fold)
+
+        self.resid_sample = y_hold - pred_y_sample
+        self.resid_oof = y_hold - self.pred_fold
+
+        #------------SHAP-------------
+        shap_exp = shap.TreeExplainer(self.best_rf)
+        shap_values = shap_exp.shap_values(X_hold)
+        
+        return self.best_rf
     
     def _log_metrics(self, X, y, run_name):
+        self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.resid_oof, maxlag=None, autolag='AIC')
         metrics = {
             'mse_model': self.mse_fold,
             'rsquared_sample': self.r2_sample,
-            'rsquared_oof': self.r2_fold,
+            'rsquared_global_oof': self.r2_glob_fold,
+            'rsquared_bootstrap_oob': self.r2_bootstrap_oob,
+            'rsquared_local_oof':self.r2_loc_fold_mean,
+            'rsquared_local_oof_std': self.r2_loc_fold_std,
             'mae':self.mae,
-            'out_of_bag_score':self.random_search.best_estimator_.oob_score_
+            'out_of_bag_score':self.best_rf.oob_score_,
+            'adf_stats': self.adf_stat,
+            'adf_pval': self.adf_p
         }
-        mlflow.log_metrics
+        mlflow.log_metrics(metrics)
         
-        #TODO: residuals, plot residuals,feature imp, shap, coeff from simonian, plot shap, lime, surrogate as well.
+        # --------------------VIF---------------
+        vif = {}
+        for i in range (1,X.shape[1]):
+            col = X.columns[i]
+            vif[col] = variance_inflation_factor(X.values,i)
+        mlflow.log_dict(vif, 'vif.json')
+        #---------------feat imp-----------
+        rf_summary =[]
+        for colname, feat_imp in zip(X.columns, self.best_rf.feature_importances_):
+            rf_summary.append(f"{colname}:{feat_imp}")
+        mlflow.log_text(rf_summary, 'rf_summary.txt')
+        
+        #-------------Residuals----------
+        self.plot_residuals(self.pred_fold,self.resid_oof, self.run_name) 
+
+        #------------SHAP----------------
+        shap_exp = shap.TreeExplainer(self.best_rf)
+        shap_values = shap_exp(X)
+        plt.style.use(['science','ieee','apa_custom.mplstyle'])
+        plt.figure(figsize=(10,6))
+        shap.summary_plot(shap_values,X,show=False)
+        plt.xlabel('Fitted values')
+        plt.ylabel('SHAP values')
+        plt.title(f'Residuals vs Fitted Values - {run_name}')
+        # Add plot to MLflow
+        plt.savefig(f'{run_name}_shap_plot.png') 
+        mlflow.log_artifact(f'{run_name}_shap_plot.png')
+        plt.show()
+        
+        
+        #TODO:  shap, coeff from simonian, plot shap, lime, surrogate as well.
+        #TODO: shap hold out sample 2018
 
 
 
