@@ -88,14 +88,14 @@ class BaseModel(ABC):
         #------TODO:add args ||| Fit------
         X_train,X_hold,y_train,y_hold = self._var_prep(df = df) #TODO: change to train and hold out
         self.model_ = self.train_(X = X_train,y =y_train)
-        self._log_run(X,y,self.run_name)
+        self._log_run(X_train,X_hold,y_train,y_hold,self.run_name)
     
     #------------abstracts--------------------------
     @abstractmethod
     def train_(self,X,y):
         pass
     @abstractmethod
-    def _log_metrics(self,X,y,run_name): 
+    def _log_metrics(self,X_train,X_hold,y_train,y_hold,run_name): 
         pass
     
     #----------internal helpers---------------------
@@ -127,7 +127,7 @@ class BaseModel(ABC):
             return exists.loc[0,"run_id"]
         return None
    
-    def _log_run(self,X,y,run_name):
+    def _log_run(self,X_train,X_hold,y_train,y_hold,run_name):
         run_name = f'{self.run_name}' if self.run_name else 'blank'
         with mlflow.start_run(
             run_name=run_name,
@@ -145,7 +145,7 @@ class BaseModel(ABC):
         }
             mlflow.log_params(params=params)
             mlflow.set_tag("fama_french_ver", self.fama_french_ver)
-            self._log_metrics(X,y,run_name)
+            self._log_metrics(X_train,X_hold,y_train,y_hold,run_name)
 
     def plot_residuals(self, fitted_values, residuals, run_name):
         """Plot residuals vs fitted values and save to MLflow"""
@@ -232,6 +232,9 @@ class olsmodel(BaseModel):
         
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
+#-------------------------------------------------------------------------------------------------
+##---------------------------------------RANDOM FOREST----------------------------------------------------------
+#-------------------------------------------------------------------------------------------------
 
 class randomforest(BaseModel):
     """
@@ -319,7 +322,7 @@ class randomforest(BaseModel):
         self.shap_values = shap_exp.shap_values(X_hold)
         
         #------------Surrogate--------
-        self.best_surrogate_model, self.surrogate_r2, self.surrogate_rmse = self.surrogate_(X_train, X_hold, pred_y_sample, pred_y_hold)
+        self.best_surrogate_model, self.surrogate_r2, self.surrogate_rmse = self.surrogate_(X_train, X_hold, pred_y_sample, self.pred_y_hold)
         return self.best_rf
     
     def _log_metrics(self, X_train,X_hold, y_train,y_hold, run_name):
@@ -355,7 +358,7 @@ class randomforest(BaseModel):
         vif = {}
         for i in range (1,X_train.shape[1]):
             col = X_train.columns[i]
-            vif[col] = variance_inflation_factor(X.values,i)
+            vif[col] = variance_inflation_factor(X_train.values,i)
         mlflow.log_dict(vif, 'vif.json')
     #---------------feat imp-----------
         rf_summary =[]
@@ -417,7 +420,7 @@ class randomforest(BaseModel):
         param_grid = {
         "max_depth":        [2, 3, 4, 5],
         "min_samples_leaf": [1, 5, 10, 25],
-        "ccp_alpha":        [0.0, 0.0005, 0.001, 0.005]  # cost-complexity pruning
+        "ccp_alpha":        [0.0, 0.0005, 0.001, 0.005]  
     }
         tree_surrogate = DecisionTreeRegressor()
         surrogate_grid = GridSearchCV(
@@ -427,13 +430,13 @@ class randomforest(BaseModel):
             scoring = 'r2',
             refit =True,
             n_jobs=-1,
-            verbose = 0 
+            verbose = 0
         )
         surrogate_grid.fit(X_train,pred_y_sample)
         best_surrogate_model = surrogate_grid.best_estimator_
         surrogate_y_pred =  surrogate_grid.predict(X_hold)
-        surrogate_rmse = np.sqrt(pred_y_hold, surrogate_y_pred)
-        surrogate_r2 = r2_score(pred_y_hold, pred_y_hold)
+        surrogate_rmse = np.sqrt(mean_squared_error(pred_y_hold, surrogate_y_pred))
+        surrogate_r2 = r2_score(pred_y_hold, surrogate_y_pred)
         return best_surrogate_model,surrogate_r2, surrogate_rmse
 
         
