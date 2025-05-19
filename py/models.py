@@ -2,6 +2,7 @@ from abc import abstractmethod, ABC
 import hashlib
 import json
 import pandas as pd
+import numpy as np
 import statsmodels.api as sm
 import mlflow
 from statsmodels.stats.diagnostic import het_breuschpagan
@@ -11,10 +12,13 @@ from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
 import scienceplots
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV, cross_val_predict, cross_val_score
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV,GridSearchCV, cross_val_predict, cross_val_score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.inspection import permutation_importance
 from random import randint, uniform
 import shap
+from sklearn.tree import DecisionTreeRegressor, export_text
+
 
 seed = 3011
 #-----------Stateless helpers---------------
@@ -82,14 +86,11 @@ class BaseModel(ABC):
             print("Skipping- already logged this model") 
             return mlflow.get_run(fingerprint_check)
         #------TODO:add args ||| Fit------
-        X,y = self._var_prep(df = df) #TODO: change to train and hold out
-        self.model_ = self.train_(X = X,y =y)
+        X_train,X_hold,y_train,y_hold = self._var_prep(df = df) #TODO: change to train and hold out
+        self.model_ = self.train_(X = X_train,y =y_train)
         self._log_run(X,y,self.run_name)
     
     #------------abstracts--------------------------
-    @abstractmethod
-    def _var_prep(self,df:pd.DataFrame): 
-        pass
     @abstractmethod
     def train_(self,X,y):
         pass
@@ -98,6 +99,19 @@ class BaseModel(ABC):
         pass
     
     #----------internal helpers---------------------
+    def _var_prep(self, df:pd.DataFrame):
+        hold_out_size = 360
+        break_point = len(df) - hold_out_size
+        
+        X= df[self.features]
+        y=df[self.y]
+        X_train = X.iloc[:break_point]
+        X_hold = X.iloc[break_point:]
+
+        y_train = y.iloc[:break_point]
+        y_hold = y.iloc[break_point:]
+        return X_train, X_hold, y_train, y_hold
+    
     def model_fingerprint_check(self)-> str | None:
         """
         Use the experiment_check external func to get the list of experiment_id
@@ -112,6 +126,7 @@ class BaseModel(ABC):
         if not exists.empty:
             return exists.loc[0,"run_id"]
         return None
+   
     def _log_run(self,X,y,run_name):
         run_name = f'{self.run_name}' if self.run_name else 'blank'
         with mlflow.start_run(
@@ -150,18 +165,22 @@ class BaseModel(ABC):
 
 class olsmodel(BaseModel):
     """takes the basemodel subclass and bring it to here."""
-
     #--------BaseModel inheritance--------
-    def _var_prep(self,df:pd.DataFrame):
-        X = sm.add_constant(df[self.features])
-        y = df[self.y]
-        return X,y 
-    def train_(self,X,y):
-        ols_model = sm.OLS(y,X).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
+
+    def train_(self,X_train,y_train):
+        X_train = sm.add_constant(X_train)
+        ols_model = sm.OLS(y_train,X_train).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
         return ols_model
     
-    def _log_metrics(self,X,y,run_name):
+    def _log_metrics(self,X_train,X_hold,y_train,y_hold,run_name):
         self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.model_.resid, maxlag=None, autolag='AIC')
+        
+        y_pred_train = self.model_.predict(X_train)
+        rmse_insample = np.sqrt(mean_squared_error(y_train,y_pred_train))
+        
+        y_pred_hold = self.model_.predict(X_hold)
+        rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
+
         metrics = {
             'durbin_watson': durbin_watson(self.model_.resid),
             'Breuschpagan': het_breuschpagan(self.model_.resid, self.model_.model.exog)[1],
@@ -178,6 +197,8 @@ class olsmodel(BaseModel):
             'mse_model': self.model_.mse_model,
             'mse_resid': self.model_.mse_resid,
             'mse_total': self.model_.mse_total,
+            'rmse_insample': rmse_insample,
+            'rmse_hold': rmse_hold,
             'rsquared': self.model_.rsquared,
             'R2_adj': self.model_.rsquared_adj,
             'scale': self.model_.scale,
@@ -200,9 +221,9 @@ class olsmodel(BaseModel):
 
         # VIF
         vif = {}
-        for i in range (1,X.shape[1]):
-            col = X.columns[i]
-            vif[col] = variance_inflation_factor(X.values,i)
+        for i in range (1,X_train.shape[1]):
+            col = X_train.columns[i]
+            vif[col] = variance_inflation_factor(X_train.values,i)
         
         mlflow.log_dict(vif, 'vif.json')
 
@@ -218,20 +239,8 @@ class randomforest(BaseModel):
     - expanding window walk forward
     - log the final model params and metrics
     """
-    def _var_prep(self, df):
-        #TODO: hold out sample
-        hold_out_size = 360
-        break_point = len(df) - hold_out_size
-        
-        X= df[self.features]
-        y=df[self.y]
-        X_train = X.iloc[:break_point]
-        X_hold = X.iloc[break_point:]
 
-        y_train = y.iloc[:break_point]
-        y_hold = y.iloc[break_point:]
-        return X_train, X_hold, y_train, y_hold
-    def train_(self,X_train,,X_hold,y_train,y_hold):
+    def train_(self,X_train,X_hold,y_train,y_hold):
         #test size = 80 due to 4quarters*20years
         #TODO: Could add an argument here to allow to switch between rolling and expanding
         split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5) #TODO: test size determine
@@ -274,7 +283,7 @@ class randomforest(BaseModel):
         )
 
         #------------Hold-out-----------------------
-        pred_y_hold = self.random_search.predict(X_hold)
+        self.pred_y_hold = self.random_search.predict(X_hold)
         
         self.pred_fold_hold = cross_val_predict(
             estimator = self.best_rf,X=X_hold, y=y_hold,cv=split_timeseries,n_jobs= -1
@@ -291,7 +300,7 @@ class randomforest(BaseModel):
         self.mse_fold = mean_squared_error(y_true= y_hold, y_pred= self.pred_fold)
         self.mse_bootstrap_oob = mean_squared_error (y_true= y_hold, y_pred = self.best_rf.oob_prediction_)
         
-        self.mse_sample_hold = mean_squared_error(y_true = y_hold,y_pred = pred_y_hold)
+        self.mse_sample_hold = mean_squared_error(y_true = y_hold,y_pred = self.pred_y_hold)
         self.mse_fold_hold = mean_squared_error(y_true= y_hold, y_pred= self.pred_fold_hold)
 
         self.r2_sample = r2_score(y_true=y_hold,y_pred=pred_y_sample)
@@ -299,7 +308,7 @@ class randomforest(BaseModel):
         self.r2_bootstrap_oob = r2_score(y_true=y_hold,y_pred = self.best_rf.oob_prediction_)
         self.r2_loc_fold_mean = r2_fold_array.mean()
         self.r2_loc_fold_std = r2_fold_array.std()
-        
+
         self.mae = mean_absolute_error(y_true= y_hold, y_pred = self.pred_fold)
 
         self.resid_sample = y_hold - pred_y_sample
@@ -307,11 +316,26 @@ class randomforest(BaseModel):
 
         #------------SHAP-------------
         shap_exp = shap.TreeExplainer(self.best_rf)
-        shap_values = shap_exp.shap_values(X_hold)
+        self.shap_values = shap_exp.shap_values(X_hold)
         
+        #------------Surrogate--------
+        self.best_surrogate_model, self.surrogate_r2, self.surrogate_rmse = self.surrogate_(X_train, X_hold, pred_y_sample, pred_y_hold)
         return self.best_rf
     
-    def _log_metrics(self, X, y, run_name):
+    def _log_metrics(self, X_train,X_hold, y_train,y_hold, run_name):
+        #-------------Logging models------------
+        mlflow.sklearn.log_model(
+        sk_model   = self.best_rf,
+        artifact_path = "model",          
+        registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}"  
+    )
+        mlflow.sklearn.log_model(
+            sk_model= self.best_surrogate_model,
+            artifact_path= 'model',
+            registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}" 
+        )
+        
+        #--------------Logging metrics---------------
         self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.resid_oof, maxlag=None, autolag='AIC')
         metrics = {
             'mse_model': self.mse_fold,
@@ -329,37 +353,93 @@ class randomforest(BaseModel):
         
         # --------------------VIF---------------
         vif = {}
-        for i in range (1,X.shape[1]):
-            col = X.columns[i]
+        for i in range (1,X_train.shape[1]):
+            col = X_train.columns[i]
             vif[col] = variance_inflation_factor(X.values,i)
         mlflow.log_dict(vif, 'vif.json')
-        #---------------feat imp-----------
+    #---------------feat imp-----------
         rf_summary =[]
-        for colname, feat_imp in zip(X.columns, self.best_rf.feature_importances_):
+        for colname, feat_imp in zip(X_train.columns, self.best_rf.feature_importances_):
             rf_summary.append(f"{colname}:{feat_imp}")
         mlflow.log_text(rf_summary, 'rf_summary.txt')
-        
+
+        #----------------permutation importnance MDA(simonian 2019)---------
+        perm_result = permutation_importance(
+            self.best_rf, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=-1
+        )
+        # Plot permutation importances
+        raw_perm_imp =perm_result.importances_mean
+        sorted_idx = raw_perm_imp.argsort() #asc sort mean of importances over all instances
+        plt.style.use(['science','ieee','apa_custom.mplstyle'])
+        plt.figure(figsize=(10, 6))
+        plt.boxplot(
+            raw_perm_imp[sorted_idx].T,
+            vert=True,
+            labels=X_hold.columns[sorted_idx]
+        )
+        plt.ylabel("Permutation Importance (mean decrease accuracy)")
+        plt.title(f"Permutation Feature Importance - {run_name}")
+        plt.tight_layout()
+        plt.savefig(f"{run_name}_permutation_importance.png")
+        mlflow.log_artifact(f"{run_name}_permutation_importance.png")
+        plt.show()
+        plt.close()
+        # Optionally log importances as text
+        perm_imp_dict = {
+            X_hold.columns[i]: {
+                "mean": float(perm_result.importances_mean[i]),
+                "std": float(perm_result.importances_std[i])
+            }
+            for i in range(len(X_hold.columns))
+        }
+        mlflow.log_dict(perm_imp_dict, "permutation_importance.json")
+
         #-------------Residuals----------
         self.plot_residuals(self.pred_fold,self.resid_oof, self.run_name) 
 
         #------------SHAP----------------
-        shap_exp = shap.TreeExplainer(self.best_rf)
-        shap_values = shap_exp(X)
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10,6))
-        shap.summary_plot(shap_values,X,show=False)
-        plt.xlabel('Fitted values')
-        plt.ylabel('SHAP values')
-        plt.title(f'Residuals vs Fitted Values - {run_name}')
-        # Add plot to MLflow
+        shap.plots.beeswarm(self.shap_values,X_hold,show=False)
         plt.savefig(f'{run_name}_shap_plot.png') 
         mlflow.log_artifact(f'{run_name}_shap_plot.png')
         plt.show()
-        
-        
-        #TODO:  shap, coeff from simonian, plot shap, lime, surrogate as well.
-        #TODO: shap hold out sample 2018
+        plt.close()
 
+        #-----------Simonian coefficient-----------
+        rfi = raw_perm_imp/raw_perm_imp.sum()
+        elasticity = self.pred_y_hold / X_hold
+        rf_beta = rfi * elasticity.mean(axis = 0)
+        pseudo_beta = {feature: beta for feature, beta in zip(X_hold.columns, rf_beta)}
+        mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
+        
+    def surrogate_(self,X_train,X_hold,pred_y_sample,pred_y_hold):
+        param_grid = {
+        "max_depth":        [2, 3, 4, 5],
+        "min_samples_leaf": [1, 5, 10, 25],
+        "ccp_alpha":        [0.0, 0.0005, 0.001, 0.005]  # cost-complexity pruning
+    }
+        tree_surrogate = DecisionTreeRegressor()
+        surrogate_grid = GridSearchCV(
+            estimator= tree_surrogate,
+            param_grid= param_grid,
+            cv= 5, # TODO: adjust this later
+            scoring = 'r2',
+            refit =True,
+            n_jobs=-1,
+            verbose = 0 
+        )
+        surrogate_grid.fit(X_train,pred_y_sample)
+        best_surrogate_model = surrogate_grid.best_estimator_
+        surrogate_y_pred =  surrogate_grid.predict(X_hold)
+        surrogate_rmse = np.sqrt(pred_y_hold, surrogate_y_pred)
+        surrogate_r2 = r2_score(pred_y_hold, pred_y_hold)
+        return best_surrogate_model,surrogate_r2, surrogate_rmse
+
+        
+
+
+ 
 
 
 

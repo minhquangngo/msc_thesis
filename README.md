@@ -22,6 +22,7 @@ run
 - Plotting styles
     - [APA mplstyle repo](https://github.com/sollan/apa.mplstyle)
     - [SciencePlot](https://github.com/garrettj403/SciencePlots) 
+- Feature importance : Permutation importance not the normal feature importance. Used mean decrease in accuracy instead of mean deacrease in impurity according to simonian 2019 [sklearn formula](https://scikit-learn.org/stable/modules/permutation_importance.html)
 
 ## Codebase 
 
