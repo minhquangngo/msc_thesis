@@ -308,8 +308,8 @@ class randomforest(BaseModel):
         self.resid_hold = y_hold - self.pred_y_hold
 
         #------------SHAP-------------
-        shap_exp = shap.TreeExplainer(self.best_rf)
-        self.shap_values = shap_exp.shap_values(X_hold)
+        shap_exp = shap.Explainer(self.best_rf)
+        self.shap_values = shap_exp(X_hold)
         
         #------------Surrogate--------
         self.best_surrogate_model, self.surrogate_r2, self.surrogate_rmse = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
@@ -361,7 +361,7 @@ class randomforest(BaseModel):
         rf_summary =[]
         for colname, feat_imp in zip(X_fit.columns, self.best_rf.feature_importances_):
             rf_summary.append(f"{colname}:{feat_imp}")
-        mlflow.log_text('n'.join(rf_summary), 'rf_summary.txt') #needs to joing this as a string
+        mlflow.log_text('\n'.join(rf_summary), 'rf_summary.txt') #needs to joing this as a string
 
         #----------------permutation importnance MDA(simonian 2019)---------
         perm_result = permutation_importance(
@@ -370,10 +370,11 @@ class randomforest(BaseModel):
         # Plot permutation importances
         raw_perm_imp =perm_result.importances_mean
         sorted_idx = raw_perm_imp.argsort() #asc sort mean of importances over all instances
+        boxplot_data = [perm_result.importances[i] for i in sorted_idx]
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
         plt.boxplot(
-            raw_perm_imp[sorted_idx].T,
+            boxplot_data,
             vert=True,
             labels=X_hold.columns[sorted_idx]
         )
