@@ -147,14 +147,14 @@ class BaseModel(ABC):
             mlflow.set_tag("fama_french_ver", self.fama_french_ver)
             self._log_metrics(X_fit,X_hold,y_fit,y_hold,run_name)
 
-    def plot_residuals(self, fitted_values, residuals, run_name):
+    def plot_residuals(self, fitted_values, residuals, run_name,title):
         """Plot residuals vs fitted values and save to MLflow"""
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
-        plt.scatter(fitted_values, residuals,color= 'C1', alpha=0.5) # C1 = the first color cycle of scienceplot
+        plt.scatter(fitted_values, residuals, alpha=0.5) # C1 = the first color cycle of scienceplot
         plt.xlabel('Fitted Values')
         plt.ylabel('Residuals')
-        plt.title(f'Residuals vs Fitted Values - {run_name}')
+        plt.title(f'{title} - {run_name}')
         plt.axhline(y=0,linestyle='--')
         # Add plot to MLflow
         plt.savefig(f'{run_name}_residuals_plot.png') 
@@ -167,17 +167,19 @@ class olsmodel(BaseModel):
     """takes the basemodel subclass and bring it to here."""
     #--------BaseModel inheritance--------
 
-    def train_(self,X_fit,y_fit):
-        X_fit = sm.add_constant(X_fit)
-        ols_model = sm.OLS(y_fit,X_fit).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
+    def train_(self,X_fit,X_hold,y_fit,y_hold):
+        # Fitted OLS 
+        self.X_fit = sm.add_constant(X_fit)
+        ols_model = sm.OLS(y_fit,self.X_fit).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
         return ols_model
     
     def _log_metrics(self,X_fit,X_hold,y_fit,y_hold,run_name):
         self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.model_.resid, maxlag=None, autolag='AIC')
-        
-        y_pred_train = self.model_.predict(X_fit)
+
+        y_pred_train = self.model_.predict(self.X_fit)
         rmse_insample = np.sqrt(mean_squared_error(y_fit,y_pred_train))
         
+        X_hold = sm.add_constant(X_hold, has_constant='add')
         y_pred_hold = self.model_.predict(X_hold)
         rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
 
@@ -221,15 +223,15 @@ class olsmodel(BaseModel):
 
         # VIF
         vif = {}
-        for i in range (1,X_fit.shape[1]):
-            col = X_fit.columns[i]
-            vif[col] = variance_inflation_factor(X_fit.values,i)
-        
+        for i in range (1,self.X_fit.shape[1]):
+            col = self.X_fit.columns[i]
+            vif[col] = variance_inflation_factor(self.X_fit.values,i)
+
         mlflow.log_dict(vif, 'vif.json')
 
         #----------Plotting-----------
-        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name)
-        
+        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name,"Sample:Residuals vs Fitted Values")
+        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name,"Hold out: Residuals vs Fitted Values")
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 #-------------------------------------------------------------------------------------------------
@@ -312,7 +314,7 @@ class randomforest(BaseModel):
         self.shap_values = shap_exp(X_hold)
         
         #------------Surrogate--------
-        self.best_surrogate_model, self.surrogate_r2, self.surrogate_rmse = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
+        self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
         return self.best_rf
     
     def _log_metrics(self, X_fit,X_hold, y_fit,y_hold, run_name):
@@ -346,8 +348,10 @@ class randomforest(BaseModel):
             'out_of_bag_score':self.best_rf.oob_score_,
             'adf_stats': self.adf_stat,
             'adf_pval': self.adf_p,
-            'surrogate_r2': self.surrogate_r2,  
-            'surrogate_rmse': self.surrogate_rmse  
+            'surrogate_rmse_sample': self.surrogate_rmse_sample,
+            'surrogate_r2_sample': self.surrogate_r2_sample,
+            'surrogate_rmse_hold': self.surrogate_rmse_hold,
+            'surrogate_r2_hold': self.surrogate_r2_hold 
         }
         mlflow.log_metrics(metrics)
         
@@ -397,12 +401,12 @@ class randomforest(BaseModel):
 
         #-------------Residuals----------
         #TODO: Sample or hold out resid?
-        self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name) 
-
+        self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name, title = 'RF Sample: Residuals vs Fitted Values')
+        self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name, title = 'RF Hold out: Residuals vs Fitted Values') 
         #------------SHAP----------------
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10,6))
-        shap.plots.beeswarm(self.shap_values,X_hold,show=False)
+        shap.plots.beeswarm(self.shap_values, show=False)
         plt.savefig(f'{run_name}_shap_plot.png') 
         mlflow.log_artifact(f'{run_name}_shap_plot.png')
         plt.show()
@@ -410,9 +414,9 @@ class randomforest(BaseModel):
 
         #-----------Simonian coefficient-----------
         rfi = raw_perm_imp/raw_perm_imp.sum()
-        elasticity = self.pred_y_hold / (X_hold+1e-08)
+        elasticity = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
         rf_beta = rfi * elasticity.mean(axis = 0)
-        pseudo_beta = {feature: beta for feature, beta in zip(X_hold.columns, rf_beta)}
+        pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, rf_beta)}
         mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
         
     def surrogate_(self,X_fit,X_hold,pred_y_sample,pred_y_hold):
@@ -433,10 +437,15 @@ class randomforest(BaseModel):
         )
         surrogate_grid.fit(X_fit,pred_y_sample)
         best_surrogate_model = surrogate_grid.best_estimator_
-        surrogate_y_pred =  surrogate_grid.predict(X_hold)
-        surrogate_rmse = np.sqrt(mean_squared_error(pred_y_hold, surrogate_y_pred))
-        surrogate_r2 = r2_score(pred_y_hold, surrogate_y_pred)
-        return best_surrogate_model,surrogate_r2, surrogate_rmse
+        # Sample pred
+        surrogate_pred_sample = surrogate_grid.predict(X_fit)
+        surrogate_rmse_sample = np.sqrt(mean_squared_error(pred_y_sample, surrogate_pred_sample))
+        surrogate_r2_sample = r2_score(pred_y_sample, surrogate_pred_sample)
+        # Hold-out prediction
+        surrogate_pred_hold =  surrogate_grid.predict(X_hold)
+        surrogate_rmse_hold = np.sqrt(mean_squared_error(pred_y_hold, surrogate_pred_hold))
+        surrogate_r2_hold = r2_score(pred_y_hold, surrogate_pred_hold)
+        return best_surrogate_model,surrogate_r2_sample, surrogate_rmse_sample, surrogate_r2_hold, surrogate_rmse_hold
 
 
 
