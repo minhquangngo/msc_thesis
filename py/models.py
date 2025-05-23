@@ -151,14 +151,14 @@ class BaseModel(ABC):
             mlflow.set_tag("fama_french_ver", self.fama_french_ver)
             self._log_metrics(X_fit,X_hold,y_fit,y_hold,run_name)
 
-    def plot_residuals(self, fitted_values, residuals, run_name,title):
+    def plot_residuals(self, fitted_values, residuals, run_name):
         """Plot residuals vs fitted values and save to MLflow"""
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
         plt.scatter(fitted_values, residuals, alpha=0.5) # C1 = the first color cycle of scienceplot
         plt.xlabel('Fitted Values')
         plt.ylabel('Residuals')
-        plt.title(f'{title} - {run_name}')
+        #plt.title(f'{title} - {run_name}')
         plt.axhline(y=0,linestyle='--')
         # Add plot to MLflow
         plt.savefig(f'{run_name}_residuals_plot.png') 
@@ -247,8 +247,8 @@ class olsmodel(BaseModel):
         mlflow.log_dict(vif, 'vif.json')
 
         #----------Plotting-----------
-        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name,"Sample:Residuals vs Fitted Values")
-        self.plot_residuals(y_pred_hold, resid_hold, run_name,"Hold out: Residuals vs Fitted Values")
+        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name)#"Sample:Residuals vs Fitted Values"
+        self.plot_residuals(y_pred_hold, resid_hold, run_name)#"Hold out: Residuals vs Fitted Values"
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 #-------------------------------------------------------------------------------------------------
@@ -385,47 +385,44 @@ class randomforest(BaseModel):
             col = X_fit.columns[i]
             vif[col] = variance_inflation_factor(X_fit.values,i)
         mlflow.log_dict(vif, 'vif.json')
-    #---------------feat imp-----------
+        #---------------feat imp-----------
         rf_summary =[]
         for colname, feat_imp in zip(X_fit.columns, self.best_rf.feature_importances_):
             rf_summary.append(f"{colname}:{feat_imp}")
         mlflow.log_text('\n'.join(rf_summary), 'rf_summary.txt') #needs to joing this as a string
 
         #----------------permutation importnance MDA(simonian 2019)---------
-        perm_result = permutation_importance(
+        perm_result_rf = permutation_importance(
             self.best_rf, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=-1
-        )
-        # Plot permutation importances
-        raw_perm_imp =perm_result.importances_mean
-        sorted_idx = raw_perm_imp.argsort() #asc sort mean of importances over all instances
-        boxplot_data = [perm_result.importances[i] for i in sorted_idx]
-        plt.style.use(['science','ieee','apa_custom.mplstyle'])
-        plt.figure(figsize=(10, 6))
-        plt.boxplot(
-            boxplot_data,
-            vert=True,
-            labels=X_hold.columns[sorted_idx]
-        )
-        plt.ylabel("Permutation Importance (mean decrease accuracy)")
-        plt.title(f"Permutation Feature Importance - {run_name}")
-        plt.tight_layout()
-        plt.savefig(f"{run_name}_permutation_importance.png")
-        mlflow.log_artifact(f"{run_name}_permutation_importance.png")
-        plt.show()
-        plt.close()
-        # Optionally log importances as text
-        perm_imp_dict = {
-            X_hold.columns[i]: {
-                "mean": float(perm_result.importances_mean[i]),
-                "std": float(perm_result.importances_std[i])
-            }
-            for i in range(len(X_hold.columns))
-        }
-        mlflow.log_dict(perm_imp_dict, "permutation_importance.json")
+        ) #TODO: adjust number of repeats
 
-        #-------------Residuals----------
-        self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name, title = 'RF Sample: Residuals vs Fitted Values')
-        self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name, title = 'RF Hold out: Residuals vs Fitted Values') 
+        perm_result_surr = permutation_importance(
+            self.best_surrogate_model, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=-1
+        )
+        raw_perm_imp_rf = self.plot_and_log_permutation_importance(
+            perm_result_rf,
+            X_hold,
+            run_name= self.run_name,
+            surr_or_rf = 'rf')
+        
+        raw_perm_imp_rf = self.plot_and_log_permutation_importance(
+            perm_result_surr,
+            X_hold,
+            run_name= self.run_name,
+            surr_or_rf = 'surr')
+        
+        #-------------Residuals-RF----------
+        self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name) #'RF Sample: Residuals vs Fitted Values')
+        self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name)#'RF Hold out: Residuals vs Fitted Values' 
+        
+        #------------Residuals-Surr----------
+        surr_pred_sample = self.best_surrogate_model.predict(X_fit)
+        surr_pred_hold = self.best_surrogate_model.predict(X_hold)
+        surr_resid_sample = y_fit - surr_pred_sample
+        surr_resid_hold = y_hold - surr_pred_hold
+        self.plot_residuals(surr_pred_sample,surr_resid_sample,self.run_name)#' Surrogate Sample: Residuals vs Fitted Values'
+        self.plot_residuals(surr_pred_hold,surr_resid_hold,self.run_name)#' Surrogate Hold out: Residuals vs Fitted Values'
+        
         #------------SHAP----------------
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10,6))
@@ -435,13 +432,16 @@ class randomforest(BaseModel):
         plt.show()
         plt.close()
 
-        #-----------Simonian coefficient-----------
-        rfi = raw_perm_imp/raw_perm_imp.sum()
+        #-----------Simonian coefficient- RF-----------
+        rfi = raw_perm_imp_rf/raw_perm_imp_rf.sum()
         elasticity = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
         rf_beta = rfi * elasticity.mean(axis = 0)
         pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, rf_beta)}
         mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
-        
+
+        ----
+    ###----------------Helper func----------------------------
+    #---------------------------------------------------------
     def surrogate_(self,X_fit,X_hold,pred_y_sample,pred_y_hold):
         param_grid = {
             'max_depth':         range(1, 11),
@@ -471,7 +471,40 @@ class randomforest(BaseModel):
         surrogate_rmse_hold = np.sqrt(mean_squared_error(pred_y_hold, surrogate_pred_hold))
         surrogate_r2_hold = r2_score(pred_y_hold, surrogate_pred_hold)
         return best_surrogate_model,surrogate_r2_sample, surrogate_rmse_sample, surrogate_r2_hold, surrogate_rmse_hold
+    
+    def plot_and_log_permutation_importance(
+        self,
+        perm_result,
+        X_hold,
+        run_name: str,
+        surr_or_rf = None
+    ):
+    
+        
+        raw_perm_imp = perm_result.importances_mean
+        sorted_idx   = raw_perm_imp.argsort()  # ascending
+        boxplot_data = [perm_result.importances[i] for i in sorted_idx]
+        labels       = X_hold.columns[sorted_idx]
 
+        plt.style.use(['science','ieee','apa_custom.mplstyle'])
+        plt.figure(figsize=(10, 6))
+        plt.boxplot(boxplot_data, vert=True, labels=labels)
+        plt.ylabel("Permutation Importance (mean decrease accuracy)")
+        plt.tight_layout()
+        os.getcwd()
+        img_path = os.path.join(out_dir, f"{run_name}_permutation_importance.png")
+        plt.savefig(img_path)
+        mlflow.log_artifact(img_path)
+        plt.close()
+
+        perm_imp_dict = {
+            feature: {
+                "mean": float(perm_result.importances_mean[i]),
+                "std":  float(perm_result.importances_std[i])
+            } for i, feature in enumerate(X_hold.columns)
+        }
+        mlflow.log_dict(perm_imp_dict, f"{surr_or_rf}_{run_name}_permutation_importance.json")
+        return raw_perm_imp
 
 
 
