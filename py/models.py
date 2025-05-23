@@ -21,7 +21,8 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.inspection import permutation_importance
 from scipy.stats import randint, uniform
 import shap
-from sklearn.tree import DecisionTreeRegressor, export_text
+from sklearn.tree import DecisionTreeRegressor, export_text, plot_tree
+from sklearn.inspection import PartialDependenceDisplay
 
 
 seed = 3011
@@ -333,6 +334,8 @@ class randomforest(BaseModel):
         
         #------------Surrogate--------
         self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
+        plt.figure(figsize = (10,6))
+        plot_tree(self.best_surrogate_model, filled= True, max_depth= 3)
         return self.best_rf
     
     def _log_metrics(self, X_fit,X_hold, y_fit,y_hold, run_name):
@@ -347,8 +350,8 @@ class randomforest(BaseModel):
             registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
             signature=rf_sig
     )
-        surr_output_model = self.best_surrogate_model(rf_input_example)
-        surr_sig = self.best_surrogate_model(surr_output_model)
+        surr_output_example = self.best_surrogate_model.predict(rf_input_example)
+        surr_sig = mlflow.models.signature.infer_signature(rf_input_example,surr_output_example)
         mlflow.sklearn.log_model(
             sk_model= self.best_surrogate_model,
             artifact_path= 'model',
@@ -405,7 +408,7 @@ class randomforest(BaseModel):
             run_name= self.run_name,
             surr_or_rf = 'rf')
         
-        raw_perm_imp_rf = self.plot_and_log_permutation_importance(
+        raw_perm_imp_surr = self.plot_and_log_permutation_importance(
             perm_result_surr,
             X_hold,
             run_name= self.run_name,
@@ -433,13 +436,38 @@ class randomforest(BaseModel):
         plt.close()
 
         #-----------Simonian coefficient- RF-----------
-        rfi = raw_perm_imp_rf/raw_perm_imp_rf.sum()
-        elasticity = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
-        rf_beta = rfi * elasticity.mean(axis = 0)
+        rfi_rf = raw_perm_imp_rf/raw_perm_imp_rf.sum()
+        elasticity_rf = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
+        rf_beta = rfi_rf * elasticity_rf.mean(axis = 0)
         pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, rf_beta)}
         mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
 
-        ----
+        rfi_surr = raw_perm_imp_surr/raw_perm_imp_surr.sum()
+        elasticity_surr = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
+        surr_beta = rfi_surr * elasticity_surr.mean(axis = 0)
+        pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, surr_beta)}
+        mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
+
+        #------------------Partial Dependence Plots----------------
+        rf_pdp = PartialDependenceDisplay.from_estimator(
+            estimator = self.best_rf,
+            X= X_fit,
+            features = self.features,
+            grid_resolution= 50)
+
+        surr_pdp = PartialDependenceDisplay.from_estimator(
+            estimator = self.best_surrogate_model,
+            X= X_fit,
+            features = self.features,
+            grid_resolution= 50
+        )
+        plt.tight_layout()
+        plt.show()
+
+        rf_pdp.figure_.savefig(f"{run_name}_rf_pdp.png")
+        surr_pdp.figure_.savefig(f"{run_name}_surr_pdp.png")
+        mlflow.log_artifact(f"{run_name}_rf_pdp.png")
+
     ###----------------Helper func----------------------------
     #---------------------------------------------------------
     def surrogate_(self,X_fit,X_hold,pred_y_sample,pred_y_hold):
@@ -491,8 +519,7 @@ class randomforest(BaseModel):
         plt.boxplot(boxplot_data, vert=True, labels=labels)
         plt.ylabel("Permutation Importance (mean decrease accuracy)")
         plt.tight_layout()
-        os.getcwd()
-        img_path = os.path.join(out_dir, f"{run_name}_permutation_importance.png")
+        img_path = f"{surr_or_rf}_{run_name}_permutation_importance.png"
         plt.savefig(img_path)
         mlflow.log_artifact(img_path)
         plt.close()
@@ -505,12 +532,3 @@ class randomforest(BaseModel):
         }
         mlflow.log_dict(perm_imp_dict, f"{surr_or_rf}_{run_name}_permutation_importance.json")
         return raw_perm_imp
-
-
-
-
-
-
-
-
-
