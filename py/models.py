@@ -4,6 +4,7 @@ import json
 import mlflow.models
 import mlflow.models
 import mlflow.models.signature
+import mlflow.sklearn
 import mlflow.statsmodels
 import pandas as pd
 import numpy as np
@@ -152,7 +153,7 @@ class BaseModel(ABC):
             mlflow.set_tag("fama_french_ver", self.fama_french_ver)
             self._log_metrics(X_fit,X_hold,y_fit,y_hold,run_name)
 
-    def plot_residuals(self, fitted_values, residuals, run_name):
+    def plot_residuals(self, fitted_values, residuals, run_name,sample_or_hold):
         """Plot residuals vs fitted values and save to MLflow"""
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
@@ -162,8 +163,9 @@ class BaseModel(ABC):
         #plt.title(f'{title} - {run_name}')
         plt.axhline(y=0,linestyle='--')
         # Add plot to MLflow
-        plt.savefig(f'{run_name}_residuals_plot.png') 
-        mlflow.log_artifact(f'{run_name}_residuals_plot.png')
+        img_path = f'{run_name}_{sample_or_hold}_residuals_plot.png
+        plt.savefig(img_path)
+        mlflow.log_artifact(img_path)
         plt.show()
         plt.close()
 
@@ -248,8 +250,8 @@ class olsmodel(BaseModel):
         mlflow.log_dict(vif, 'vif.json')
 
         #----------Plotting-----------
-        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name)#"Sample:Residuals vs Fitted Values"
-        self.plot_residuals(y_pred_hold, resid_hold, run_name)#"Hold out: Residuals vs Fitted Values"
+        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name, sample_or_hold= 'sample')#"Sample:Residuals vs Fitted Values"
+        self.plot_residuals(y_pred_hold, resid_hold, run_name, sample_or_hold= 'hold')#"Hold out: Residuals vs Fitted Values"
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 #-------------------------------------------------------------------------------------------------
@@ -359,7 +361,7 @@ class randomforest(BaseModel):
             registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
             signature= surr_sig
         )
-        
+
         #--------------Logging metrics---------------
         #TODO: see which residuals (hold or sample) should we use for adf
         self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.resid_sample, maxlag=None, autolag='AIC')
@@ -384,7 +386,7 @@ class randomforest(BaseModel):
         
         # --------------------VIF---------------
         vif = {}
-        for i in range (1,X_fit.shape[1]):
+        for i in range (0,X_fit.shape[1]):
             col = X_fit.columns[i]
             vif[col] = variance_inflation_factor(X_fit.values,i)
         mlflow.log_dict(vif, 'vif.json')
@@ -415,17 +417,17 @@ class randomforest(BaseModel):
             surr_or_rf = 'surr')
         
         #-------------Residuals-RF----------
-        self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name) #'RF Sample: Residuals vs Fitted Values')
-        self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name)#'RF Hold out: Residuals vs Fitted Values' 
-        
+        self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name, sample_or_hold='sample') #'RF Sample: Residuals vs Fitted Values')
+        self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name, sample_or_hold='hold') #'RF Hold out: Residuals vs Fitted Values'
+
         #------------Residuals-Surr----------
         surr_pred_sample = self.best_surrogate_model.predict(X_fit)
         surr_pred_hold = self.best_surrogate_model.predict(X_hold)
         surr_resid_sample = y_fit - surr_pred_sample
         surr_resid_hold = y_hold - surr_pred_hold
-        self.plot_residuals(surr_pred_sample,surr_resid_sample,self.run_name)#' Surrogate Sample: Residuals vs Fitted Values'
-        self.plot_residuals(surr_pred_hold,surr_resid_hold,self.run_name)#' Surrogate Hold out: Residuals vs Fitted Values'
-        
+        self.plot_residuals(surr_pred_sample,surr_resid_sample,self.run_name, sample_or_hold='sample') #' Surrogate Sample: Residuals vs Fitted Values'
+        self.plot_residuals(surr_pred_hold,surr_resid_hold,self.run_name, sample_or_hold='hold') #' Surrogate Hold out: Residuals vs Fitted Values'
+
         #------------SHAP----------------
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10,6))
@@ -440,13 +442,13 @@ class randomforest(BaseModel):
         elasticity_rf = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
         rf_beta = rfi_rf * elasticity_rf.mean(axis = 0)
         pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, rf_beta)}
-        mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
+        mlflow.log_dict(pseudo_beta, 'rf_pseudo_beta.json')
 
         rfi_surr = raw_perm_imp_surr/raw_perm_imp_surr.sum()
         elasticity_surr = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
         surr_beta = rfi_surr * elasticity_surr.mean(axis = 0)
         pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, surr_beta)}
-        mlflow.log_dict(pseudo_beta, 'pseudo_beta.json')
+        mlflow.log_dict(pseudo_beta, 'surr_pseudo_beta.json')
 
         #------------------Partial Dependence Plots----------------
         rf_pdp = PartialDependenceDisplay.from_estimator(
@@ -467,6 +469,7 @@ class randomforest(BaseModel):
         rf_pdp.figure_.savefig(f"{run_name}_rf_pdp.png")
         surr_pdp.figure_.savefig(f"{run_name}_surr_pdp.png")
         mlflow.log_artifact(f"{run_name}_rf_pdp.png")
+        mlflow.log_artifact(f"{run_name}_surr_pdp.png")
 
     ###----------------Helper func----------------------------
     #---------------------------------------------------------
