@@ -1,6 +1,10 @@
 from abc import abstractmethod, ABC
 import hashlib
 import json
+import mlflow.models
+import mlflow.models
+import mlflow.models.signature
+import mlflow.statsmodels
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -178,11 +182,24 @@ class olsmodel(BaseModel):
 
         y_pred_train = self.model_.predict(self.X_fit)
         rmse_insample = np.sqrt(mean_squared_error(y_fit,y_pred_train))
+        resid_sample = y_fit - y_pred_train
         
         X_hold = sm.add_constant(X_hold, has_constant='add')
         y_pred_hold = self.model_.predict(X_hold)
         rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
+        resid_hold = y_hold - y_pred_hold
 
+        #--------Sig-----------------
+        ols_input_example = sm.add_constant(X_fit.iloc[:5])
+        ols_output_example = self.model_.predict(ols_input_example)
+        ols_sig = mlflow.models.signature.infer_signature(ols_input_example,ols_output_example)
+        mlflow.statsmodels.log_model(
+            statsmodels_model= self.model_,
+            artifact_path= "model",
+            input_example= ols_input_example,
+
+        #--------Metrics-----------------
+        )
         metrics = {
             'durbin_watson': durbin_watson(self.model_.resid),
             'Breuschpagan': het_breuschpagan(self.model_.resid, self.model_.model.exog)[1],
@@ -217,11 +234,11 @@ class olsmodel(BaseModel):
         for coefname, pvalue in self.model_.pvalues.items():
             mlflow.log_param(f'pval {coefname}', pvalue)
         
-        # assumption tests
+        # ----------------assumption tests----------------
         jb_stat, jb_p, _, _ = jarque_bera(self.model_.resid)
         mlflow.log_metric('jarque_bera_normality', jb_p)
 
-        # VIF
+        # --------------VIF-------------------
         vif = {}
         for i in range (1,self.X_fit.shape[1]):
             col = self.X_fit.columns[i]
@@ -231,7 +248,7 @@ class olsmodel(BaseModel):
 
         #----------Plotting-----------
         self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name,"Sample:Residuals vs Fitted Values")
-        self.plot_residuals(self.model_.fittedvalues, self.model_.resid, run_name,"Hold out: Residuals vs Fitted Values")
+        self.plot_residuals(y_pred_hold, resid_hold, run_name,"Hold out: Residuals vs Fitted Values")
         # full model summary
         mlflow.log_text(self.model_.summary().as_text(), 'ols_summary.txt')
 #-------------------------------------------------------------------------------------------------
@@ -248,11 +265,12 @@ class randomforest(BaseModel):
     def train_(self,X_fit,X_hold,y_fit,y_hold):
         split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5)
         params = {
-            "n_estimators":      randint(200, 1000),
-            "max_depth":         randint(3, 20),
-            "min_samples_split": randint(2, 10),
-            "min_samples_leaf":  randint(1, 10),
-            "max_features":      uniform(0.3, 0.7)
+            'n_estimators':      [200, 500, 1000, 2000],
+            'max_depth':         [10, 20, 30, None],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf':  [1, 2, 4],
+            'max_features':      ['sqrt', 'log2', None],
+            'bootstrap':         [True]
         }
         rf = RandomForestRegressor(
             random_state= seed,
@@ -319,18 +337,24 @@ class randomforest(BaseModel):
     
     def _log_metrics(self, X_fit,X_hold, y_fit,y_hold, run_name):
         #-------------Logging models------------
-        input_example = X_fit.iloc[:5]  # First 5 rows as a sample input
+        rf_input_example = X_fit.iloc[:5]  # First 5 rows as a sample input
+        rf_output_example = self.best_rf.predict(rf_input_example)
+        rf_sig = mlflow.models.signature.infer_signature(rf_input_example,rf_output_example)
         mlflow.sklearn.log_model(
-        sk_model   = self.best_rf,
-        artifact_path = "model",
-        input_example = input_example,
-        registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}"  
+            sk_model   = self.best_rf,
+            artifact_path = "model",
+            input_example = rf_input_example,
+            registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
+            signature=rf_sig
     )
+        surr_output_model = self.best_surrogate_model(rf_input_example)
+        surr_sig = self.best_surrogate_model(surr_output_model)
         mlflow.sklearn.log_model(
             sk_model= self.best_surrogate_model,
             artifact_path= 'model',
-            input_example= input_example,
-            registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}" 
+            input_example= rf_input_example,
+            registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
+            signature= surr_sig
         )
         
         #--------------Logging metrics---------------
@@ -400,7 +424,6 @@ class randomforest(BaseModel):
         mlflow.log_dict(perm_imp_dict, "permutation_importance.json")
 
         #-------------Residuals----------
-        #TODO: Sample or hold out resid?
         self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name, title = 'RF Sample: Residuals vs Fitted Values')
         self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name, title = 'RF Hold out: Residuals vs Fitted Values') 
         #------------SHAP----------------
@@ -421,10 +444,12 @@ class randomforest(BaseModel):
         
     def surrogate_(self,X_fit,X_hold,pred_y_sample,pred_y_hold):
         param_grid = {
-        "max_depth":        [2, 3, 4, 5],
-        "min_samples_leaf": [1, 5, 10, 25],
-        "ccp_alpha":        [0.0, 0.0005, 0.001, 0.005]  
-    }
+            'max_depth':         range(1, 11),
+            'min_samples_split': [2, 5, 10, 20],
+            'min_samples_leaf':  [1, 2, 5, 10],
+            'max_features':      ['sqrt', 'log2', None],
+            'ccp_alpha':         [0.0, 0.001, 0.01, 0.1],
+        }
         tree_surrogate = DecisionTreeRegressor()
         surrogate_grid = GridSearchCV(
             estimator= tree_surrogate,
