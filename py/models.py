@@ -149,7 +149,7 @@ class BaseModel(ABC):
             'sector':run_name,
             'factors':self.features
         }
-            mlflow.log_params(params=params)
+            mlflow.log_params(params)
             mlflow.set_tag("fama_french_ver", self.fama_french_ver)
             self._log_metrics(X_fit,X_hold,y_fit,y_hold,run_name)
 
@@ -157,16 +157,15 @@ class BaseModel(ABC):
         """Plot residuals vs fitted values and save to MLflow"""
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
-        plt.scatter(fitted_values, residuals, alpha=0.5) # C1 = the first color cycle of scienceplot
+        plt.scatter(fitted_values, residuals, alpha=0.5)
         plt.xlabel('Fitted Values')
         plt.ylabel('Residuals')
-        #plt.title(f'{title} - {run_name}')
         plt.axhline(y=0,linestyle='--')
-        # Add plot to MLflow
-        img_path = f'{run_name}_{sample_or_hold}_residuals_plot.png
+        img_path = f'{run_name}_{sample_or_hold}_residuals_plot.png'
         plt.savefig(img_path)
         mlflow.log_artifact(img_path)
         plt.show()
+        print(f"Displayed: Residuals plot for {run_name} - {sample_or_hold}")
         plt.close()
 
 
@@ -198,7 +197,7 @@ class olsmodel(BaseModel):
         ols_sig = mlflow.models.signature.infer_signature(ols_input_example,ols_output_example)
         mlflow.statsmodels.log_model(
             statsmodels_model= self.model_,
-            artifact_path= "model",
+            artifact_path= "ols_model",
             input_example= ols_input_example,
 
         #--------Metrics-----------------
@@ -338,6 +337,9 @@ class randomforest(BaseModel):
         self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
         plt.figure(figsize = (10,6))
         plot_tree(self.best_surrogate_model, filled= True, max_depth= 3)
+        
+        self.surrogate_text = export_text(self.best_surrogate_model, max_depth=3)
+        
         return self.best_rf
     
     def _log_metrics(self, X_fit,X_hold, y_fit,y_hold, run_name):
@@ -347,7 +349,7 @@ class randomforest(BaseModel):
         rf_sig = mlflow.models.signature.infer_signature(rf_input_example,rf_output_example)
         mlflow.sklearn.log_model(
             sk_model   = self.best_rf,
-            artifact_path = "model",
+            artifact_path = "rf_model",
             input_example = rf_input_example,
             registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
             signature=rf_sig
@@ -356,7 +358,7 @@ class randomforest(BaseModel):
         surr_sig = mlflow.models.signature.infer_signature(rf_input_example,surr_output_example)
         mlflow.sklearn.log_model(
             sk_model= self.best_surrogate_model,
-            artifact_path= 'model',
+            artifact_path= 'surr_model',
             input_example= rf_input_example,
             registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
             signature= surr_sig
@@ -383,12 +385,23 @@ class randomforest(BaseModel):
             'surrogate_r2_hold': self.surrogate_r2_hold 
         }
         mlflow.log_metrics(metrics)
-        
+        mlflow.log_text(self.surrogate_text, 'surrogate_tree.txt')
         # --------------------VIF---------------
-        vif = {}
-        for i in range (0,X_fit.shape[1]):
-            col = X_fit.columns[i]
-            vif[col] = variance_inflation_factor(X_fit.values,i)
+        #TODO: explain in the paper why vif is calc this way
+        # 1. Extract the raw values and standardize each column
+        X_vif = X_fit.values
+        means = X_vif.mean(axis=0)
+        stds  = X_vif.std(axis=0, ddof=0)
+        X_std = (X_vif - means) / stds
+
+        # 2. Compute the correlation matrix and invert it
+        corr_mat = np.corrcoef(X_std, rowvar=False)
+        inv_corr = np.linalg.inv(corr_mat)
+
+        # 3. VIF for each feature is just the diagonal of the inverted correlation matrix
+        vif = {col: float(inv_corr[i, i]) 
+            for i, col in enumerate(X_fit.columns)}
+
         mlflow.log_dict(vif, 'vif.json')
         #---------------feat imp-----------
         rf_summary =[]
@@ -435,41 +448,46 @@ class randomforest(BaseModel):
         plt.savefig(f'{run_name}_shap_plot.png') 
         mlflow.log_artifact(f'{run_name}_shap_plot.png')
         plt.show()
+        print(f"Displayed: SHAP beeswarm plot for {run_name}")
         plt.close()
 
         #-----------Simonian coefficient- RF-----------
         rfi_rf = raw_perm_imp_rf/raw_perm_imp_rf.sum()
-        elasticity_rf = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
-        rf_beta = rfi_rf * elasticity_rf.mean(axis = 0)
-        pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, rf_beta)}
-        mlflow.log_dict(pseudo_beta, 'rf_pseudo_beta.json')
+        elasticity_rf = {
+            col: np.mean(self.pred_y_hold / (X_hold[col].to_numpy() + 1e-8))
+            for col in X_hold.columns
+        }
+        pseudo_beta_rf = {
+            feature: float(rfi_rf[i] * elasticity_rf[feature])
+            for i, feature in enumerate(X_hold.columns)
+}
+        mlflow.log_dict(pseudo_beta_rf, 'rf_pseudo_beta.json')
 
-        rfi_surr = raw_perm_imp_surr/raw_perm_imp_surr.sum()
-        elasticity_surr = np.asarray(self.pred_y_hold).reshape(-1, 1) / (X_hold.to_numpy()+1e-08)
-        surr_beta = rfi_surr * elasticity_surr.mean(axis = 0)
-        pseudo_beta = {feature: float(beta) for feature, beta in zip(X_hold.columns, surr_beta)}
-        mlflow.log_dict(pseudo_beta, 'surr_pseudo_beta.json')
+        # rfi_surr = raw_perm_imp_surr/raw_perm_imp_surr.sum()
+        # elasticity_surr = {
+        #     col: np.mean(self.pred_y_hold / (X_hold[col].to_numpy() + 1e-8))
+        #     for col in X_hold.columns
+        # }
 
         #------------------Partial Dependence Plots----------------
+        # For Random Forest PDP
+        top10_imp = rf_summary.argsort()[-10:]  # Get indices of top 10 features
         rf_pdp = PartialDependenceDisplay.from_estimator(
-            estimator = self.best_rf,
-            X= X_fit,
-            features = self.features,
-            grid_resolution= 50)
-
-        surr_pdp = PartialDependenceDisplay.from_estimator(
-            estimator = self.best_surrogate_model,
-            X= X_fit,
-            features = self.features,
-            grid_resolution= 50
+            estimator=self.best_rf,
+            X=X_fit,
+            features=self.features,
+            grid_resolution=50,
         )
+        rf_pdp.figure_.set_size_inches(12, 6)
+        rf_pdp.figure_.subplots_adjust(hspace=0.4, wspace=0.3)
         plt.tight_layout()
         plt.show()
 
+        # Save figures
         rf_pdp.figure_.savefig(f"{run_name}_rf_pdp.png")
-        surr_pdp.figure_.savefig(f"{run_name}_surr_pdp.png")
         mlflow.log_artifact(f"{run_name}_rf_pdp.png")
-        mlflow.log_artifact(f"{run_name}_surr_pdp.png")
+
+        
 
     ###----------------Helper func----------------------------
     #---------------------------------------------------------
@@ -511,7 +529,6 @@ class randomforest(BaseModel):
         surr_or_rf = None
     ):
     
-        
         raw_perm_imp = perm_result.importances_mean
         sorted_idx   = raw_perm_imp.argsort()  # ascending
         boxplot_data = [perm_result.importances[i] for i in sorted_idx]
@@ -525,6 +542,8 @@ class randomforest(BaseModel):
         img_path = f"{surr_or_rf}_{run_name}_permutation_importance.png"
         plt.savefig(img_path)
         mlflow.log_artifact(img_path)
+        plt.show()
+        print(f"Displayed: Permutation Importance plot for {surr_or_rf} - {run_name}")
         plt.close()
 
         perm_imp_dict = {
