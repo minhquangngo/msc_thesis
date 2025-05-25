@@ -15,6 +15,7 @@ from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
+plt.s = plt.show
 import scienceplots
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV,GridSearchCV, cross_val_predict, cross_val_score
@@ -276,7 +277,8 @@ class randomforest(BaseModel):
         }
         rf = RandomForestRegressor(
             random_state= seed,
-            oob_score= True
+            oob_score= True,
+            n_jobs = 1
         )
         self.random_search = RandomizedSearchCV(
             estimator= rf, 
@@ -368,9 +370,9 @@ class randomforest(BaseModel):
         #TODO: see which residuals (hold or sample) should we use for adf
         self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.resid_sample, maxlag=None, autolag='AIC')
         metrics = {
-            'mse_fitsample': self.mse_sample,
-            'mse_fold': self.mse_fold,
-            'mse_holdsample': self.mse_hold,
+            'rf_mse_fitsample': self.mse_sample,
+            'rf_mse_fold': self.mse_fold,
+            'rf_mse_hold': self.mse_hold,
             'rsquared_sample': self.r2_sample,
             'rsquared_holdout': self.r2_hold,
             'rsquared_local_oof':self.r2_loc_fold_mean,
@@ -411,7 +413,7 @@ class randomforest(BaseModel):
 
         #----------------permutation importnance MDA(simonian 2019)---------
         perm_result_rf = permutation_importance(
-            self.best_rf, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=-1
+            self.best_rf, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=1
         ) #TODO: adjust number of repeats
 
         perm_result_surr = permutation_importance(
@@ -423,11 +425,11 @@ class randomforest(BaseModel):
             run_name= self.run_name,
             surr_or_rf = 'rf')
         
-        raw_perm_imp_surr = self.plot_and_log_permutation_importance(
-            perm_result_surr,
-            X_hold,
-            run_name= self.run_name,
-            surr_or_rf = 'surr')
+        # raw_perm_imp_surr = self.plot_and_log_permutation_importance(
+        #     perm_result_surr,
+        #     X_hold,
+        #     run_name= self.run_name,
+        #     surr_or_rf = 'surr')
         
         #-------------Residuals-RF----------
         self.plot_residuals(self.pred_y_sample,self.resid_sample, self.run_name, sample_or_hold='sample') #'RF Sample: Residuals vs Fitted Values')
@@ -438,8 +440,8 @@ class randomforest(BaseModel):
         surr_pred_hold = self.best_surrogate_model.predict(X_hold)
         surr_resid_sample = y_fit - surr_pred_sample
         surr_resid_hold = y_hold - surr_pred_hold
-        self.plot_residuals(surr_pred_sample,surr_resid_sample,self.run_name, sample_or_hold='sample') #' Surrogate Sample: Residuals vs Fitted Values'
-        self.plot_residuals(surr_pred_hold,surr_resid_hold,self.run_name, sample_or_hold='hold') #' Surrogate Hold out: Residuals vs Fitted Values'
+        # self.plot_residuals(surr_pred_sample,surr_resid_sample,self.run_name, sample_or_hold='sample') #' Surrogate Sample: Residuals vs Fitted Values'
+        # self.plot_residuals(surr_pred_hold,surr_resid_hold,self.run_name, sample_or_hold='hold') #' Surrogate Hold out: Residuals vs Fitted Values'
 
         #------------SHAP----------------
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
@@ -470,22 +472,42 @@ class randomforest(BaseModel):
         # }
 
         #------------------Partial Dependence Plots----------------
-        # For Random Forest PDP
-        top10_imp = rf_summary.argsort()[-10:]  # Get indices of top 10 features
-        rf_pdp = PartialDependenceDisplay.from_estimator(
-            estimator=self.best_rf,
-            X=X_fit,
-            features=self.features,
-            grid_resolution=50,
-        )
-        rf_pdp.figure_.set_size_inches(12, 6)
-        rf_pdp.figure_.subplots_adjust(hspace=0.4, wspace=0.3)
-        plt.tight_layout()
-        plt.show()
+        top10_idx = np.argsort(self.best_rf.feature_importances_)[-10:]
+        top10 = [
+            (self.features[i], self.best_rf.feature_importances_[i])
+            for i in top10_idx
+        ]
+        top10.sort(key=lambda x: x[1], reverse=True)
+        top10_names = [feat for feat, imp in top10]
+        
+                # Set up the figure
+        n_features = len(top10_names)
+        n_cols = 2  # Or 3 for a wider screen
+        n_rows = (n_features + n_cols - 1) // n_cols
 
-        # Save figures
-        rf_pdp.figure_.savefig(f"{run_name}_rf_pdp.png")
+        fig, ax = plt.subplots(n_rows, n_cols, figsize=(7 * n_cols, 4 * n_rows))
+        ax = ax.flatten()  # flatten for easy iteration
+
+        for i, feat in enumerate(top10_names):
+            disp = PartialDependenceDisplay.from_estimator(
+                estimator=self.best_rf,
+                X=X_fit,
+                features=[feat],
+                grid_resolution=50,
+                ax=ax[i]
+            )
+            ax[i].set_title(feat)
+            # Optional: Set limits if needed
+            # ax[i].set_xlim([custom_min, custom_max])
+
+        # Remove empty subplots if n_features < n_rows * n_cols
+        for j in range(i+1, len(ax)):
+            fig.delaxes(ax[j])
+
+        plt.tight_layout()
+        fig.savefig(f"{run_name}_rf_pdp.png")
         mlflow.log_artifact(f"{run_name}_rf_pdp.png")
+        plt.show()
 
         
 
