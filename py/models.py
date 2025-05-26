@@ -15,6 +15,7 @@ from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import scienceplots
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV,GridSearchCV, cross_val_predict, cross_val_score
@@ -341,15 +342,18 @@ class randomforest(BaseModel):
         #------------Surrogate--------
         self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
         
-        fig, ax = plt.subplots(figsize=(18, 8))  # Adjust width and height as needed
+
+        fig, ax = plt.subplots(figsize=(18, 12))  
         plot_tree(
             self.best_surrogate_model,
-            feature_names=X_fit.columns.tolist(),  # Use actual feature names from X_fit
+            feature_names=X_fit.columns.tolist(),  
             filled=True,
             max_depth=3,
-            fontsize=12,
+            fontsize=11,
             ax=ax
         )
+        for txt in ax.texts:
+            txt.set_text(txt.get_text().replace('≤','<='))
         plt.tight_layout()
         plt.axis('off')  # Optional: Remove axes
         
