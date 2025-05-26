@@ -15,7 +15,6 @@ from statsmodels.stats.stattools import durbin_watson, jarque_bera
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tsa.stattools import adfuller
 import matplotlib.pyplot as plt
-plt.s = plt.show
 import scienceplots
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV,GridSearchCV, cross_val_predict, cross_val_score
@@ -191,6 +190,8 @@ class olsmodel(BaseModel):
         y_pred_hold = self.model_.predict(X_hold)
         rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
         resid_hold = y_hold - y_pred_hold
+        rsquared_hold = r2_score(y_hold,y_pred_hold)
+        mae_ols_hold = mean_absolute_error(y_hold,y_pred_hold)
 
         #--------Sig-----------------
         ols_input_example = sm.add_constant(X_fit.iloc[:5])
@@ -222,7 +223,9 @@ class olsmodel(BaseModel):
             'rmse_insample': rmse_insample,
             'rmse_hold': rmse_hold,
             'rsquared': self.model_.rsquared,
-            'R2_adj': self.model_.rsquared_adj,
+            'rsquared_adj': self.model_.rsquared_adj,
+            'rsquared_hold': rsquared_hold,
+            'mae_hold':mae_ols_hold,
             'scale': self.model_.scale,
             'ssr': self.model_.ssr,
             'uncentered_tss': self.model_.uncentered_tss,
@@ -295,7 +298,7 @@ class randomforest(BaseModel):
         self.best_rf = self.random_search.best_estimator_
         
         #-----------Sample Prediction------------
-        self.pred_y_sample = self.random_search.predict(X_fit)
+        self.pred_y_sample = self.best_rf.predict(X_fit)
         #-----------Fold prediction------------
         self.pred_fold = np.full(len(y_fit), np.nan, dtype=np.float64)
         mse_fold_array = [] 
@@ -337,8 +340,18 @@ class randomforest(BaseModel):
         
         #------------Surrogate--------
         self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
-        plt.figure(figsize = (10,6))
-        plot_tree(self.best_surrogate_model, filled= True, max_depth= 3)
+        
+        fig, ax = plt.subplots(figsize=(18, 8))  # Adjust width and height as needed
+        plot_tree(
+            self.best_surrogate_model,
+            feature_names=X_fit.columns.tolist(),  # Use actual feature names from X_fit
+            filled=True,
+            max_depth=3,
+            fontsize=12,
+            ax=ax
+        )
+        plt.tight_layout()
+        plt.axis('off')  # Optional: Remove axes
         
         self.surrogate_text = export_text(self.best_surrogate_model, max_depth=3)
         
@@ -550,7 +563,6 @@ class randomforest(BaseModel):
         run_name: str,
         surr_or_rf = None
     ):
-    
         raw_perm_imp = perm_result.importances_mean
         sorted_idx   = raw_perm_imp.argsort()  # ascending
         boxplot_data = [perm_result.importances[i] for i in sorted_idx]
