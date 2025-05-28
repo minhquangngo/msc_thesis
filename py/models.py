@@ -27,6 +27,7 @@ from sklearn.inspection import PartialDependenceDisplay
 from imodels import RuleFitRegressor
 
 
+
 seed = 3011
 #-----------Stateless helpers---------------
 def _fingerprint(df:pd.DataFrame,y:str, features:list[str], lags:int) -> str:
@@ -604,9 +605,8 @@ class rulefit(BaseModel):
         rule_params = {
             'n_estimators':    range(100,800,100),
             'tree_size':       [2, 4, 6, 8],
-            'max_rules':       [10],
             'sample_fract':    uniform(0.5, 0.5),   
-            'alphas':          [None, [0.1, 0.01, 0.001]]
+            'alpha':          [None, 0.1, 0.01, 0.001]
         }
         rulefit_model = RuleFitRegressor()
         #TODO: possible that we can replace this with gridsearch
@@ -617,7 +617,7 @@ class rulefit(BaseModel):
             refit = True,
             cv = split_timeseries,
             scoring = 'r2',
-            n_jobs = -1 ,
+            n_jobs = 1 ,
             random_state= seed
         ).fit(X_fit,y_fit)
         
@@ -626,12 +626,20 @@ class rulefit(BaseModel):
         #--------Sample prediction---------
         self.rule_ypred_fitsample = self.best_rulefit.predict(X_fit)
         self.rule_ypred_hold = self.best_rulefit.predict(X_hold)
-        self.rules = self.best_rulefit.get_rules()
+        self.rules = self.best_rulefit._get_rules()
         self.r2_sample_rule = r2_score(y_fit, self.rule_ypred_fitsample)
     def _log_metrics(self, X_fit, X_hold, y_fit, y_hold, run_name):
+        rules = self.rules[self.rules.coef != 0].sort_values("support", ascending=False)
+        rules.reset_index(drop=True, inplace=True)
+        rules_dict = rules.to_dict(orient="records")
+        with open(f"{run_name}_rule_table.json", "w") as f:
+            json.dump(rules_dict, f, indent=2)
+        mlflow.log_artifact(f"{run_name}_rule_table.json")
         print(f"best params {self.best_params}")
         print(f"rules {self.rules}")
         print(f"r2 {self.r2_sample_rule}")
+
+        
 
 
 
