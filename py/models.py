@@ -2,7 +2,6 @@ from abc import abstractmethod, ABC
 import hashlib
 import json
 import mlflow.models
-import mlflow.models
 import mlflow.models.signature
 import mlflow.sklearn
 import mlflow.statsmodels
@@ -25,6 +24,7 @@ from scipy.stats import randint, uniform
 import shap
 from sklearn.tree import DecisionTreeRegressor, export_text, plot_tree
 from sklearn.inspection import PartialDependenceDisplay
+from imodels import RuleFitRegressor
 
 
 seed = 3011
@@ -188,6 +188,7 @@ class olsmodel(BaseModel):
         resid_sample = y_fit - y_pred_train
         
         X_hold = sm.add_constant(X_hold, has_constant='add')
+        X_hold = X_hold[self.X_fit.columns]
         y_pred_hold = self.model_.predict(X_hold)
         rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
         resid_hold = y_hold - y_pred_hold
@@ -592,3 +593,46 @@ class randomforest(BaseModel):
         }
         mlflow.log_dict(perm_imp_dict, f"{surr_or_rf}_{run_name}_permutation_importance.json")
         return raw_perm_imp
+
+class rulefit(BaseModel):
+    """
+    Take the base base model and make rulefit inherits
+    """
+    def train_(self,X_fit,X_hold,y_fit,y_hold):
+        split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5)
+        #TODO:specific param range later
+        rule_params = {
+            'n_estimators':    range(100,800,100),
+            'tree_size':       [2, 4, 6, 8],
+            'max_rules':       [10],
+            'sample_fract':    uniform(0.5, 0.5),   
+            'alphas':          [None, [0.1, 0.01, 0.001]]
+        }
+        rulefit_model = RuleFitRegressor()
+        #TODO: possible that we can replace this with gridsearch
+        rule_fit_search = RandomizedSearchCV(
+            estimator= rulefit_model,
+            param_distributions= rule_params,
+            n_iter=5,
+            refit = True,
+            cv = split_timeseries,
+            scoring = 'r2',
+            n_jobs = -1 ,
+            random_state= seed
+        ).fit(X_fit,y_fit)
+        
+        self.best_rulefit = rule_fit_search.best_estimator_
+        self.best_params = rule_fit_search.best_params_
+        #--------Sample prediction---------
+        self.rule_ypred_fitsample = self.best_rulefit.predict(X_fit)
+        self.rule_ypred_hold = self.best_rulefit.predict(X_hold)
+        self.rules = self.best_rulefit.get_rules()
+        self.r2_sample_rule = r2_score(y_fit, self.rule_ypred_fitsample)
+    def _log_metrics(self, X_fit, X_hold, y_fit, y_hold, run_name):
+        print(f"best params {self.best_params}")
+        print(f"rules {self.rules}")
+        print(f"r2 {self.r2_sample_rule}")
+
+
+
+
