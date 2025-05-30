@@ -188,7 +188,7 @@ class olsmodel(BaseModel):
         rmse_insample = np.sqrt(mean_squared_error(y_fit,y_pred_train))
         resid_sample = y_fit - y_pred_train
         
-        X_hold = sm.add_constant(X_hold, has_constant='add')
+        X_hold = sm.add_constant(X_hold)
         X_hold = X_hold[self.X_fit.columns]
         y_pred_hold = self.model_.predict(X_hold)
         rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
@@ -356,8 +356,16 @@ class randomforest(BaseModel):
         )
         for txt in ax.texts:
             txt.set_text(txt.get_text().replace('≤','<='))
+
         plt.tight_layout()
         plt.axis('off')  # Optional: Remove axes
+        
+        # # Save and log plot_tree
+        # tree_plot_path = f"{self.run_name}_surrogate_tree_plot.png"
+        # plt.savefig(tree_plot_path)
+        # mlflow.log_artifact(tree_plot_path)
+        # plt.show()
+        # plt.close()
         
         self.surrogate_text = export_text(self.best_surrogate_model, max_depth=3)
         
@@ -528,7 +536,9 @@ class randomforest(BaseModel):
         mlflow.log_artifact(f"{run_name}_rf_pdp.png")
         plt.show()
 
-        
+        #TODO: Delete later
+        print(X_hold.columns)
+        print(X_fit.columns)
 
     ###----------------Helper func----------------------------
     #---------------------------------------------------------
@@ -544,8 +554,8 @@ class randomforest(BaseModel):
         surrogate_grid = GridSearchCV(
             estimator= tree_surrogate,
             param_grid= param_grid,
-            cv= 5, # TODO: adjust this later
-            scoring = 'r2',
+            cv= 15, # TODO: adjust this later
+            scoring = 'neg_mean_squared_error',
             refit =True,
             n_jobs=-1,
             verbose = 0
@@ -600,7 +610,7 @@ class rulefit(BaseModel):
     Take the base base model and make rulefit inherits
     """
     def train_(self,X_fit,X_hold,y_fit,y_hold):
-        split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5)
+        split_timeseries = TimeSeriesSplit(n_splits=10, test_size=14)
         #TODO:specific param range later
         rule_params = {
             'n_estimators':    range(100,800,100),
@@ -613,10 +623,10 @@ class rulefit(BaseModel):
         rule_fit_search = RandomizedSearchCV(
             estimator= rulefit_model,
             param_distributions= rule_params,
-            n_iter=5,
+            n_iter=10,
             refit = True,
             cv = split_timeseries,
-            scoring = 'r2',
+            scoring = 'neg_mean_squared_error',
             n_jobs = 1 ,
             random_state= seed
         ).fit(X_fit,y_fit)
@@ -627,20 +637,110 @@ class rulefit(BaseModel):
         self.rule_ypred_fitsample = self.best_rulefit.predict(X_fit)
         self.rule_ypred_hold = self.best_rulefit.predict(X_hold)
         self.rules = self.best_rulefit._get_rules()
+        
+        #----------------Metrics-----------------
         self.r2_sample_rule = r2_score(y_fit, self.rule_ypred_fitsample)
+        self.r2_hold_rule = r2_score(y_hold,self.rule_ypred_hold)
+        self.rmse_sample_rule = np.sqrt(mean_squared_error(y_fit,self.rule_ypred_fitsample))
+        self.rmse_hold_rule = np.sqrt(mean_squared_error(y_hold,self.rule_ypred_hold))
+
+        #TODO: feature imp
     def _log_metrics(self, X_fit, X_hold, y_fit, y_hold, run_name):
-        rules = self.rules[self.rules.coef != 0].sort_values("support", ascending=False)
-        rules.reset_index(drop=True, inplace=True)
-        rules_dict = rules.to_dict(orient="records")
+        #-------------------Logging model------------------
+        rule_fit_inputexample = X_fit.iloc[:5]
+        rule_fit_outputexample = self.best_rulefit.predict(rule_fit_inputexample)
+        
+        mlflow.sklearn.log_model(
+            sk_model=self.best_rulefit,
+            artifact_path="rulefit_model",
+            registered_model_name = f"rulefit_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
+            input_example= rule_fit_inputexample,
+            signature=mlflow.models.infer_signature(rule_fit_inputexample,rule_fit_outputexample)
+        )
+
+        #-----------------Rule table------------------
+        rules_sorted = self.rules[self.rules.coef != 0].sort_values("support", ascending=False)
+        rules_sorted.reset_index(drop=True, inplace=True)
+        rules_dict = rules_sorted.to_dict(orient="records")
         with open(f"{run_name}_rule_table.json", "w") as f:
             json.dump(rules_dict, f, indent=2)
-        mlflow.log_artifact(f"{run_name}_rule_table.json")
-        print(f"best params {self.best_params}")
-        print(f"rules {self.rules}")
-        print(f"r2 {self.r2_sample_rule}")
-
+        #--------------------_Rule parquet---------------)
+        rules_parquet_path = f"{run_name}_rules.parquet"
+        rules_sorted.to_parquet(rules_parquet_path, index=False)
+        mlflow.log_artifact(rules_parquet_path, artifact_path="model_artifacts")
         
+        #--------------------Params------------------
+        metrics = {
+            'rmse_sample': self.rmse_sample_rule,
+            'rmse_hold': self.rmse_hold_rule,
+            'rsquared_sample': self.r2_sample_rule,
+            'rsquared_hold': self.r2_hold_rule
+        }
 
+        #TODO: Feat imp plot
+        rf_feat_im = self._get_feature_importance(X_fit.columns,self.rules, scaled = True)
+        rf_importance_df = pd.DataFrame(rf_feat_im, index = X_fit.columns, columns = ['importance']).sort_values(by='importance',ascending=False)
+        plt.style.use(['science','ieee','apa_custom.mplstyle'])
+        plt.figure(figsize=(10, 6))
+        ax = rf_importance_df.plot(kind='barh', legend=False)
+        plt.ylabel('Feature Importance (scaled)', fontsize=10)
+        plt.xlabel('Importance', fontsize=10)
+        plt.tight_layout()
+        img_path = f"{run_name}_rulefit_feat_importance.png"
+        plt.savefig(img_path)
+        mlflow.log_artifact(img_path)
+        plt.show()
+        plt.close()
 
+        print(f"r2{self.r2_sample_rule}, {self.r2_hold_rule}")
+    #-------------------Helper func---------------
+    #https://github.com/caseywhorton/Interpretable-Regression-Example/blob/main/Interpretable%20Regression%20with%20RuleFit.ipynb
+    def _find_mk(self,input_vars:list, rule:str):
+        """
+        Finds the number of input variables in a rule.
+        -Input the list of the feature names and the rule set
+        
+        Parameters:
+        -----------
+            input_vars (list): 
+            
+            rule (str):
+        """
+        var_count = 0
+        for var in input_vars:
+            if var in rule:
+                var_count += 1
+        return(var_count)
 
+    def _get_feature_importance(self,feature_set: list, rule_set: pd.DataFrame, scaled = False):
+        """
+        Returns feature importance for input features to rulefit model.
+        
+        Parameters:
+        -----------
+            feature_set (list): 
+            
+            rule (str): 
+        """
+        feature_imp = list()
+        rule_feature_count = rule_set.rule.apply(lambda x: self._find_mk(feature_set, x)) # count number of var in rule
+        for feature in feature_set:
+            # find subset of rules that apply to a feature
+            feature_rk = rule_set.rule.apply(lambda x: feature in x)
 
+            # find importance of linear features
+            linear_imp = rule_set[(rule_set.type=='linear')&(rule_set.rule==feature)].importance.values
+            
+            # find the importance of rules that contain feature
+            rule_imp = rule_set.importance[feature_rk]
+            
+            # find the number of features in each rule that contain feature
+            m_k = rule_feature_count[feature_rk]
+            
+            # sum the linear and rule importances, divided by m_k
+            feature_imp.append(float(linear_imp + (rule_imp/m_k).sum()))
+            
+        if scaled:
+            feature_imp = 100*(feature_imp/np.array(feature_imp).max())
+        
+        return(feature_imp)
