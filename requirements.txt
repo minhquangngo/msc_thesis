@@ -11,7 +11,7 @@ statsmodels==0.14.2 # Your list specifies 0.14.2, ensure this is the exact versi
 
 # Plotting and Visualization
 matplotlib==3.10.0
-SciencePlots==1.0.10 # This is what `import scienceplots` usually refers to.
+scienceplots # This is what `import scienceplots` usually refers to.
 
 # Scikit-learn for Machine Learning
 scikit-learn==1.5.0 # Your list says 1.5.0. Make sure this is the exact version you use.
