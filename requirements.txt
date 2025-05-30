@@ -1,0 +1,23 @@
+# Core Data Handling
+pandas==2.2.2 # Used as 2.2.3 in your list, but 2.2.2 is more common. Adjust if needed.
+numpy==1.26.4
+
+# MLflow for MLOps
+mlflow==2.22.0
+mlflow-skinny==2.22.0 # Often a dependency of mlflow, good to keep for explicit versioning
+
+# Statsmodels for Statistical Modeling
+statsmodels==0.14.2 # Your list specifies 0.14.2, ensure this is the exact version you need.
+
+# Plotting and Visualization
+matplotlib==3.10.0
+SciencePlots==1.0.10 # This is what `import scienceplots` usually refers to.
+
+# Scikit-learn for Machine Learning
+scikit-learn==1.5.0 # Your list says 1.5.0. Make sure this is the exact version you use.
+
+# SHAP for Model Explainability
+shap==0.45.0 # Your list has 0.45.0, ensure this is the exact version.
+
+# imodels for Interpretable Models
+imodels==2.0.0

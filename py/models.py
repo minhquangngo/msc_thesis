@@ -676,15 +676,14 @@ class rulefit(BaseModel):
             'rsquared_sample': self.r2_sample_rule,
             'rsquared_hold': self.r2_hold_rule
         }
-
-        #TODO: Feat imp plot
+        mlflow.log_metrics(metrics) 
         rf_feat_im = self._get_feature_importance(X_fit.columns,self.rules, scaled = True)
         rf_importance_df = pd.DataFrame(rf_feat_im, index = X_fit.columns, columns = ['importance']).sort_values(by='importance',ascending=False)
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10, 6))
         ax = rf_importance_df.plot(kind='barh', legend=False)
-        plt.ylabel('Feature Importance (scaled)', fontsize=10)
-        plt.xlabel('Importance', fontsize=10)
+        plt.ylabel('Feature Importance (scaled)', fontsize=6)
+        plt.xlabel('Importance', fontsize=6)
         plt.tight_layout()
         img_path = f"{run_name}_rulefit_feat_importance.png"
         plt.savefig(img_path)
@@ -727,10 +726,9 @@ class rulefit(BaseModel):
         for feature in feature_set:
             # find subset of rules that apply to a feature
             feature_rk = rule_set.rule.apply(lambda x: feature in x)
-
             # find importance of linear features
             linear_imp = rule_set[(rule_set.type=='linear')&(rule_set.rule==feature)].importance.values
-            
+
             # find the importance of rules that contain feature
             rule_imp = rule_set.importance[feature_rk]
             
