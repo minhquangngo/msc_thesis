@@ -273,7 +273,7 @@ class randomforest(BaseModel):
 
     def train_(self,X_fit,X_hold,y_fit,y_hold):
         #(len(X) - initial_train - gap) // test_size 
-        split_timeseries = TimeSeriesSplit(n_splits=75, test_size=63, gap=5)
+        split_timeseries = TimeSeriesSplit(n_splits=70, test_size=63, gap=5)
         #gap=embargo
         params = {
             'n_estimators':      [200, 500, 1000, 2000],
@@ -291,7 +291,7 @@ class randomforest(BaseModel):
         self.random_search = RandomizedSearchCV(
             estimator= rf, 
             param_distributions= params,
-            n_iter = 50,
+            n_iter = 20,
             scoring = 'neg_mean_squared_error',
             n_jobs = -1,
             refit = True,
