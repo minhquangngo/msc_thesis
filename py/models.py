@@ -93,7 +93,7 @@ class BaseModel(ABC):
         if fingerprint_check is not None:
             print("Skipping- already logged this model") 
             return mlflow.get_run(fingerprint_check)
-        #------TODO:add args ||| Fit------
+        #------ Fit------
         X_fit,X_hold,y_fit,y_hold = self._var_prep(df = df) # Renamed variables
         self.model_ = self.train_(X_fit= X_fit,X_hold = X_hold,y_fit =y_fit,y_hold = y_hold)
         self._log_run(X_fit,X_hold,y_fit,y_hold,self.run_name)
@@ -272,7 +272,9 @@ class randomforest(BaseModel):
     """
 
     def train_(self,X_fit,X_hold,y_fit,y_hold):
-        split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5)
+        #(len(X) - initial_train - gap) // test_size 
+        split_timeseries = TimeSeriesSplit(n_splits=227, test_size=21, gap=5)
+        #gap=embargo
         params = {
             'n_estimators':      [200, 500, 1000, 2000],
             'max_depth':         [10, 20, 30, None],
@@ -284,17 +286,17 @@ class randomforest(BaseModel):
         rf = RandomForestRegressor(
             random_state= seed,
             oob_score= True,
-            n_jobs = 1
+            n_jobs = -1 # change this if run local
         )
         self.random_search = RandomizedSearchCV(
             estimator= rf, 
             param_distributions= params,
-            n_iter = 5,
+            n_iter = 100,
             scoring = 'r2',
             n_jobs = -1,
             refit = True,
             cv = split_timeseries,
-            verbose = 0,
+            verbose = 1,
             random_state = seed
         ).fit(X_fit,y_fit)
 
@@ -394,7 +396,7 @@ class randomforest(BaseModel):
         )
 
         #--------------Logging metrics---------------
-        #TODO: see which residuals (hold or sample) should we use for adf
+
         self.adf_stat, self.adf_p, _, _, self.crit_vals, _ = adfuller(self.resid_sample, maxlag=None, autolag='AIC')
         metrics = {
             'rf_mse_fitsample': self.mse_sample,
@@ -543,6 +545,7 @@ class randomforest(BaseModel):
     ###----------------Helper func----------------------------
     #---------------------------------------------------------
     def surrogate_(self,X_fit,X_hold,pred_y_sample,pred_y_hold):
+        surrogate_split = TimeSeriesSplit(n_splits =10, test_size=21,gap=5)
         param_grid = {
             'max_depth':         range(1, 11),
             'min_samples_split': [2, 5, 10, 20],
@@ -554,7 +557,7 @@ class randomforest(BaseModel):
         surrogate_grid = GridSearchCV(
             estimator= tree_surrogate,
             param_grid= param_grid,
-            cv= 15, # TODO: adjust this later
+            cv= surrogate_split, 
             scoring = 'neg_mean_squared_error',
             refit =True,
             n_jobs=-1,
@@ -644,7 +647,7 @@ class rulefit(BaseModel):
         self.rmse_sample_rule = np.sqrt(mean_squared_error(y_fit,self.rule_ypred_fitsample))
         self.rmse_hold_rule = np.sqrt(mean_squared_error(y_hold,self.rule_ypred_hold))
 
-        #TODO: feature imp
+        
     def _log_metrics(self, X_fit, X_hold, y_fit, y_hold, run_name):
         #-------------------Logging model------------------
         rule_fit_inputexample = X_fit.iloc[:5]
