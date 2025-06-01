@@ -273,7 +273,7 @@ class randomforest(BaseModel):
 
     def train_(self,X_fit,X_hold,y_fit,y_hold):
         #(len(X) - initial_train - gap) // test_size 
-        split_timeseries = TimeSeriesSplit(n_splits=70, test_size=63, gap=5)
+        split_timeseries = TimeSeriesSplit(n_splits=5, test_size=28, gap=5)
         #gap=embargo
         params = {
             'n_estimators':      [200, 500, 1000, 2000],
@@ -286,17 +286,17 @@ class randomforest(BaseModel):
         rf = RandomForestRegressor(
             random_state= seed,
             oob_score= True,
-            n_jobs = -1 # change this if run local
+            n_jobs = 1 # change this if run local
         )
         self.random_search = RandomizedSearchCV(
             estimator= rf, 
             param_distributions= params,
-            n_iter = 20,
+            n_iter = 5,
             scoring = 'neg_mean_squared_error',
             n_jobs = -1,
             refit = True,
             cv = split_timeseries,
-            verbose = 2,
+            verbose = 0,
             random_state = seed
         ).fit(X_fit,y_fit)
 
@@ -545,7 +545,6 @@ class randomforest(BaseModel):
     ###----------------Helper func----------------------------
     #---------------------------------------------------------
     def surrogate_(self,X_fit,X_hold,pred_y_sample,pred_y_hold):
-        surrogate_split = TimeSeriesSplit(n_splits =10, test_size=21,gap=5)
         param_grid = {
             'max_depth':         range(1, 11),
             'min_samples_split': [2, 5, 10, 20],
@@ -557,11 +556,11 @@ class randomforest(BaseModel):
         surrogate_grid = GridSearchCV(
             estimator= tree_surrogate,
             param_grid= param_grid,
-            cv= surrogate_split, 
+            cv= 5, 
             scoring = 'neg_mean_squared_error',
             refit =True,
             n_jobs=-1,
-            verbose = 2
+            verbose = 0
         )
         surrogate_grid.fit(X_fit,pred_y_sample)
         best_surrogate_model = surrogate_grid.best_estimator_
