@@ -9,6 +9,7 @@ import glob
 import shutil
 import joblib
 import yaml
+import statsmodels.api as sm
 #----------------------Volatility------------------
 #--------------------------------------------------
 
@@ -36,6 +37,16 @@ class rolling_pred():
         )
         self.meta_path = os.path.join(self.mlruns_path, "meta.yaml")
 
+    def _fit(self):
+        X,y = self._var_prep()
+        model = self._dump_model() 
+        """
+        Example model usage:
+        - model[0] = ols
+        - model [0],model [1] = rf and surr
+        """
+        return model
+
 
     def _var_prep(self):
         for t in range (self.lookback_time, len(self.df)-1):
@@ -46,8 +57,13 @@ class rolling_pred():
         return X,y
     
     def _train(self):
+        """
+        Take in X,y ->  split train test -> take in a model -> train -> spits out lagged pred
+        """
+        X,y = self._var_prep()
+        model_1, model_2 = self._dump_model()
         
-    
+
             
         #TODO:train test split
     #-----------Path extractors----------
@@ -86,7 +102,7 @@ class rolling_pred():
             with open(self.meta_path, "r") as f:
                 meta = yaml.safe_load(f)
             if ols_path and meta.get("name") in ["baseline_ols", "enhanced_ols"]:
-                ols_model = joblib.load(ols_path[0])
+                ols_model = sm.load(ols_path[0])
                 return ols_model
             elif rf_path and surr_path and meta.get("name") in ["rf", "enhanced_rf"]:
                 rf_model = joblib.load(rf_path[0])
@@ -94,6 +110,7 @@ class rolling_pred():
                 return rf_model, surr_model
             else:
                 raise FileNotFoundError("No model .pkl file found at the specified path.")
+            
             
     def _extract_features(self):
         """Get the feature set of the run"""
