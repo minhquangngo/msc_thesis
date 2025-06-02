@@ -3,6 +3,7 @@
 2. 
 """
 import pandas as pd
+import statsmodels.api as sm 
 from sklearn.ensemble import RandomForestRegressor
 import os
 import glob
@@ -10,6 +11,7 @@ import shutil
 import joblib
 import yaml
 import statsmodels.api as sm
+from pathlib import Path
 #----------------------Volatility------------------
 #--------------------------------------------------
 
@@ -25,26 +27,8 @@ def realized_vol(var, time):
     rv = var.rolling(time).std()
     return rv
 
-import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-import os
-import glob
-import shutil
-import joblib
-import yaml
-import statsmodels.api as sm
 
-def realized_vol(var, time):
-    '''
-    VR = Volatlity at time t  = Volatility (t-24months,t) / Volatiliity (t-36m,t)
-    VR<1 = Near term vol is smaller than long term vol 
-    -----EXAMPLE-----
-    rv_short = realised_vol(panel['ret'], 21)   # ≈ one trading month
-    rv_long  = realised_vol(panel['ret'], 36)   # ≈ six trading weeks
-    panel['vr'] = rv_short / rv_long
-    '''
-    rv = var.rolling(time).std()
-    return rv
+#TODO: write a class that automatically takes the rolling pred and apply it to the each of the models
 
 class rolling_pred():
     def __init__(self, experiment, run, df=None, lookback_time=None):
@@ -53,38 +37,49 @@ class rolling_pred():
         self.df = df
         self.lookback_time = lookback_time
 
-        self.mlruns_path = os.path.join("py", "mlruns", str(self.experiment))
+        self.mlruns_path = os.path.join("py","mlruns", str(self.experiment))
         self.meta_path = os.path.join(self.mlruns_path, "meta.yaml")
-        
         
         print(f"MLRuns path: {self.mlruns_path}")
         print(f"Meta path: {self.meta_path}")
         print(f"Meta path exists: {os.path.exists(self.meta_path)}")
 
-    def _fit(self):
-        X, y = self._var_prep()
-        model = self._dump_model() 
-        return model
-    
-    def _var_prep(self):
+    def _pred(self):
+        model = self._dump_model()
+        ols_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
+        rf_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
+        surr_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
+        feat_imp_rf = []
+        feat_imp_surr = []
         for t in range(self.lookback_time, len(self.df)-1):
-            df_period = self.df.iloc[t - self.lookback_time:t]
+            df_trainperiod = self.df.iloc[t - self.lookback_time:t]
+            print("Training set debug")
+            print(df_trainperiod.head(10))        
             features = self._extract_features()
-            y = df_period.loc['excess_ret']  
-            X = df_period.loc[features]
-        return X, y  
-    
-    def _train(self):
-        """
-        Take in X,y ->  split train test -> take in a model -> train -> spits out lagged pred
-        """
-        try:
-            models = self._dump_model()
-            return models
-        except Exception as e:
-            print(f"Error in _train: {e}")
-            return None, None
-            
+            print(f"Features {features}")
+            y_train = df_trainperiod['excess_ret']  
+            X_train = df_trainperiod[features]
+            X_test = self.df.loc[[self.df.index[t]], features]  #locate the test row based on index label and by feature column
+            print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+            print(f"X_test shape: {X_test.shape}")
+            if model[1] is None: 
+                trained_ols = model[0].fit(X_train,y_train)
+                ols_prediction_series.iloc[t] = trained_ols.predict(X_test)[0]
+            else:
+                trained_rf = model[0].fit(X_train,y_train)
+                trained_surr = model [1].fit(X_train,y_train)
+                
+                rf_prediction_series.iloc[t] = trained_rf.predict(X_test)[0]
+                feat_imp_rf.append(trained_rf.feature_importances_)
+
+                surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]
+                feat_imp_surr.append(trained_surr.feature_importances_)
+
+        return ols_prediction_series, rf_prediction_series, surr_prediction_series
+        #TODO:add feature importance to the output
+        #TODO: shift pred to the next day
+        
+    #==================INTERNAL HELPERS=========================
     def _extract_model_pkl(self):
         """
         Get the path of that run's model
@@ -200,7 +195,7 @@ if __name__ == "__main__":
     try:
         print(f"\n------RF path test------")
         rf_predictor = rolling_pred(208039388113350502, "0c861f5f9a874e05b04e43bb6341bd96")
-        result = rf_predictor._train()
+        result = rf_predictor._pred()
         rf_feats = rf_predictor._extract_features()
         print(f"\nFinal result: {result}")
         print(f"Model rf types: {type(result[0]) if result[0] else None}, {type(result[1]) if result[1] else None}")
@@ -208,7 +203,7 @@ if __name__ == "__main__":
 
         print(f"\n------OLS path test------")
         ols_predictor = rolling_pred(717450669580849996, "2fb51e9b2ff74ab992a0fe6b0cdecf1a")
-        ols_result = ols_predictor._train()
+        ols_result = ols_predictor._pred()
         ols_feats = ols_predictor._extract_features()
         print(f"\nFinal OLS result: {ols_result}")
         print(f"Model ols types: {type(ols_result[0]) if ols_result[0] else None}, {type(ols_result[1]) if ols_result[1] else None}")
