@@ -12,21 +12,24 @@ import joblib
 import yaml
 import statsmodels.api as sm
 from pathlib import Path
+from mlxtend.frequent_patterns import association_rules, apriori
+
 #----------------------Volatility------------------
 #--------------------------------------------------
 
-def realized_vol(var, time):
-    '''
+def realized_vol(var, time_sr, time_lr):
+        """
     VR = Volatlity at time t  = Volatility (t-24months,t) / Volatiliity (t-36m,t)
     VR<1 = Near term vol is smaller than long term vol 
     -----EXAMPLE-----
     rv_short = realised_vol(panel['ret'], 21)   # ≈ one trading month
     rv_long  = realised_vol(panel['ret'], 36)   # ≈ six trading weeks
     panel['vr'] = rv_short / rv_long
-    '''
-    rv = var.rolling(time).std()
-    return rv
-
+    """
+        rv_sr = var.rolling(time_sr).std()
+        rv_lr = var.rolling(time_lr).std()
+        ratio = rv_sr / rv_lr
+        return ratio
 
 #TODO: write a class that automatically takes the rolling pred and apply it to the each of the models
 
@@ -75,10 +78,41 @@ class rolling_pred():
                 surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]
                 feat_imp_surr.append(trained_surr.feature_importances_)
 
-        return ols_prediction_series, rf_prediction_series, surr_prediction_series
-        #TODO:add feature importance to the output
-        #TODO: shift pred to the next day
+        return ols_prediction_series.shift(1), rf_prediction_series.shift(1), surr_prediction_series.shift(1)  
+        #TODO:add a logging function that logs it into mlflow
+    
+    def _arl(self, backroll_time, prediction_df, excess_ret_threshold = 0.0):
+        """
+        Predictio_df contains:
+        - Prediction
+        - Excess return org vals
+        Added:
         
+        Condition_df are conditions:
+        - low realized volatility < 1 (T/F)
+        - high prediction > 0 (T/F)
+        1. Conditions are binary (if realized vol > x and prediction > y)
+        2. Metrics to eval:
+        Metrics:
+        Support: How often this rule occurs in the data.
+
+        Confidence: How often the antecedent leads to the consequent.
+
+        Lift: How much more likely the consequent is, given the antecedent, compared to chance.
+        """
+        for t in range (backroll_time, len(self.df)-1):
+            df_trainperiod = prediction_df.iloc[t - backroll_time:t]
+            condition_df = pd.DataFrame({
+                "low_realized_volatility": (realized_vol(df_trainperiod["excess_ret"], 21, 183) < 1.),
+                "high_prediction": (prediction_df["preds"] > excess_ret_threshold)
+            }
+            )
+            print(f"Conditions dataframe debug: {condition_df}")
+        
+        #TODO: justification of the params    
+
+        return condition_df
+
     #==================INTERNAL HELPERS=========================
     def _extract_model_pkl(self):
         """
@@ -111,7 +145,7 @@ class rolling_pred():
                 elif model_name in ["rf", "enhanced_rf"]:
                     rf_path = os.path.join("py", "mlartifacts", str(self.experiment), str(self.run),"artifacts","rf_model","*.pkl")
                     surr_path = os.path.join("py", "mlartifacts", str(self.experiment), str(self.run),"artifacts","surr_model","*.pkl")
-
+                    
                     print(f"RF path: {rf_path}")
                     print(f"Surr path: {surr_path}")
 
