@@ -38,7 +38,7 @@ class rolling_pred():
         self.experiment = experiment
         self.run = run 
         self.df = df
-        self.lookback_time = lookback_time
+        self.lookback_time = lookback_time #the total time that the data is trained on
 
         self.mlruns_path = os.path.join("py","mlruns", str(self.experiment))
         self.meta_path = os.path.join(self.mlruns_path, "meta.yaml")
@@ -54,7 +54,7 @@ class rolling_pred():
         surr_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
         feat_imp_rf = []
         feat_imp_surr = []
-        for t in range(self.lookback_time, len(self.df)-1):
+        for t in range(len(self.df)-self.lookback_time, len(self.df)-1):
             df_trainperiod = self.df.iloc[t - self.lookback_time:t]
             print("Training set debug")
             print(df_trainperiod.head(10))        
@@ -81,13 +81,15 @@ class rolling_pred():
         return ols_prediction_series.shift(1), rf_prediction_series.shift(1), surr_prediction_series.shift(1)  
         #TODO:add a logging function that logs it into mlflow
     
-    def _arl(self, backroll_time, prediction_df, excess_ret_threshold = 0.0):
+    def _arl(self, prediction_df, excess_ret_threshold = 0.0):
         """
         Predictio_df contains:
         - Prediction
         - Excess return org vals
         Added:
         
+        Definitions:
+        - Backroll = amount of time that the 
         Condition_df are conditions:
         - low realized volatility < 1 (T/F)
         - high prediction > 0 (T/F)
@@ -100,18 +102,20 @@ class rolling_pred():
 
         Lift: How much more likely the consequent is, given the antecedent, compared to chance.
         """
-        for t in range (backroll_time, len(self.df)-1):
-            df_trainperiod = prediction_df.iloc[t - backroll_time:t]
-            condition_df = pd.DataFrame({
-                "low_realized_volatility": (realized_vol(df_trainperiod["excess_ret"], 21, 183) < 1.),
+        
+        condition_df = pd.DataFrame({
+                #low realized volatility
+                "low_realized_volatility": (realized_vol(prediction_df["excess_ret"], 2,15) < 1),
                 "high_prediction": (prediction_df["preds"] > excess_ret_threshold)
             }
             )
-            print(f"Conditions dataframe debug: {condition_df}")
-        
+        frequent = apriori(condition_df.astype(int), min_support=0.02, use_colnames=True)
+            # print(f"Frequent itemsets: {frequent}")
+            # rules = association_rules(frequent, metric="confidence", min_threshold=0.55)
+            # print(f"Rules: {rules}")
         #TODO: justification of the params    
 
-        return condition_df
+        return frequent, condition_df
 
     #==================INTERNAL HELPERS=========================
     def _extract_model_pkl(self):
