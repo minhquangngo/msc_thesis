@@ -13,6 +13,7 @@ import yaml
 import statsmodels.api as sm
 from pathlib import Path
 from mlxtend.frequent_patterns import association_rules, apriori
+import numpy as np
 
 #----------------------Volatility------------------
 #--------------------------------------------------
@@ -23,7 +24,7 @@ def realized_vol(var, time_sr, time_lr):
     VR<1 = Near term vol is smaller than long term vol 
     -----EXAMPLE-----
     rv_short = realised_vol(panel['ret'], 21)   # ≈ one trading month
-    rv_long  = realised_vol(panel['ret'], 36)   # ≈ six trading weeks
+    rv_long  = realised_vol(panel['ret'], (6 months trading in days))   # ≈ six trading weeks
     panel['vr'] = rv_short / rv_long
     """
         rv_sr = var.rolling(time_sr).std()
@@ -34,11 +35,26 @@ def realized_vol(var, time_sr, time_lr):
 #TODO: write a class that automatically takes the rolling pred and apply it to the each of the models
 
 class rolling_pred():
-    def __init__(self, experiment, run, df=None, lookback_time=None):
+    def __init__(
+            self,
+            experiment, 
+            run, 
+            df =None, 
+            lookback_time =None, 
+            vol_threshold = 1.0,
+            pred_thresh = 0.0,
+            excess_ret_pred_threshold = 0.0,
+            sr = 21,
+            lr = 183):
         self.experiment = experiment
         self.run = run 
         self.df = df
         self.lookback_time = lookback_time #the total time that the data is trained on
+        self.vol_threshold = vol_threshold
+        self.pred_thresh = pred_thresh
+        self.excess_ret_pred_threshold = excess_ret_pred_threshold
+        self.sr = sr
+        self.lr = lr
 
         self.mlruns_path = os.path.join("py","mlruns", str(self.experiment))
         self.meta_path = os.path.join(self.mlruns_path, "meta.yaml")
@@ -46,15 +62,53 @@ class rolling_pred():
         print(f"MLRuns path: {self.mlruns_path}")
         print(f"Meta path: {self.meta_path}")
         print(f"Meta path exists: {os.path.exists(self.meta_path)}")
+    
+    def _fit(self):
+        self.pred_series = self._pred()
+        
+        if self.ols_prediction_series is not None:
+            print(f"OLS predictions: {self.ols_prediction_series.head()}")
+            apriori_df = self._prep_apriori(
+                self.df,
+                vol_threshold=1.0,
+                pred_thresh=0.0,
+                excess_ret_pred_threshold=0.0,
+                sr=21,
+                lr=183,
+                pred_series=self.pred_series
+            )
+            
 
+        elif self.rf_prediction_series is not None:
+            print(f"RF predictions: {self.rf_prediction_series.head()}")
+            apriori_df = self._prep_apriori(
+                self.df,
+                vol_threshold=1.0,
+                pred_thresh=0.0,
+                excess_ret_pred_threshold=0.0,
+                sr=21,
+                lr=183,
+                pred_series=self.rf_prediction_series
+            )
+            surr_apriori_df = self._prep_apriori(
+                self.df,
+                vol_threshold=1.0,
+                pred_thresh=0.0,
+                excess_ret_pred_threshold=0.0,
+                sr=21,
+                lr=183,
+                pred_series=self.surr_prediction_series
+            )
+            
     def _pred(self):
         model = self._dump_model()
-        ols_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
-        rf_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
-        surr_prediction_series = pd.Series(index=self.df.index, dtype=float)#create series with the same index as df
+        ols_prediction_series = pd.Series(index=self.df.index, dtype=float)
+        rf_prediction_series = pd.Series(index=self.df.index, dtype=float)
+        surr_prediction_series = pd.Series(index=self.df.index, dtype=float)
         feat_imp_rf = []
         feat_imp_surr = []
-        for t in range(len(self.df)-self.lookback_time, len(self.df)-1):
+        
+        for t in range(self.lookback_time, len(self.df)-1):
             df_trainperiod = self.df.iloc[t - self.lookback_time:t]
             print("Training set debug")
             print(df_trainperiod.head(10))        
@@ -62,26 +116,67 @@ class rolling_pred():
             print(f"Features {features}")
             y_train = df_trainperiod['excess_ret']  
             X_train = df_trainperiod[features]
-            X_test = self.df.loc[[self.df.index[t]], features]  #locate the test row based on index label and by feature column
+            X_test = self.df.loc[[self.df.index[t]], features]
             print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
             print(f"X_test shape: {X_test.shape}")
+            
             if model[1] is None: 
-                trained_ols = model[0].fit(X_train,y_train)
+                trained_ols = model[0].fit(X_train, y_train)
                 ols_prediction_series.iloc[t] = trained_ols.predict(X_test)[0]
             else:
-                trained_rf = model[0].fit(X_train,y_train)
-                trained_surr = model [1].fit(X_train,y_train)
+                trained_rf = model[0].fit(X_train, y_train)
+                trained_surr = model[1].fit(X_train, y_train)
                 
                 rf_prediction_series.iloc[t] = trained_rf.predict(X_test)[0]
                 feat_imp_rf.append(trained_rf.feature_importances_)
 
                 surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]
                 feat_imp_surr.append(trained_surr.feature_importances_)
+        
+        # Return statements AFTER the loop completes
+        if model[1] is None:
+            return ols_prediction_series
+        else:
+            return rf_prediction_series, surr_prediction_series, feat_imp_rf, feat_imp_surr
 
-        return ols_prediction_series.shift(1), rf_prediction_series.shift(1), surr_prediction_series.shift(1)  
+        
         #TODO:add a logging function that logs it into mlflow
     
-    def _arl(self, prediction_df, excess_ret_threshold = 0.0):
+    def _prep_apriori(self,df: pd.DataFrame,
+                       vol_threshold: float,
+                       pred_thresh: float,
+                       excess_ret_pred_threshold : float,
+                       sr: int,
+                       lr:int,
+                       pred_series: pd.Series
+                       ) -> pd.DataFrame:
+        """
+        Build the one-hot dataframe that the `apriori` algorithm expects.
+        Each row is a 'transaction' (sector-month observation).
+        An item is present (=True) when the condition holds.
+        Antecedent items:
+            - low_vr      : VR < vr_thresh   (default 1.0)
+            - high_pred   : t +1 model prediction > pred_thresh
+        Consequent item:
+            - ret_up      : t+1 excess return > ret_thresh
+        """
+        df = df.copy()
+        df["VR"]= realized_vol(df['excess_ret'],sr, lr)                 # rolling statistic
+        df["low_vr"]    = df["VR"]   < vol_threshold
+        # Use the prediction series that matches your model type. Example below uses rf_prediction_series:
+        df["high_pred"] = pred_series > pred_thresh # add more arguments for models here
+        df["ret_up"]    = df["excess_ret"]> excess_ret_pred_threshold
+
+        items = df[["low_vr", "high_pred", "ret_up"]].dropna().astype("bool")
+        return items
+
+    def _arl(self,
+            df,
+            vol_threshold = 1.0,
+            prediction_threshold = 0.0,
+            excess_ret_pred_threshold = 0.0,
+            sr =21,
+            lr = 183): #TODO: change 6 months of trading days
         """
         Predictio_df contains:
         - Prediction
@@ -102,20 +197,88 @@ class rolling_pred():
 
         Lift: How much more likely the consequent is, given the antecedent, compared to chance.
         """
-        
-        condition_df = pd.DataFrame({
-                #low realized volatility
-                "low_realized_volatility": (realized_vol(prediction_df["excess_ret"], 2,15) < 1),
-                "high_prediction": (prediction_df["preds"] > excess_ret_threshold)
-            }
-            )
-        frequent = apriori(condition_df.astype(int), min_support=0.02, use_colnames=True)
-            # print(f"Frequent itemsets: {frequent}")
-            # rules = association_rules(frequent, metric="confidence", min_threshold=0.55)
-            # print(f"Rules: {rules}")
-        #TODO: justification of the params    
+        apriori_df = self._prep_apriori(
+            df,
+            vol_threshold,
+            prediction_threshold,
+            excess_ret_pred_threshold,
+            sr,
+            lr
+                )
+        signal = [] 
+        rule_book = []
+        for t in range(self.lookback_time, len(df)-1): # this is NOT the window. this is to stop the loop from going over the df len
+            """
+            Looks back at the time for the 2 signals:
+            - If at time t
+                - RF pred of t+1 >threshold (high prediction)
+                - realized vol <1 for the past quarter(low vol)
+            can reliably signal an actual excess return next month over a certain threshold
 
-        return frequent, condition_df
+            How:
+            - See if one of the extracted rule at time t for a lookback time: low_vol & high pred -> excess pred > \beta
+            - Loop it over all days of 2018
+            """
+
+            daterange_start = t - self.lookback_time
+            daterange_end = t
+            window_df = apriori_df.iloc[daterange_start : daterange_end + 1]
+
+            frequent = apriori(
+                window_df, 
+                min_support=0.02, 
+                use_colnames=True)
+        
+            rules = association_rules(
+                frequent, 
+                metric="confidence", 
+                min_threshold=0.55
+                )
+            
+            mask = rules["consequents"].apply(lambda s: s == frozenset({"ret_up"}))
+            rules = rules.loc[mask]
+            #The result that rules returns is a dataframe, which contains 2 cols: antecendens and consequents
+                # Consequents is the rule of the right hand side (x &y -> consequents)
+                # The rule set is going to determine both the rules using ret_up and predicting ret_up
+                # We are only interested in the ret_up prediction
+            
+            target_rule = rules.loc[
+            rules["antecedents"] == frozenset({"low_vr", "high_pred"})
+        ]
+            #Same thing we are only interested in the low_vr and high_pred
+            if target_rule.empty:
+                signal.append(0)
+                rule_book.append(
+                    {"idx":apriori_df.index[t],
+                     "support":np.nan,
+                     "confidence":np.nan,
+                     "lift": np.nan}
+                )
+                continue # if it is empty then EVERYTHING below is skipped
+
+            rule_book_row = target_rule.iloc[0]
+
+            rule_book.append({
+                "idx": rule_book_row.index(t),
+                "support": rule_book_row['support'],
+                "confidence" : rule_book_row['confidence'],
+                "lift": rule_book_row ['lift']
+                  })
+            
+            # the rules above check the statistical rigor of the rule.
+            # if the rules for the past {lookback time} is rigorous, we look at the condition for this
+            ## current month
+
+            condition_low_vr = apriori_df.iloc[t]['low_vr']
+            condition_high_pred = apriori_df.iloc[t] ['high_pred']
+            hold_sect = int(condition_low_vr and condition_high_pred)
+            signal.append(hold_sect)
+        
+        sig_index = apriori_df.index[self.lookback_time+1 : self.lookback_time+1+len(signal)]
+        signal_series         = pd.Series(signal, index=sig_index, name="signal")
+        rule_diagnostics_df   = pd.DataFrame(rule_book).set_index("idx")
+            
+        return signal_series, rule_diagnostics_df
 
     #==================INTERNAL HELPERS=========================
     def _extract_model_pkl(self):
@@ -246,5 +409,8 @@ if __name__ == "__main__":
         print(f"\nFinal OLS result: {ols_result}")
         print(f"Model ols types: {type(ols_result[0]) if ols_result[0] else None}, {type(ols_result[1]) if ols_result[1] else None}")
         print(f"Extracted ols features: {ols_feats}")
+
+
     except Exception as e:
         print(f"Main execution error: {e}")
+
