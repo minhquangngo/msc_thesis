@@ -40,7 +40,7 @@ class rolling_pred():
             experiment, 
             run, 
             df =None, 
-            lookback_time =None, 
+            lookback_time = 365, 
             vol_threshold = 1.0,
             pred_thresh = 0.0,
             excess_ret_pred_threshold = 0.0,
@@ -63,81 +63,135 @@ class rolling_pred():
         print(f"Meta path: {self.meta_path}")
         print(f"Meta path exists: {os.path.exists(self.meta_path)}")
     
-    def _fit(self):
-        self.pred_series = self._pred()
+    def fit(self):
+        """
+        Alternative cleaner version of _fit() method.
+        """
+        print("Dumping models")
+        self.models = self._dump_model()
+        is_ols_only = self.models[1] is None
         
-        if self.ols_prediction_series is not None:
-            print(f"OLS predictions: {self.ols_prediction_series.head()}")
-            apriori_df = self._prep_apriori(
+        # Get predictions
+        if is_ols_only:
+            print("OLS detected")
+            self.ols_prediction_series = self._pred()
+            self.rf_prediction_series = None
+            self.surr_prediction_series = None
+            self.pred_series = self.ols_prediction_series
+            
+            print(f"OLS predictions generated: {self.ols_prediction_series.head()}")
+            print("Generating apriori df....")
+            self.ols_apriori_df = self._prep_apriori(
                 self.df,
                 vol_threshold=1.0,
                 pred_thresh=0.0,
                 excess_ret_pred_threshold=0.0,
                 sr=21,
                 lr=183,
-                pred_series=self.pred_series
+                pred_series=self.ols_prediction_series
             )
-            
+            print(f"Apriori df generated: {self.ols_apriori_df.head()}")
 
-        elif self.rf_prediction_series is not None:
-            print(f"RF predictions: {self.rf_prediction_series.head()}")
-            apriori_df = self._prep_apriori(
+            print("Generating arl set....")
+            self.ols_arl_set = self._arl(
                 self.df,
-                vol_threshold=1.0,
-                pred_thresh=0.0,
-                excess_ret_pred_threshold=0.0,
-                sr=21,
-                lr=183,
-                pred_series=self.rf_prediction_series
-            )
-            surr_apriori_df = self._prep_apriori(
-                self.df,
-                vol_threshold=1.0,
-                pred_thresh=0.0,
-                excess_ret_pred_threshold=0.0,
-                sr=21,
-                lr=183,
-                pred_series=self.surr_prediction_series
-            )
+                self.ols_apriori_df)
+            print(f"Signal set generated: {self.ols_arl_set[0].head()}")
+            print(f"Rule diagnostics df generated: {self.ols_arl_set[1].head()}")
+
+            ols_signal_set, ols_rule_set = self.ols_arl_set
+
+            return {
+                "ols_signal_set": ols_signal_set,
+                "ols_rule_set": ols_rule_set,
+                "feature_importance": None
+            }
             
+        else:
+            print("RF and Surr detected")
+            self.rf_prediction_series, self.surr_prediction_series, self.rf_feature_importance, self.surr_feature_importance = self._pred()
+            self.ols_prediction_series = None
+
+            print(f"RF predictions generated: {self.rf_prediction_series.tail(250)}")
+            print(f"Surrogate predictions generated: {self.surr_prediction_series.tail(250)}")
+
+            print("Generating apriori df....")
+            self.rf_apriori_df = self._prep_apriori(
+                self.df,
+                vol_threshold=1.0,
+                pred_thresh=0.0,
+                excess_ret_pred_threshold=0.0,
+                sr= self.sr,
+                lr=self.lr,
+                pred_series=self.rf_prediction_series
+            ) #TODO: mlflow log this
+            print(f"RF apriori df generated: {self.rf_apriori_df.head()}")
+            
+            print("Generating surr apriori df....")
+            self.surr_apriori_df = self._prep_apriori(
+                self.df,
+                vol_threshold=1.0,
+                pred_thresh=0.0,
+                excess_ret_pred_threshold=0.0,
+                sr=self.sr,
+                lr=self.lr,
+                pred_series=self.surr_prediction_series
+            ) #TODO: Mlflow log this
+            print(f"Surr apriori df generated: {self.surr_apriori_df.head()}")
+
+            print("Generating rf arl set....")
+            self.rf_arl_set = self._arl(
+                self.df,
+                self.rf_apriori_df)
+            print(f"RF signal set generated: {self.rf_arl_set[0].head()}")
+            print(f"RF rule diagnostics df generated: {self.rf_arl_set[1].head()}")
+
+            print("Generating surr arl set....")
+            self.surr_arl_set = self._arl(
+                self.df,
+                self.surr_apriori_df)
+            print(f"Surr signal set generated: {self.surr_arl_set[0].head()}")
+            print(f"Surr rule diagnostics df generated: {self.surr_arl_set[1].head()}")
+            
+            rf_signal_set, rf_rule_set = self.rf_arl_set
+
+            return {
+                "rf_signal_set": rf_signal_set,
+                "rf_rule_set": rf_rule_set,
+                "feature_importance": self.rf_feature_importance
+            }
+
     def _pred(self):
-        model = self._dump_model()
-        ols_prediction_series = pd.Series(index=self.df.index, dtype=float)
-        rf_prediction_series = pd.Series(index=self.df.index, dtype=float)
-        surr_prediction_series = pd.Series(index=self.df.index, dtype=float)
-        feat_imp_rf = []
-        feat_imp_surr = []
+        self.ols_prediction_series = pd.Series(index=self.df.index, dtype=float)
+        self.rf_prediction_series = pd.Series(index=self.df.index, dtype=float)
+        self.surr_prediction_series = pd.Series(index=self.df.index, dtype=float)
+        self.feat_imp_rf = []
+        self.feat_imp_surr = []
+        features = self._extract_features()
+        print(f"Features {features}")
         
         for t in range(self.lookback_time, len(self.df)-1):
-            df_trainperiod = self.df.iloc[t - self.lookback_time:t]
-            print("Training set debug")
-            print(df_trainperiod.head(10))        
-            features = self._extract_features()
-            print(f"Features {features}")
-            y_train = df_trainperiod['excess_ret']  
-            X_train = df_trainperiod[features]
             X_test = self.df.loc[[self.df.index[t]], features]
-            print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
-            print(f"X_test shape: {X_test.shape}")
+            X_test_const = sm.add_constant(X_test, has_constant = 'add')
             
-            if model[1] is None: 
-                trained_ols = model[0].fit(X_train, y_train)
-                ols_prediction_series.iloc[t] = trained_ols.predict(X_test)[0]
+            
+            if self.models[1] is None: 
+                trained_ols = self.models[0]
+                self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const)[0]
             else:
-                trained_rf = model[0].fit(X_train, y_train)
-                trained_surr = model[1].fit(X_train, y_train)
-                
-                rf_prediction_series.iloc[t] = trained_rf.predict(X_test)[0]
-                feat_imp_rf.append(trained_rf.feature_importances_)
+                trained_rf = self.models[0]
+                trained_surr = self.models[1]
+                self.rf_prediction_series.iloc[t] = trained_rf.predict(X_test)[0]
+                self.feat_imp_rf.append(trained_rf.feature_importances_)
 
-                surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]
-                feat_imp_surr.append(trained_surr.feature_importances_)
-        
+                self.surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]
+                self.feat_imp_surr.append(trained_surr.feature_importances_)
+
         # Return statements AFTER the loop completes
-        if model[1] is None:
-            return ols_prediction_series
+        if self.models[1] is None:
+            return self.ols_prediction_series
         else:
-            return rf_prediction_series, surr_prediction_series, feat_imp_rf, feat_imp_surr
+            return self.rf_prediction_series, self.surr_prediction_series, self.feat_imp_rf, self.feat_imp_surr
 
         
         #TODO:add a logging function that logs it into mlflow
@@ -156,13 +210,14 @@ class rolling_pred():
         An item is present (=True) when the condition holds.
         Antecedent items:
             - low_vr      : VR < vr_thresh   (default 1.0)
-            - high_pred   : t +1 model prediction > pred_thresh
+            - high_pred   : t model prediction > pred_thresh
         Consequent item:
-            - ret_up      : t+1 excess return > ret_thresh
+            - ret_up      : t excess return > ret_thresh
         """
         df = df.copy()
         df["VR"]= realized_vol(df['excess_ret'],sr, lr)                 # rolling statistic
         df["low_vr"]    = df["VR"]   < vol_threshold
+        print
         # Use the prediction series that matches your model type. Example below uses rf_prediction_series:
         df["high_pred"] = pred_series > pred_thresh # add more arguments for models here
         df["ret_up"]    = df["excess_ret"]> excess_ret_pred_threshold
@@ -172,11 +227,7 @@ class rolling_pred():
 
     def _arl(self,
             df,
-            vol_threshold = 1.0,
-            prediction_threshold = 0.0,
-            excess_ret_pred_threshold = 0.0,
-            sr =21,
-            lr = 183): #TODO: change 6 months of trading days
+            apriori_df): #TODO: change 6 months of trading days
         """
         Predictio_df contains:
         - Prediction
@@ -197,14 +248,6 @@ class rolling_pred():
 
         Lift: How much more likely the consequent is, given the antecedent, compared to chance.
         """
-        apriori_df = self._prep_apriori(
-            df,
-            vol_threshold,
-            prediction_threshold,
-            excess_ret_pred_threshold,
-            sr,
-            lr
-                )
         signal = [] 
         rule_book = []
         for t in range(self.lookback_time, len(df)-1): # this is NOT the window. this is to stop the loop from going over the df len
@@ -226,7 +269,7 @@ class rolling_pred():
 
             frequent = apriori(
                 window_df, 
-                min_support=0.02, 
+                min_support=0.05, 
                 use_colnames=True)
         
             rules = association_rules(
@@ -235,17 +278,12 @@ class rolling_pred():
                 min_threshold=0.55
                 )
             
-            mask = rules["consequents"].apply(lambda s: s == frozenset({"ret_up"}))
-            rules = rules.loc[mask]
-            #The result that rules returns is a dataframe, which contains 2 cols: antecendens and consequents
-                # Consequents is the rule of the right hand side (x &y -> consequents)
-                # The rule set is going to determine both the rules using ret_up and predicting ret_up
-                # We are only interested in the ret_up prediction
+            # filter out: the consquentcol of rule is ret up and the antecedents must be low_ver and high_pred
+            target_rule = rules[
+                (rules["consequents"] == frozenset({"ret_up"})) &
+                (rules["antecedents"] == frozenset({"low_vr", "high_pred"}))
+            ]
             
-            target_rule = rules.loc[
-            rules["antecedents"] == frozenset({"low_vr", "high_pred"})
-        ]
-            #Same thing we are only interested in the low_vr and high_pred
             if target_rule.empty:
                 signal.append(0)
                 rule_book.append(
@@ -254,12 +292,12 @@ class rolling_pred():
                      "confidence":np.nan,
                      "lift": np.nan}
                 )
-                continue # if it is empty then EVERYTHING below is skipped
+                continue # if there are no rules matching empty then EVERYTHING below is skipped
 
             rule_book_row = target_rule.iloc[0]
 
             rule_book.append({
-                "idx": rule_book_row.index(t),
+                "idx": apriori_df.index[t],
                 "support": rule_book_row['support'],
                 "confidence" : rule_book_row['confidence'],
                 "lift": rule_book_row ['lift']
@@ -274,7 +312,8 @@ class rolling_pred():
             hold_sect = int(condition_low_vr and condition_high_pred)
             signal.append(hold_sect)
         
-        sig_index = apriori_df.index[self.lookback_time+1 : self.lookback_time+1+len(signal)]
+        sig_index = apriori_df.index[self.lookback_time+1 :] 
+        #TODO: take a look at sig_index
         signal_series         = pd.Series(signal, index=sig_index, name="signal")
         rule_diagnostics_df   = pd.DataFrame(rule_book).set_index("idx")
             
