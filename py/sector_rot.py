@@ -69,7 +69,7 @@ def realized_vol(var, time_sr, time_lr):
 class rolling_pred():
     def __init__(
             self,
-            experiment, 
+            experiment_numb,
             run, 
             df =None, 
             lookback_time = 365, 
@@ -78,9 +78,8 @@ class rolling_pred():
             excess_ret_pred_threshold = 0.0,
             sr = 21,
             lr = 183,
-            experiment_numb = None,
             experiment_name = None):
-        self.experiment = experiment
+        self.experiment_numb = experiment_numb
         self.run = run 
         self.df = df
         self.lookback_time = lookback_time #the total time that the data is trained on
@@ -89,10 +88,10 @@ class rolling_pred():
         self.excess_ret_pred_threshold = excess_ret_pred_threshold
         self.sr = sr
         self.lr = lr
-        self.experiment_numb = experiment_numb
+        
         self.experiment_name = experiment_name
 
-        self.mlruns_path = os.path.join("py","mlruns", str(self.experiment))
+        self.mlruns_path = os.path.join("py","mlruns", str(self.experiment_numb))
         self.meta_path = os.path.join(self.mlruns_path, "meta.yaml")
         
         print(f"MLRuns path: {self.mlruns_path}")
@@ -389,15 +388,15 @@ class rolling_pred():
                 
                 if model_name in ["baseline_ols", "enhanced_ols"]:
                     ols_path = os.path.join(
-                        "py", "mlartifacts", str(self.experiment), str(self.run),"artifacts","ols_model", "*.statsmodels")
+                        "py", "mlartifacts", str(self.experiment_numb), str(self.run),"artifacts","ols_model", "*.statsmodels")
                     print(f"OLS pattern: {ols_path}")
                     ols_pkl_file = glob.glob(ols_path)
                     print(f"OLS files found: {ols_pkl_file}")
                     
                 elif model_name in ["rf", "enhanced_rf"]:
-                    rf_path = os.path.join("py", "mlartifacts", str(self.experiment), str(self.run),"artifacts","rf_model","*.pkl")
-                    surr_path = os.path.join("py", "mlartifacts", str(self.experiment), str(self.run),"artifacts","surr_model","*.pkl")
-                    
+                    rf_path = os.path.join("py", "mlartifacts", str(self.experiment_numb), str(self.run),"artifacts","rf_model","*.pkl")
+                    surr_path = os.path.join("py", "mlartifacts", str(self.experiment_numb), str(self.run),"artifacts","surr_model","*.pkl")
+
                     print(f"RF path: {rf_path}")
                     print(f"Surr path: {surr_path}")
 
@@ -497,7 +496,7 @@ class rolling_pred():
             features,
             ):
         with mlflow.start_run(
-            run_name = f"{self.experiment}_{self.run}" ,
+            run_name = f"{self.experiment_numb}_{self.run}" ,
             tags={
                 "fingerprint":self.hash_fp,
                 "features":features,      
@@ -508,7 +507,7 @@ class rolling_pred():
       }):
             params ={
                 "features":features,
-                "experiment": self.experiment,
+                "experiment": self.experiment_numb,
                 "run": self.run}
             mlflow.log_params(params)
 
@@ -517,7 +516,7 @@ class rolling_pred():
                 mlflow.log_artifact(f'ols_pred_series_{self.run}.csv')
 
                 self.ols_apriori_df.to_csv('ols_apriori_df.csv', header = True, index = True)
-                mlflow.log_artifact(f"ols_apriori_df_{self.run}")
+                mlflow.log_artifact(f"ols_apriori_df_{self.run}.csv")
 
                 self.ols_signal_set.to_csv('ols_signal_set.csv', header = True, index = True)
                 mlflow.log_artifact(f'ols_signal_set_{self.run}.csv')
