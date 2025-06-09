@@ -540,7 +540,9 @@ class rolling_pred():
                 mlflow.log_artifact(f'rf_rule_set_{self.run}.csv')
 
                 with open (f'feature_importance_rf_{self.run}.json', 'w') as f:
-                    json.dump(self.rf_feature_importance, f)
+                    # Convert numpy arrays to lists for JSON serialization
+                    rf_feat_imp_serializable = [arr.tolist() if hasattr(arr, "tolist") else arr for arr in self.rf_feature_importance]
+                    json.dump(rf_feat_imp_serializable, f)
                 mlflow.log_artifact(f'feature_importance_rf_{self.run}.json')
     
 
