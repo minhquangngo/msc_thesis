@@ -144,11 +144,11 @@ class rolling_pred():
             print(f"Signal set generated: {self.ols_arl_set[0].tail(50)}")
             print(f"Rule diagnostics df generated: {self.ols_arl_set[1].tail(50)}")
 
-            ols_signal_set, ols_rule_set = self.ols_arl_set
+            self.ols_signal_set, self.ols_rule_set = self.ols_arl_set
 
             return {
-                "ols_signal_set": ols_signal_set,
-                "ols_rule_set": ols_rule_set,
+                "ols_signal_set": self.ols_signal_set,
+                "ols_rule_set": self.ols_rule_set,
                 "feature_importance": None
             }
             
@@ -181,7 +181,7 @@ class rolling_pred():
                 sr=self.sr,
                 lr=self.lr,
                 pred_series=self.surr_prediction_series
-            ) #TODO: Mlflow log this
+            ) 
             print(f"Surr apriori df generated: {self.surr_apriori_df.head()}")
 
             print("Generating rf arl set....")
@@ -198,11 +198,13 @@ class rolling_pred():
             print(f"Surr signal set generated: {self.surr_arl_set[0].tail(50)}")
             print(f"Surr rule diagnostics df generated: {self.surr_arl_set[1].tail(60)}")
             
-            rf_signal_set, rf_rule_set = self.rf_arl_set
+            self.rf_signal_set, self.rf_rule_set = self.rf_arl_set
+
+            self._log_metrics(self.features)
 
             return {
-                "rf_signal_set": rf_signal_set,
-                "rf_rule_set": rf_rule_set,
+                "rf_signal_set": self.rf_signal_set,
+                "rf_rule_set": self.rf_rule_set,
                 "feature_importance": self.rf_feature_importance
             }
 
@@ -212,11 +214,11 @@ class rolling_pred():
         self.surr_prediction_series = pd.Series(index=self.df.index, dtype=float)
         self.feat_imp_rf = []
         self.feat_imp_surr = []
-        features = self._extract_features()
-        print(f"Features {features}")
-        
+        self.features = self._extract_features()
+        print(f"Features {self.features}")
+
         for t in range(self.lookback_time, len(self.df)-1):
-            X_test = self.df.loc[[self.df.index[t]], features]
+            X_test = self.df.loc[[self.df.index[t]], self.features]
             X_test_const = sm.add_constant(X_test, has_constant = 'add')
             
             
@@ -239,7 +241,6 @@ class rolling_pred():
             return self.rf_prediction_series, self.surr_prediction_series, self.feat_imp_rf, self.feat_imp_surr
 
         
-        #TODO:add a logging function that logs it into mlflow
     
     def _prep_apriori(self,df: pd.DataFrame,
                        vol_threshold: float,
@@ -514,11 +515,35 @@ class rolling_pred():
             if self.ols_prediction_series is not None:
                 self.ols_prediction_series.to_csv('ols_pred_series.csv', header= True, index = True)
                 mlflow.log_artifact(f'ols_pred_series_{self.run}.csv')
+
+                self.ols_apriori_df.to_csv('ols_apriori_df.csv', header = True, index = True)
+                mlflow.log_artifact(f"ols_apriori_df_{self.run}")
+
+                self.ols_signal_set.to_csv('ols_signal_set.csv', header = True, index = True)
+                mlflow.log_artifact(f'ols_signal_set_{self.run}.csv')
+
+                self.ols_rule_set.to_csv('ols_rule_set.csv', header = True, index = True)
+                mlflow.log_artifact(f'ols_rule_set_{self.run}.csv')
             else:
-                self.rf_prediction_series.to_csv('rf_pred_series.csv',header= True, index= True)
-                self.surr_prediction_series.to_csv('surr_pred_series.csv', header = True, index = True)
+                self.rf_prediction_series.to_csv(f'rf_pred_series_{self.run}.csv',header= True, index= True)
+                self.surr_prediction_series.to_csv(f'surr_pred_series_{self.run}.csv', header = True, index = True)
                 mlflow.log_artifact(f'rf_pred_series_{self.run}.csv')
                 mlflow.log_artifact(f'surr_pred_series_{self.run}.csv')
+                
+                self.rf_apriori_df.to_csv(f'rf_apriori_df_{self.run}.csv', header = True, index = True)
+                self.surr_apriori_df.to_csv(f'surr_apriori__{self.run}.csv', header = True, index = True)
+                mlflow.log_artifact(f'rf_apriori_df_{self.run}.csv')
+                mlflow.log_artifact(f'surr_apriori__{self.run}.csv')
+
+                self.rf_signal_set.to_csv(f'rf_signal_set_{self.run}.csv', header = True, index = True)
+                self.rf_rule_set.to_csv(f'rf_rule_set_{self.run}.csv', header = True, index = True)
+                mlflow.log_artifact(f'rf_signal_set_{self.run}.csv')
+                mlflow.log_artifact(f'rf_rule_set_{self.run}.csv')
+
+                with open (f'feature_importance_rf_{self.run}.json', 'w') as f:
+                    json.dump(self.rf_feature_importance, f)
+                mlflow.log_artifact(f'feature_importance_rf_{self.run}.json')
+    
 
 
 class all_runs:
