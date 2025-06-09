@@ -498,12 +498,11 @@ class rolling_pred():
         with mlflow.start_run(
             run_name = f"{self.experiment_numb}_{self.run}" ,
             tags={
-                "fingerprint":self.hash_fp,
-                "features":features,      
-                "status":'completed',
-                "experiment": self.experiment_name,
-                "experiment_number": self.experiment_numb
-        
+                "fingerprint": str(self.hash_fp),
+                "features": str(features),      # Convert list to string
+                "status": 'completed',
+                "experiment": str(self.experiment_name),
+                "experiment_number": str(self.experiment_numb)  # Convert int to string
       }):
             params ={
                 "features":features,
