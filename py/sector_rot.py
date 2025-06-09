@@ -14,6 +14,38 @@ import statsmodels.api as sm
 from pathlib import Path
 from mlxtend.frequent_patterns import association_rules, apriori
 import numpy as np
+import mlflow
+import hashlib
+import json
+
+def fingerprint(df:pd.DataFrame,experiment: str,run:str) -> str:
+    """
+    Hash the result of the models.
+    """
+    feats = rolling_pred(experiment,run,df)._extract_features()
+    meta = dict(
+        experiment = experiment,
+        run =run,
+        features =feats,
+        n_rows = len(df),
+        data_hash = hashlib.md5(pd.util.hash_pandas_object(df,index = True).values).hexdigest()
+    )
+    return hashlib.md5(json.dumps(meta, sort_keys=True).encode()).hexdigest()
+
+def experiment_check(experiment_name:str):
+    """
+    Check if an experiment with the same name exists or not.2
+    """
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(experiment_name)
+        print(f'Experiment {experiment_id} created')
+    else:
+        experiment_id = experiment.experiment_id
+        print(f"Experiment already exists with ID: {experiment_id}")
+    mlflow.set_experiment(experiment_name)
+    return experiment_id
+
 
 #----------------------Volatility------------------
 #--------------------------------------------------
@@ -24,7 +56,7 @@ def realized_vol(var, time_sr, time_lr):
     VR<1 = Near term vol is smaller than long term vol 
     -----EXAMPLE-----
     rv_short = realised_vol(panel['ret'], 21)   # ≈ one trading month
-    rv_long  = realised_vol(panel['ret'], (6 months trading in days))   # ≈ six trading weeks
+    rv_long  = realised_vol(panel['ret'], 126)   # ≈ six trading weeks
     panel['vr'] = rv_short / rv_long
     """
         rv_sr = var.rolling(time_sr).std()
@@ -45,7 +77,9 @@ class rolling_pred():
             pred_thresh = 0.0,
             excess_ret_pred_threshold = 0.0,
             sr = 21,
-            lr = 183):
+            lr = 183,
+            experiment_numb = None,
+            experiment_name = None):
         self.experiment = experiment
         self.run = run 
         self.df = df
@@ -55,6 +89,8 @@ class rolling_pred():
         self.excess_ret_pred_threshold = excess_ret_pred_threshold
         self.sr = sr
         self.lr = lr
+        self.experiment_numb = experiment_numb
+        self.experiment_name = experiment_name
 
         self.mlruns_path = os.path.join("py","mlruns", str(self.experiment))
         self.meta_path = os.path.join(self.mlruns_path, "meta.yaml")
@@ -67,11 +103,20 @@ class rolling_pred():
         """
         Alternative cleaner version of _fit() method.
         """
+        #=========FINGERPRINTING=============
+        self.hash_fp = fingerprint(self.df,self.experiment_numb, self.run)
+        fingerprint_check = self.model_fingerprint_check()
+        #----check existing run---
+        if fingerprint_check is not None:
+            print("Skipping- already logged this model") 
+            return mlflow.get_run(fingerprint_check)
+        
+        #=========DUMPING===================
         print("Dumping models")
         self.models = self._dump_model()
         is_ols_only = self.models[1] is None
         
-        # Get predictions
+        # =======Get predictions==============
         if is_ols_only:
             print("OLS detected")
             self.ols_prediction_series = self._pred()
@@ -96,8 +141,8 @@ class rolling_pred():
             self.ols_arl_set = self._arl(
                 self.df,
                 self.ols_apriori_df)
-            print(f"Signal set generated: {self.ols_arl_set[0].head()}")
-            print(f"Rule diagnostics df generated: {self.ols_arl_set[1].head()}")
+            print(f"Signal set generated: {self.ols_arl_set[0].tail(50)}")
+            print(f"Rule diagnostics df generated: {self.ols_arl_set[1].tail(50)}")
 
             ols_signal_set, ols_rule_set = self.ols_arl_set
 
@@ -143,15 +188,15 @@ class rolling_pred():
             self.rf_arl_set = self._arl(
                 self.df,
                 self.rf_apriori_df)
-            print(f"RF signal set generated: {self.rf_arl_set[0].head()}")
-            print(f"RF rule diagnostics df generated: {self.rf_arl_set[1].head()}")
+            print(f"RF signal set generated: {self.rf_arl_set[0].tail(50)}")
+            print(f"RF rule diagnostics df generated: {self.rf_arl_set[1].tail(50)}")
 
             print("Generating surr arl set....")
             self.surr_arl_set = self._arl(
                 self.df,
                 self.surr_apriori_df)
-            print(f"Surr signal set generated: {self.surr_arl_set[0].head()}")
-            print(f"Surr rule diagnostics df generated: {self.surr_arl_set[1].head()}")
+            print(f"Surr signal set generated: {self.surr_arl_set[0].tail(50)}")
+            print(f"Surr rule diagnostics df generated: {self.surr_arl_set[1].tail(60)}")
             
             rf_signal_set, rf_rule_set = self.rf_arl_set
 
@@ -275,7 +320,7 @@ class rolling_pred():
             rules = association_rules(
                 frequent, 
                 metric="confidence", 
-                min_threshold=0.55
+                min_threshold=0.4
                 )
             
             # filter out: the consquentcol of rule is ret up and the antecedents must be low_ver and high_pred
@@ -429,6 +474,86 @@ class rolling_pred():
         except Exception as e:
             print(f"Error loading features: {e}")
             raise
+    
+    def model_fingerprint_check(self)-> str | None:
+        """
+        Use the experiment_check external func to get the list of experiment_id
+        On that experiment id, check whether fingerprint already exists or not
+         -If exists - skip
+        """
+        exists = mlflow.search_runs(
+            experiment_ids = [experiment_check(self.experiment_name)],
+            filter_string = f"tags.fingerprint='{self.hash_fp}' and tags.status = 'completed'",
+            max_results = 1)
+        
+        if not exists.empty:
+            return exists.loc[0,"run_id"]
+        return None
+   
+
+    def _log_metrics(
+            self,
+            features,
+            ):
+        with mlflow.start_run(
+            run_name = f"{self.experiment}_{self.run}" ,
+            tags={
+                "fingerprint":self.hash_fp,
+                "features":features,      
+                "status":'completed',
+                "experiment": self.experiment_name,
+                "experiment_number": self.experiment_numb
+        
+      }):
+            params ={
+                "features":features,
+                "experiment": self.experiment,
+                "run": self.run}
+            mlflow.log_params(params)
+
+            if self.ols_prediction_series is not None:
+                self.ols_prediction_series.to_csv('ols_pred_series.csv', header= True, index = True)
+                mlflow.log_artifact(f'ols_pred_series_{self.run}.csv')
+            else:
+                self.rf_prediction_series.to_csv('rf_pred_series.csv',header= True, index= True)
+                self.surr_prediction_series.to_csv('surr_pred_series.csv', header = True, index = True)
+                mlflow.log_artifact(f'rf_pred_series_{self.run}.csv')
+                mlflow.log_artifact(f'surr_pred_series_{self.run}.csv')
+
+
+class all_runs:
+    def __init__(self, experiment_number):
+        """
+        Initialize with the experiment number. The experiment folder is under py/mlruns/{experiment_number}
+        """
+        self.experiment_number = str(experiment_number)
+        self.experiment_path = os.path.join("py", "mlruns", self.experiment_number)
+
+    def get_run_folders(self):
+        """
+        Returns a list of run folder names (not full paths) under the experiment folder.
+        Excludes files like meta.yaml.
+        """
+        try:
+            all_entries = os.listdir(self.experiment_path)
+            run_number = [entry for entry in all_entries 
+                           if os.path.isdir(os.path.join(self.experiment_path, entry))]
+            run_spec = []
+            for run in run_number:
+                meta_path = os.path.join(self.experiment_path, run, "meta.yaml")
+                run_name = None
+                if os.path.exists(meta_path):
+                    try:
+                        with open(meta_path, "r") as f:
+                            meta = yaml.safe_load(f)
+                        run_name = meta.get("run_name", None)
+                    except Exception as e:
+                        print(f"Error reading meta.yaml for run {run}: {e}")
+                run_spec.append({run: run_name})
+            return run_spec
+        except Exception as e:
+            print(f"Error reading experiment folder: {e}")
+            return []
 
 
 if __name__ == "__main__":
