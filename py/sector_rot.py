@@ -130,8 +130,8 @@ class rolling_pred():
                 vol_threshold=1.0,
                 pred_thresh=0.0,
                 excess_ret_pred_threshold=0.0,
-                sr=21,
-                lr=183,
+                sr=self.sr,
+                lr=self.lr,
                 pred_series=self.ols_prediction_series
             )
             print(f"Apriori df generated: {self.ols_apriori_df.head()}")
@@ -456,7 +456,24 @@ class rolling_pred():
         except Exception as e:
             print(f"Error in _dump_model: {e}")
             raise
-            
+    
+    def _extract_sector_factors(self):
+        print(f"Extracting sector number for run {self.run}")
+        sectors_path = os.path.join(self.mlruns_path, str(self.run), "params", "sector")
+        print(f"Looking for sectors file at: {sectors_path}")
+        try:
+            if os.path.exists(sectors_path):
+                with open(sectors_path, 'r') as f:
+                    sectors = f.read()
+                print(f"Sectors loaded: {sectors}")
+            else:
+                print("Sectors file not found")
+                sectors = None
+        except Exception as e:
+            print(f"Error loading sector/factors: {e}")
+            sectors = None
+        return sectors
+
     def _extract_features(self):
         """Get the feature set of the run"""
         print(f"\n=== Debugging _extract_features ===")
@@ -495,6 +512,7 @@ class rolling_pred():
             self,
             features,
             ):
+        sector_number = self._extract_sector_factors()
         with mlflow.start_run(
             run_name = f"{self.experiment_numb}_{self.run}" ,
             tags={
@@ -506,6 +524,7 @@ class rolling_pred():
       }):
             params ={
                 "features":features,
+                "sector": sector_number,
                 "experiment": self.experiment_numb,
                 "run": self.run}
             mlflow.log_params(params)
@@ -579,6 +598,21 @@ class all_runs:
         except Exception as e:
             print(f"Error reading experiment folder: {e}")
             return []
+    def get_experiments(self):
+        """
+        Returns a list of all experiment folders.
+        """
+        try:
+            all_entries = os.listdir("py/mlruns")
+            experiment_folders = [entry for entry in all_entries 
+                                  if os.path.isdir(os.path.join("py", "mlruns", entry))]
+            experiment_folders = [entry for entry in experiment_folders 
+                                 if entry not in ['0', '.trash','models']]
+            return experiment_folders
+        except Exception as e:
+            print(f"Error reading mlruns directory: {e}")
+            return []
+        
 
 
 if __name__ == "__main__":
