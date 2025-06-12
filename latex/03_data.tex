@@ -1,7 +1,109 @@
-%stocks traded in SP500 from 2002 to 2024
-%- CRSP %dsf crsp_a_indexes.dsp500list_v2})
-    %- Amihud ill :permno, ret, vol 
+% 4 Data
 
+% 4.1 Data Sources and Sample Period
+%   4.1.1 CRSP/Compustat via WRDS – stock returns, volume, market equity, bid–ask spreads
+%   4.1.2 Fama–French factor series (MKT, SMB, HML, RMW, CMA) from Kenneth French’s library
+%   4.1.3 Liquidity proxies from CRSP daily files (turnover, Amihud ILLQ, zero‐trade days)
+%   4.1.4 Sentiment index (STV) from Ung et al. (2024) supplemental data
+%   4.1.5 Sector classification via Compustat’s comp.company (SIC/NAICS codes)
+%   Table 4.1: Data sources, sample periods, update frequencies
+
+% 4.2 Sample Selection and Coverage
+%   4.2.1 Chronology: January 1990–December 2018 (pre-COVID)
+%   4.2.2 Stock inclusion criteria: PERMNO universe, liquidity thresholds, delisting handling
+%   4.2.3 Survivorship bias mitigation (CRSP historical constituents)
+%   4.2.4 Matching factor, liquidity and sentiment series to equity returns
+
+% 4.3 Variable Construction
+%   4.3.1 Monthly excess returns:  
+% 𝑅
+% 𝑖
+% ,
+% 𝑡
+% −
+% 𝑅
+% 𝑓
+% ,
+% 𝑡
+% R 
+% i,t
+% ​
+%  −R 
+% f,t
+% ​
+%   (CRSP return minus 1-month T-bill)
+%   4.3.2 Fama–French factors: construction and alignment with return data
+%   4.3.3 Liquidity measures:
+%     
+% ∙
+% ∙ Amihud illiquidity (ILLQ) formula and scaling
+%     
+% ∙
+% ∙ Turnover, turnover volatility, zero-trade days, bid–ask spread
+%     — cross-sectional ranking and standardization to [–1, 1]
+%   4.3.4 Investor sentiment (STV): rolling‐window PCA on six Baker–Wurgler proxies; orthogonalization to business-cycle factors
+%   4.3.5 Normalization and winsorization procedures
+
+% 4.4 Sector Classification
+%   4.4.1 Mapping PERMNO ↔ SIC/NAICS codes → GICS sectors
+%   4.4.2 Aggregation to 10 major sectors
+%   Table 4.2: Sector definitions and ticker counts by sector
+
+% 4.5 Data Cleaning and Pre-processing
+%   4.5.1 Treatment of missing observations (listwise deletion vs. interpolation)
+%   4.5.2 Outlier handling: winsorization at 1st/99th percentiles
+%   4.5.3 Lagging variables and alignment (e.g., sentiment(t–1), ILLQ(t))
+%   4.5.4 Final panel construction: balanced vs. unbalanced tests
+
+% 4.6 Descriptive Statistics and Preliminary Visualizations
+%   4.6.1 Summary statistics for all variables (mean, SD, skew, kurtosis)
+%   Table 4.3: Descriptive statistics of returns, factors, liquidity, sentiment
+%   4.6.2 Histograms of ILLQ, turnover, sentiment index—assess distributional shape
+%   Figure 4.1: Histogram grid of liquidity proxies and STV
+%   4.6.3 Time‐series plots of aggregate liquidity and sentiment indices (1990–2018)
+%   Figure 4.2: Overlay of monthly Amihud ILLQ and STV series
+%   4.6.4 Cross‐variable correlation heatmap (factors vs. liquidity vs. sentiment)
+%   Figure 4.3: Correlation matrix heatmap
+
+% 4.7 Data Summary and Key Takeaways
+%   4.7.1 Coverage and quality of main variables
+%   4.7.2 Observed stylized facts (e.g., liquidity spikes in crises, sentiment cycles)
+%   4.7.3 Implications for subsequent modeling chapters
+
+% Placement of Figures/Tables
+
+% Table 4.1 immediately after Section 4.1.
+
+% Table 4.2 at the end of Section 4.4.
+
+% Table 4.3 at the start of Section 4.6, before the histogram panel.
+
+% Figure 4.1 and Figure 4.2 side by side (two-column layout) within Section 4.6.
+
+% Figure 4.3 full-width heatmap at the end of Section 4.6.
+\section{GPT}
+\subsection{Data Sources and Sample Period}\label{sec:data_sources}
+
+This study integrates equity, option, and macro-factor information from several well-established WRDS libraries. Daily common-share returns, share volume, shares outstanding, trade-conditioned prices, and intraday high/low quotes are drawn from the \emph{CRSP Daily Stock File} (\texttt{crsp.dsf}). Corporate identifiers (\textsc{permno}) are matched to tickers, historical company names, and exchange codes using the \texttt{crsp.dsenames} table, ensuring that delisted and renamed firms remain observable throughout the thesis period. To confine the analysis to large, actively traded firms, the CRSP table is intersected with the historical \emph{S\&P 500 Constituents List} \texttt{crsp\_a\_indexes.dsp500list\_v2}.The list provides the entry (\texttt{mbrstartdt}) and exit (\texttt{mbrenddt}) dates for every constituent since 1990. Merging the two datasets on \textsc{permno} and calendar date yields a time-varying panel that includes each firm only during its actual index membership window, a design that eliminates survivorship bias arising from back-filling non-constituent observations. This means that companies that enters the S\&P500 is only included in their entry date onwards, while those that either went bankrupt, removed from the index or that got acquired after 2018 remains in the analysis. Sector information is obtained from the \emph{Compustat North America} header table \texttt{comp.company}, which reports each firm's \texttt{gsector} (a GICS-consistent two-digit classification). Because CRSP and Compustat employ different primary keys, firm-level observations are linked via the \texttt{crsp.ccmxpf\_lnkused} bridge table, restricted to rows with \texttt{usedflag = 1}. The link guarantees one-to-one mappings between CRSP's \textsc{permno} and Compustat's \textsc{gvkey} over the valid date ranges recorded by WRDS.
+
+Daily macro-risk factors are sourced from Kenneth French's library (\texttt{ff.fivefactors\_daily}), providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$), momentum ($UMD$) and the monthly treasury rate ($RF$).These series are merged to the equity panel on the trading date.
+
+Finally, index-level option activity is captured through \emph{OptionMetrics' Volatility Surface File} (\texttt{optionm.opvold}). Put and call trading volumes for each security identifier (\textsc{secid}) are aggregated to the daily level. The WRDS-supplied correspondence file \texttt{wrdsapps.opcrsphist} maps each \textsc{secid} to its CRSP \textsc{permno} over time, enabling a clean join between option activity and cash-equity characteristics. Laplace-smoothed put-call volume ratio is computed to avoid division by zero when the call leg is absent.
+
+======================
+Almost all of the data used in this thesis is obtained from the Wharton Research Data Services (WRDS), integrating several financial databases to construct a panel of US equities from 1998 to 2018. Wharton Research Data Services (WRDS) is a web-based platform developed by the University of Pennsylvania that provides access to a wide range of financial, economic, and marketing datasets from over 60 vendors, enabling researchers to query data across these different sources for their custom analysis. 
+
+For this thesis, daily stock price and trading data, including variables such as returns, volume, price, and bid-ask spread, are extracted from the CRSP (Center for Research in Security Prices) daily stock file. Each stock's permanent identifier (PERMNO) and corresponding ticker symbol are matched using CRSP's {REVISIT QUERY} and {REVISIT QUERY} tables. Sector classifications are merged from the Compustat company file, utilizing global company identifiers (GVKEY) to align with CRSP records. The Fama-French factor data—covering market, size, value, profitability, investment, momentum, and risk-free rate—are incorporated from the Kenneth French Data Library, as distributed in WRDS.
+
+% Some data are collected from an outside source:
+% - Sentiment: ung_2020
+% - News sentiment data:  Federal reserve bank 
+% - VIX: YAHOO finance
+
+% Summary stats:
+
+
+PROPOSAL---------------
 The period of this research will be from 2002 until 2023, due to data availability and quality. The main datasets in this thesis will be gathered from Wharton Research Data Services (WRDS)\footnote{https://wrds-www.wharton.upenn.edu} via Python API queries with the \texttt{wrds}, which contains all of the data points relating to liquidity risk,FF5/C4F factors and excess returns. The \texttt{permno}, or stocks the stocks' permanent identifier is specifically queried from the \texttt{crsp\_a\_indexes.dsp500list\_v2}
 file. All of the other data points relating to liquidity risk, Fama-French factors and excess returns are either queried or calculated using the data points from the \texttt{crps.dsf} database. The sector classification is specifically derived from the \texttt{comp.company} file. With the same \texttt{gvkey, permno} keys, the datasets queried could be joined.
 
