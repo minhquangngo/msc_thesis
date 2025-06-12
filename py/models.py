@@ -177,7 +177,7 @@ class olsmodel(BaseModel):
 
     def train_(self,X_fit,X_hold,y_fit,y_hold):
         # Fitted OLS 
-        self.X_fit = sm.add_constant(X_fit)
+        self.X_fit = sm.add_constant(X_fit,has_constant='add')
         ols_model = sm.OLS(y_fit,self.X_fit).fit(cov_type='HAC', cov_kwds={'maxlags': self.lags})
         return ols_model
     
@@ -188,7 +188,7 @@ class olsmodel(BaseModel):
         rmse_insample = np.sqrt(mean_squared_error(y_fit,y_pred_train))
         resid_sample = y_fit - y_pred_train
         
-        X_hold = sm.add_constant(X_hold)
+        X_hold = sm.add_constant(X_hold,has_constant='add')
         X_hold = X_hold[self.X_fit.columns]
         y_pred_hold = self.model_.predict(X_hold)
         rmse_hold = np.sqrt(mean_squared_error(y_hold,y_pred_hold))
@@ -197,7 +197,7 @@ class olsmodel(BaseModel):
         mae_ols_hold = mean_absolute_error(y_hold,y_pred_hold)
 
         #--------Sig-----------------
-        ols_input_example = sm.add_constant(X_fit.iloc[:5])
+        ols_input_example = sm.add_constant(X_fit.iloc[:5],has_constant='add')
         ols_output_example = self.model_.predict(ols_input_example)
         ols_sig = mlflow.models.signature.infer_signature(ols_input_example,ols_output_example)
         mlflow.statsmodels.log_model(
