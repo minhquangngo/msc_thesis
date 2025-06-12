@@ -145,6 +145,8 @@ class rolling_pred():
 
             self.ols_signal_set, self.ols_rule_set = self.ols_arl_set
 
+            self._log_metrics(self.features)
+
             return {
                 "ols_signal_set": self.ols_signal_set,
                 "ols_rule_set": self.ols_rule_set,
@@ -530,16 +532,16 @@ class rolling_pred():
             mlflow.log_params(params)
 
             if self.ols_prediction_series is not None:
-                self.ols_prediction_series.to_csv('ols_pred_series.csv', header= True, index = True)
+                self.ols_prediction_series.to_csv(f'ols_pred_series_{self.run}.csv', header= True, index = True)
                 mlflow.log_artifact(f'ols_pred_series_{self.run}.csv')
 
-                self.ols_apriori_df.to_csv('ols_apriori_df.csv', header = True, index = True)
+                self.ols_apriori_df.to_csv(f'ols_apriori_df_{self.run}.csv', header = True, index = True)
                 mlflow.log_artifact(f"ols_apriori_df_{self.run}.csv")
 
-                self.ols_signal_set.to_csv('ols_signal_set.csv', header = True, index = True)
+                self.ols_signal_set.to_csv(f'ols_signal_set_{self.run}.csv', header = True, index = True)
                 mlflow.log_artifact(f'ols_signal_set_{self.run}.csv')
 
-                self.ols_rule_set.to_csv('ols_rule_set.csv', header = True, index = True)
+                self.ols_rule_set.to_csv(f'ols_rule_set_{self.run}.csv', header = True, index = True)
                 mlflow.log_artifact(f'ols_rule_set_{self.run}.csv')
             else:
                 self.rf_prediction_series.to_csv(f'rf_pred_series_{self.run}.csv',header= True, index= True)
