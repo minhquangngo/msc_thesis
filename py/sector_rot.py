@@ -573,7 +573,8 @@ class all_runs:
         Initialize with the experiment number. The experiment folder is under py/mlruns/{experiment_number}
         """
         self.experiment_number = str(experiment_number)
-        self.experiment_path = os.path.join("py", "mlruns", self.experiment_number)
+        self.experiment_path_df = os.path.join("py", "mlruns", self.experiment_number)
+        self.experiment_path_sig = os.path.join("mlruns", self.experiment_number)
 
     def get_run_folders(self):
         """
@@ -581,12 +582,12 @@ class all_runs:
         Excludes files like meta.yaml.
         """
         try:
-            all_entries = os.listdir(self.experiment_path)
+            all_entries = os.listdir(self.experiment_path_df)
             run_number = [entry for entry in all_entries 
-                           if os.path.isdir(os.path.join(self.experiment_path, entry))]
+                           if os.path.isdir(os.path.join(self.experiment_path_df, entry))]
             run_spec = []
             for run in run_number:
-                meta_path = os.path.join(self.experiment_path, run, "meta.yaml")
+                meta_path = os.path.join(self.experiment_path_df, run, "meta.yaml")
                 run_name = None
                 if os.path.exists(meta_path):
                     try:
@@ -600,6 +601,32 @@ class all_runs:
         except Exception as e:
             print(f"Error reading experiment folder: {e}")
             return []
+    def get_run_folders_sig(self):
+        """
+        Returns a list of run folder names (not full paths) under the experiment folder.
+        Excludes files like meta.yaml.
+        """
+        try:
+            all_entries = os.listdir(self.experiment_path_sig)
+            run_number = [entry for entry in all_entries 
+                           if os.path.isdir(os.path.join(self.experiment_path_sig, entry))]
+            run_spec = []
+            for run in run_number:
+                meta_path = os.path.join(self.experiment_path_sig, run, "meta.yaml")
+                run_name = None
+                if os.path.exists(meta_path):
+                    try:
+                        with open(meta_path, "r") as f:
+                            meta = yaml.safe_load(f)
+                        run_name = meta.get("run_name", None)
+                    except Exception as e:
+                        print(f"Error reading meta.yaml for run {run}: {e}")
+                run_spec.append({run: run_name})
+            return run_spec
+        except Exception as e:
+            print(f"Error reading experiment folder: {e}")
+            return []
+            
     def get_experiments(self):
         """
         Returns a list of all experiment folders.
@@ -608,6 +635,21 @@ class all_runs:
             all_entries = os.listdir("py/mlruns")
             experiment_folders = [entry for entry in all_entries 
                                   if os.path.isdir(os.path.join("py", "mlruns", entry))]
+            experiment_folders = [entry for entry in experiment_folders 
+                                 if entry not in ['0', '.trash','models']]
+            return experiment_folders
+        except Exception as e:
+            print(f"Error reading mlruns directory: {e}")
+            return []
+
+    def get_experiments_sig(self): # this is for the portfolio_trade.py
+        """
+        Returns a list of all experiment folders.
+        """
+        try:
+            all_entries = os.listdir("mlruns")
+            experiment_folders = [entry for entry in all_entries 
+                                  if os.path.isdir(os.path.join("mlruns", entry))]
             experiment_folders = [entry for entry in experiment_folders 
                                  if entry not in ['0', '.trash','models']]
             return experiment_folders

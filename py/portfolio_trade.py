@@ -36,14 +36,14 @@ class match_sig_ret:
             ):
         self.sector = sector
 
-        self.sig_dict_model_exp = self._dict_model_exp(signal_not_data=True)
-        self.df_dict_model_exp = self._dict_model_exp(signal_not_data=False)    
+        self.sig_dict_model_exp = self._dict_model_exp(data_not_signal=False)
+        self.df_dict_model_exp = self._dict_model_exp(data_not_signal=True)    
         self.df_dict_exp_run, self.sig_dict_exp_run = self._dict_exp_run() 
 
     # def _fit(self):
-    #     dict_original_df = self._dict_exp_run(signal_not_data=False)
-    #     model_experiment = self._dict_model_exp(signal_not_data=True)
-    #     dict_exp_run = self._dict_exp_run(signal_not_data=True, dict_model_exp=model_experiment)
+    #     dict_original_df = self._dict_exp_run(data_not_signal=False)
+    #     model_experiment = self._dict_model_exp(data_not_signal=True)
+    #     dict_exp_run = self._dict_exp_run(data_not_signal=True, dict_model_exp=model_experiment)
 
     def _dict_run_sect(self):
         """
@@ -110,7 +110,7 @@ class match_sig_ret:
             df_run_dict[experiment] = run_list
 
         for experiment, model_name in self.sig_dict_model_exp.items():
-            self.all_runs = all_runs(experiment_number=experiment).get_run_folders()
+            self.all_runs = all_runs(experiment_number=experiment).get_run_folders_sig()
             print(f"run: {self.all_runs}")
             print("\n")
             print("=================================================")
@@ -124,7 +124,7 @@ class match_sig_ret:
         return df_run_dict, sig_run_dict
 
 
-    def _dict_model_exp(self, signal_not_data: bool):
+    def _dict_model_exp(self, data_not_signal: bool):
         """
         Find out which model is used to train each experiment.
         Returns a dict mapping experiment_id -> model_name (or None if not found).
@@ -135,12 +135,14 @@ class match_sig_ret:
         '945551225694133017': 'baseline_ols',
         '167258830472485146': 'enhanced_ols'}
         """
-        if not signal_not_data:
-            mlrun_path = os.path.join("mlruns")
+        mlrun_path = None
+        if not data_not_signal:
+            mlrun_path = "mlruns"
+            experiment_folder = all_runs(experiment_number=None).get_experiments_sig()
         else:
             mlrun_path = os.path.join("py", "mlruns")
+            experiment_folder = all_runs(experiment_number=None).get_experiments()
 
-        experiment_folder = all_runs(experiment_number=None).get_experiments()
         print("Experiments found:", experiment_folder)
 
         experiment_spec = {}
@@ -165,20 +167,24 @@ class match_sig_ret:
         return experiment_spec
     
 if __name__ == "__main__":
-    df_dict_model_exp = match_sig_ret()._dict_model_exp(signal_not_data=True)
-    print("\n=============== \n DATA \n===============")
-    print(df_dict_model_exp)
+    # print("\n=============== \n DATA \n===============")
+    # df_dict_model_exp = match_sig_ret()._dict_model_exp(data_not_signal=True)
+    
+    # print(df_dict_model_exp)
 
-    sig_dict_model_exp = match_sig_ret()._dict_model_exp(signal_not_data=False)
-    print("\n=============== \n SIGNALS \n===============")
-    print(sig_dict_model_exp)
-    # print("\n")
-    # print("===========")
-    # df_dict_exp_run, sig_dict_exp_run = match_sig_ret()._dict_exp_run()
-    # print("===========")
-    # print("Data")
-    # print(df_dict_exp_run)
-    # print(sig_dict_exp_run)
+    # print("\n=============== \n SIGNALS \n===============")
+    # sig_dict_model_exp = match_sig_ret()._dict_model_exp(data_not_signal=False)
+    # print(sig_dict_model_exp)
+
+    print("\n")
+    print("===========")
+    df_dict_exp_run, sig_dict_exp_run = match_sig_ret()._dict_exp_run()
+    print("===========")
+    print("Data")
+    print(df_dict_exp_run)
+    print("===========")
+    print("Signals")
+    print(sig_dict_exp_run)
     
     # print("\n")
     # print('======================')
