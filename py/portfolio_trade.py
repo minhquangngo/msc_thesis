@@ -9,12 +9,121 @@
 
 """
 import os
+import glob
 from pathlib import Path
 import yaml
 import pandas as pd
 from sector_rot import all_runs
 
-# MAKE A CLASS GET RID OF THE DUPS
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+class matching_df: 
+    def __init__(self, sector):
+        self.sector = sector
+
+    def fit(self):
+        sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = self._load_all_signals()
+        sector_df = self._load_org_df()
+
+        print("\n")
+        print("======================")
+        print("Signals")
+        print(sig_sector_matching_run)
+        print("======================")
+        print("Data")
+        print(df_sector_matching_run)
+        print("======================")
+
+        for each_dict in sig_sector_matching_run:
+            for run, sect in each_dict.items():
+                # Find the experiment that contains this run
+                for experiment, runs_list in sig_dict_exp_run.items():
+                    if run in runs_list:
+                        experiment_numb = experiment
+                        break
+                sig_mlartifact_run_path = os.path.join("mlartifacts", str(experiment_numb), str(run), "artifacts")
+                print(f"Signal ml artifact path: {sig_mlartifact_run_path}")
+                if "_rf" in sect:
+                    signal_csv_path = os.path.join(sig_mlartifact_run_path, "rf_signal_*.csv")
+                else:
+                    signal_csv_path = os.path.join(sig_mlartifact_run_path, "ols_signal_*.csv")
+                # Find all matching signal files
+                signal_files = glob.glob(signal_csv_path)
+                if signal_files:
+                    # Load the most recent signal file
+                    signal_df = pd.read_csv(signal_files[-1])
+                    # Convert first column to datetime index
+                    signal_df.iloc[:, 0] = pd.to_datetime(signal_df.iloc[:, 0])
+                    signal_df.set_index(signal_df.columns[0], inplace=True)
+                    # Join with sector_df
+                    sector_df = sector_df.join(signal_df, how='left')
+                    if "_rf" in sect:
+                        if sect.endswith("enhanced"):
+                            sector_df.rename(columns={sector_df.columns[-1]: "rf_enhanced_signal"}, inplace=True)
+                        else:
+                            sector_df.rename(columns={sector_df.columns[-1]: "rf_base_signal"}, inplace=True)
+                    else:
+                        if sect.endswith("enhanced"):
+                            sector_df.rename(columns={sector_df.columns[-1]: "ols_enhanced_signal"}, inplace=True)
+                        else:
+                            sector_df.rename(columns={sector_df.columns[-1]: "ols_base_signal"}, inplace=True)
+                else:
+                    print(f"No signal files found matching pattern: {signal_csv_path}")
+            return sector_df
+                                
+
+
+    def _load_all_signals(self):
+        sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = match_sig_ret(self.sector).fit()
+        sig_sector_matching_run = UniqueValueDictList(sig_sector_matching_run).get_unique()
+        df_sector_matching_run = UniqueValueDictList(df_sector_matching_run).get_unique()
+        return sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run
+        
+        
+    
+    def _load_org_df(self):
+        data_dir = Path('data')
+        print(f"Data directory: {data_dir}")
+        df_dict = {
+            file.stem.replace("sector_","") : pd.read_parquet(file)
+            for file in data_dir.glob("sector_*.parquet")
+        }
+        sector_df = df_dict[self.sector]
+        return sector_df
+
+
+
+class UniqueValueDictList:
+    """
+    Removes dictionaries with duplicate values from a list of single-key dictionaries, keeping the first occurrence.
+    Example:
+        input = [
+            {'a': 'x'}, {'b': 'x'}, {'c': 'y'}, {'d': 'y'}, {'e': 'z'}
+        ]
+        output = [
+            {'a': 'x'}, {'c': 'y'}, {'e': 'z'}
+        ]
+    """
+    def __init__(self, dict_list):
+        self.original_list = dict_list
+        self.unique_list = self._remove_duplicates(dict_list)
+
+    def _remove_duplicates(self, dict_list):
+        seen_values = set()
+        unique_dicts = []
+        for d in dict_list:
+            # Each dict is assumed to have only one key-value pair
+            value = next(iter(d.values()))
+            if value not in seen_values:
+                unique_dicts.append(d)
+                seen_values.add(value)
+        return unique_dicts
+
+    def get_unique(self):
+        return self.unique_list
+
 class match_sig_ret:
     """
     Load in df -> extrac the sector key 
@@ -40,17 +149,17 @@ class match_sig_ret:
         self.df_dict_model_exp = self._dict_model_exp(data_not_signal=True)    
         self.df_dict_exp_run, self.sig_dict_exp_run = self._dict_exp_run() 
 
-    def _fit(self):
+    def fit(self):
         sig_run_sect_dict, df_run_sect_dict = self._dict_run_sect()
         sig_sector_matching_run =[]
         df_sector_matching_run =[]
         for run, sect in sig_run_sect_dict.items():
-            if f'{self.sector}_' in sect:
+            if self.sector in sect:
                 sig_sector_matching_run.append({run:sect})
         for run, sect in df_run_sect_dict.items():
-            if f'{self.sector}_' in sect:
+            if self.sector in sect:
                 df_sector_matching_run.append({run:sect})
-        return sig_sector_matching_run, df_sector_matching_run
+        return sig_sector_matching_run, df_sector_matching_run, self.df_dict_exp_run, self.sig_dict_exp_run
         
                 
 
@@ -145,12 +254,14 @@ class match_sig_ret:
         '167258830472485146': 'enhanced_ols'}
         """
         mlrun_path = None
-        if not data_not_signal:
-            mlrun_path = "mlruns"
-            experiment_folder = all_runs(experiment_number=None).get_experiments_sig()
-        else:
+        if data_not_signal:
             mlrun_path = os.path.join("py", "mlruns")
             experiment_folder = all_runs(experiment_number=None).get_experiments()
+        else:
+            mlrun_path = Path("mlruns")
+            experiment_folder = all_runs(experiment_number=None).get_experiments_sig()
+        
+            
 
         print("Experiments found:", experiment_folder)
 
@@ -203,7 +314,7 @@ if __name__ == "__main__":
 
     print("\n")
     print('======================')
-    sig_sector_matching_run, df_sector_matching_run = match_sig_ret(sector='10')._fit()
+    sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = match_sig_ret(sector='10').fit()
     print('======================')
     print("Signals")
     
@@ -212,4 +323,11 @@ if __name__ == "__main__":
     print("Data")
     
     print(df_sector_matching_run)
+
+    # print(sig_sector_matching_run)
+    # print(UniqueValueDictList(sig_sector_matching_run).get_unique())
+
+    # print(f"\n")
+    # print(df_sector_matching_run)
+    # print(UniqueValueDictList(df_sector_matching_run).get_unique())
     
