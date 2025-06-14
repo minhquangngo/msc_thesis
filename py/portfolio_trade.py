@@ -14,7 +14,7 @@ import yaml
 import pandas as pd
 from sector_rot import all_runs
 
-
+# MAKE A CLASS GET RID OF THE DUPS
 class match_sig_ret:
     """
     Load in df -> extrac the sector key 
@@ -40,10 +40,19 @@ class match_sig_ret:
         self.df_dict_model_exp = self._dict_model_exp(data_not_signal=True)    
         self.df_dict_exp_run, self.sig_dict_exp_run = self._dict_exp_run() 
 
-    # def _fit(self):
-    #     dict_original_df = self._dict_exp_run(data_not_signal=False)
-    #     model_experiment = self._dict_model_exp(data_not_signal=True)
-    #     dict_exp_run = self._dict_exp_run(data_not_signal=True, dict_model_exp=model_experiment)
+    def _fit(self):
+        sig_run_sect_dict, df_run_sect_dict = self._dict_run_sect()
+        sig_sector_matching_run =[]
+        df_sector_matching_run =[]
+        for run, sect in sig_run_sect_dict.items():
+            if f'{self.sector}_' in sect:
+                sig_sector_matching_run.append({run:sect})
+        for run, sect in df_run_sect_dict.items():
+            if f'{self.sector}_' in sect:
+                df_sector_matching_run.append({run:sect})
+        return sig_sector_matching_run, df_sector_matching_run
+        
+                
 
     def _dict_run_sect(self):
         """
@@ -176,18 +185,31 @@ if __name__ == "__main__":
     # sig_dict_model_exp = match_sig_ret()._dict_model_exp(data_not_signal=False)
     # print(sig_dict_model_exp)
 
-    print("\n")
-    print("===========")
-    df_dict_exp_run, sig_dict_exp_run = match_sig_ret()._dict_exp_run()
-    print("===========")
-    print("Data")
-    print(df_dict_exp_run)
-    print("===========")
-    print("Signals")
-    print(sig_dict_exp_run)
+    # print("\n")
+    # print("===========")
+    # df_dict_exp_run, sig_dict_exp_run = match_sig_ret()._dict_exp_run()
+    # print("===========")
+    # print("Data")
+    # print(df_dict_exp_run)
+    # print("===========")
+    # print("Signals")
+    # print(sig_dict_exp_run)
     
     # print("\n")
     # print('======================')
-    # # run_sect_dict = match_sig_ret()._dict_run_sect()
-    # # print(run_sect_dict)
+    # run_sect_dict = match_sig_ret()._dict_run_sect()
+    # print(run_sect_dict)
+
+
+    print("\n")
+    print('======================')
+    sig_sector_matching_run, df_sector_matching_run = match_sig_ret(sector='10')._fit()
+    print('======================')
+    print("Signals")
+    
+    print(sig_sector_matching_run)
+    print('======================')
+    print("Data")
+    
+    print(df_sector_matching_run)
     
