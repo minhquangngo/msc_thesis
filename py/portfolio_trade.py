@@ -17,16 +17,115 @@ from sector_rot import all_runs
 
 
 ROOT = Path(__file__).resolve().parent.parent
+cols = ['rf_base_signal','ols_enhanced_signal','rf_enhanced_signal','ols_base_signal']
 
-class weights:
-    def __init__(self, sector):
-        self.sector = sector
+class prep_weights:
+    """
+    the dataframe that is unpacked here is: {sector 10 :df, sector 15:df, ...}
+
+    _dict_sect_listsig returns (sect10: [[signals for all 4 models spec at index 0],[signals for all 4 models spec at index 1])
+    """
+    def __init__(self):
+        self.sect_sig_dict,_,_ = self._dict_sect_listsig()
+
+    def _dict_sect_listsig(self):
+        matched_df_dict, matched_df_dict_2018 = self.collect_matched_df()
+        sect_sig_dict = {}
+        # at the end we should have the signal at all index, for all sector, for all model spec, 
+        for sect, df in matched_df_dict_2018.items():
+            df_index_list = [] 
+            # at the end we should have the signal at all index, for sector sect for all model spec, 
+            for index in range(len(df)):
+                time_t_sig_allmodelspec = [] 
+                # at the end we should have the signal at index t , for sector sect,for all model spec 
+                for model_spec in cols:
+                    row_sig = df.iloc[index][model_spec] #at time index 0, get the speciifc model spec signal
+                    time_t_sig_allmodelspec.append(row_sig) # append signal at specific time
+                df_index_list.append(time_t_sig_allmodelspec)
+            sect_sig_dict[sect] = df_index_list
+        return sect_sig_dict , df_index_list, time_t_sig_allmodelspec
+                
+    def collect_matched_df(self):
+        matched_df_dict = {}
+        matched_df_dict_2018 = {}
+        for sect in range(10,65,5):
+            init_df = matching_df(sector=str(sect)).fit()
+            matched_df_dict[str(sect)] = init_df
+            matched_df_dict_2018[str(sect)] = init_df[init_df.index.year == 2018]
+        return matched_df_dict, matched_df_dict_2018
+
+    def get_signals_at_time(self, time_index: int):
+        """Return sector signals for a specific time index.
+
+        Parameters
+        ----------
+        time_index : int
+            The time period to extract.
+
+        Returns
+        -------
+        dict
+            Mapping of ``{sector_name: signal_list}`` where ``signal_list`` is the
+            raw list stored at ``self.sect_sig_dict[sector][time_index]``.  If a
+            sector does not have the requested index the key is omitted.  If no
+            sector contains the index an empty dictionary is returned.
+        """
+        if not isinstance(time_index, int):
+            raise TypeError("time_index must be an int")
+
+        signals_at_time: dict = {}
+        for sector, series in self.sect_sig_dict.items():
+            if 0 <= time_index < len(series):
+                signals_at_time[sector] = series[time_index]
+        return signals_at_time
+
+    def get_signals_all_models_at_time(self, time_index: int):
+        """Return signals for *all* model specifications at a given time.
+
+        The output structure is a list whose *i*-th element is a dictionary
+        mapping sector names to the signal list produced by model specification
+        *i* at ``time_index``.
+
+        Example (2 sectors, 2 model specifications)::
+
+            [
+                {"sector1": [0, 1], "sector2": [1, 0]},
+                {"sector1": [1, 0], "sector2": [0, 1]}
+            ]
+        """
+        signals_at_time = self.get_signals_at_time(time_index)
+        if not signals_at_time:
+            return []
+
+        # Determine the number of model specifications from the first sector
+        first_sector_signals = next(iter(signals_at_time.values()))
+        num_model_specs = len(first_sector_signals)
+
+        # Initialise a list of dicts, one per model specification
+        models_output = [dict() for _ in range(num_model_specs)]
+
+        for sector, model_sig_list in signals_at_time.items():
+            # model_sig_list should contain one element per model specification
+            for model_idx in range(min(num_model_specs, len(model_sig_list))):
+                models_output[model_idx][sector] = model_sig_list[model_idx]
+
+        return models_output
+
+    def get_signals_all_times_all_models(self):
+        """Return the full 3-D nested signal structure ``[time][model][sector_dict]``.
+
+        The helper :py:meth:`get_signals_all_models_at_time` is applied for every
+        available time index and the resulting list is returned.  If
+        ``self.sect_sig_dict`` is empty an empty list is returned.
+        """
+        if not self.sect_sig_dict:
+            return []
+
+        first_sector_series = next(iter(self.sect_sig_dict.values()))
+        total_time_periods = len(first_sector_series)
+
+        return [self.get_signals_all_models_at_time(t) for t in range(total_time_periods)]
     
-    def _collect_matched_df(self):
-        cols = ['rf_base_signal', 'rf_enhanced_signal', 'ols_base_signal', 'ols_enhanced_signal']
-    
-
-
 class matching_df: 
     def __init__(self, sector):
         self.sector = sector
@@ -307,7 +406,7 @@ class match_sig_ret:
         return experiment_spec
     
 if __name__ == "__main__":
-    # print("\n=============== \n DATA \n===============")
+    print("\n=============== \n DATA \n===============")
     # df_dict_model_exp = match_sig_ret()._dict_model_exp(data_not_signal=True)
     
     # print(df_dict_model_exp)
@@ -350,4 +449,3 @@ if __name__ == "__main__":
     # print(f"\n")
     # print(df_sector_matching_run)
     # print(UniqueValueDictList(df_sector_matching_run).get_unique())
-    
