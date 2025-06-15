@@ -18,6 +18,14 @@ from sector_rot import all_runs
 
 ROOT = Path(__file__).resolve().parent.parent
 
+class weights:
+    def __init__(self, sector):
+        self.sector = sector
+    
+    def _collect_matched_df(self):
+        cols = ['rf_base_signal', 'rf_enhanced_signal', 'ols_base_signal', 'ols_enhanced_signal']
+    
+
 
 class matching_df: 
     def __init__(self, sector):
@@ -37,18 +45,24 @@ class matching_df:
         print("======================")
 
         for each_dict in sig_sector_matching_run:
+            print(f"\n")
+            print(f'sector_and_run: {each_dict}')
+
             for run, sect in each_dict.items():
                 # Find the experiment that contains this run
                 for experiment, runs_list in sig_dict_exp_run.items():
                     if run in runs_list:
                         experiment_numb = experiment
                         break
+                    print(f"We are now on experiment{experiment_numb}")
                 sig_mlartifact_run_path = os.path.join("mlartifacts", str(experiment_numb), str(run), "artifacts")
                 print(f"Signal ml artifact path: {sig_mlartifact_run_path}")
                 if "_rf" in sect:
                     signal_csv_path = os.path.join(sig_mlartifact_run_path, "rf_signal_*.csv")
+                    print(f"Signal csv path: {signal_csv_path}")
                 else:
                     signal_csv_path = os.path.join(sig_mlartifact_run_path, "ols_signal_*.csv")
+                    print(f"Signal csv path: {signal_csv_path}")
                 # Find all matching signal files
                 signal_files = glob.glob(signal_csv_path)
                 if signal_files:
@@ -60,18 +74,24 @@ class matching_df:
                     # Join with sector_df
                     sector_df = sector_df.join(signal_df, how='left')
                     if "_rf" in sect:
-                        if sect.endswith("enhanced"):
+                        if "_enhanced" in sect:
                             sector_df.rename(columns={sector_df.columns[-1]: "rf_enhanced_signal"}, inplace=True)
+                            print(f"Renamed column to rf_enhanced_signal")
                         else:
                             sector_df.rename(columns={sector_df.columns[-1]: "rf_base_signal"}, inplace=True)
+                            print(f"Renamed column to rf_base_signal")
                     else:
-                        if sect.endswith("enhanced"):
+                        if "_enhanced" in sect:
                             sector_df.rename(columns={sector_df.columns[-1]: "ols_enhanced_signal"}, inplace=True)
+                            print(f"Renamed column to ols_enhanced_signal")
                         else:
                             sector_df.rename(columns={sector_df.columns[-1]: "ols_base_signal"}, inplace=True)
+                            print(f"Renamed column to ols_base_signal")
                 else:
                     print(f"No signal files found matching pattern: {signal_csv_path}")
-            return sector_df
+
+        
+        return sector_df
                                 
 
 
@@ -312,17 +332,17 @@ if __name__ == "__main__":
     # print(run_sect_dict)
 
 
-    print("\n")
-    print('======================')
-    sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = match_sig_ret(sector='10').fit()
-    print('======================')
-    print("Signals")
+    # print("\n")
+    # print('======================')
+    # sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = match_sig_ret(sector='10').fit()
+    # print('======================')
+    # print("Signals")
     
-    print(sig_sector_matching_run)
-    print('======================')
-    print("Data")
+    # print(sig_sector_matching_run)
+    # print('======================')
+    # print("Data")
     
-    print(df_sector_matching_run)
+    # print(df_sector_matching_run)
 
     # print(sig_sector_matching_run)
     # print(UniqueValueDictList(sig_sector_matching_run).get_unique())
