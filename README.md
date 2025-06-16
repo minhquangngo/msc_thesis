@@ -26,7 +26,7 @@ run
 
 ## Codebase 
 
-query.sql -> data -> preprocessing.ipynb & data_prepro.py -> models_expl & models
+query.sql -> data -> preprocessing.ipynb & data_prepro.py -> models_expl & models -> sector_rot.py and sector_rot ->portfolio_trade.py & test_portfolio
 
 ## License and Usage
 © Minh Quang Ngo 2025. All rights reserved.

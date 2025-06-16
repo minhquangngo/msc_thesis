@@ -22,34 +22,41 @@ ROOT = Path(__file__).resolve().parent.parent
 cols = ['rf_base_signal','ols_enhanced_signal','rf_enhanced_signal','ols_base_signal']
 
 
-
-class weights:
+class weighted_portfolio_returns:
     def __init__(self):
-        self.prepped_weights = prep_weights().get_signals_all_times_all_models()
+        self.sector_dataframes = self._load_org_df()
+        self.weighted_df = weighted_ret(self.sector_dataframes).calc_weighted_ret()
     
-    def calc_weights(self):
-        all_time_weights = []
-        for time_t in self.prepped_weights:
-            weights_across_model_spec_time_t =[]
-            for model_spec in time_t:
-                count = 0
-                for sect,sig in model_spec.items():
-                    if sig == 1.0:
-                        count += 1
-                indiv_weights = {}
-                for sect,sig in model_spec.items():
-                    if count != 0:
-                        if sig == 1.0 :
-                            indiv_weights[sect] = 1/count
-                        else:
-                            indiv_weights[sect] = 0.0
-                    else:
-                        indiv_weights[sect] = 1/len(model_spec)
-                weights_across_model_spec_time_t.append(indiv_weights)
-            all_time_weights.append(weights_across_model_spec_time_t)
-        return all_time_weights
-                
-                    
+    def _weighted_portfolios(self):
+        daily_ret_ols_base = [] 
+        daily_ret_ols_enhanced = []
+        daily_ret_rf_base = []
+        daily_ret_rf_enhanced = []
+        numb_rows = len(self.weighted_df['10'])
+        for i in range(numb_rows):
+            ols_weighted_ret_list = []
+            ols_enhanced_weighted_ret_list = []
+            rf_weighted_ret_list = []
+            rf_enhanced_weighted_ret_list = []
+            for sector, weighted_df in self.weighted_df.items():    
+                ols_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_ols_base'])
+                ols_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_ols_enhanced'])
+                rf_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_rf_base'])
+                rf_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_rf_enhanced'])
+            daily_ret_ols_base.append(sum(ols_weighted_ret_list))
+            daily_ret_ols_enhanced.append(sum(ols_enhanced_weighted_ret_list))
+            daily_ret_rf_base.append(sum(rf_weighted_ret_list))
+            daily_ret_rf_enhanced.append(sum(rf_enhanced_weighted_ret_list))            
+        return daily_ret_ols_base, daily_ret_ols_enhanced, daily_ret_rf_base, daily_ret_rf_enhanced
+
+    def _load_org_df(self):
+        data_dir = Path('data')
+        print(f"Data directory: {data_dir}")
+        df_dict = {
+            file.stem.replace("sector_","") : pd.read_parquet(file)
+            for file in data_dir.glob("sector_*.parquet")
+        }
+        return df_dict
 
 class weighted_ret:
     """Add weighted excess return columns to sector dataframes based on sector-level model weights."""
@@ -74,8 +81,8 @@ class weighted_ret:
             *None* the helper :pyclass:`weights` is invoked to calculate the
             weights automatically.
         """
-        self.sector_dataframes = sector_dataframes
-        self.model_weights = model_weights if model_weights is not None else weights().calc_weights()
+        _,self.sector_dataframes = prep_weights().collect_matched_df()
+        self.model_weights = weights().calc_weights()
 
         # Basic validation – every slice should contain exactly 4 model specs
         for slice_ in self.model_weights:
@@ -118,14 +125,44 @@ class weighted_ret:
                         df.at[timestamp, col_name] = 0.0
                         continue
 
-                    # Use provided 'excess_ret' column if present; otherwise fallback to mean of numeric columns
+                    # Use provided 'ret' column if present; otherwise fallback to mean of numeric columns
                     if 'excess_ret' in df.columns:
-                        excess_ret = df.at[timestamp, 'excess_ret']
+                        ret = df.at[timestamp, 'excess_ret']
                     else:
-                        excess_ret = df.loc[timestamp, numeric_cols].mean()
-                    df.at[timestamp, col_name] = excess_ret * weight_val
+                        ret = df.loc[timestamp, numeric_cols].mean()
+                    df.at[timestamp, col_name] = ret * weight_val
 
         return self.sector_dataframes
+
+class weights:
+    def __init__(self):
+        self.prepped_weights = prep_weights().get_signals_all_times_all_models()
+    
+    def calc_weights(self):
+        all_time_weights = []
+        for time_t in self.prepped_weights:
+            weights_across_model_spec_time_t =[]
+            for model_spec in time_t:
+                count = 0
+                for sect,sig in model_spec.items():
+                    if sig == 1.0:
+                        count += 1
+                indiv_weights = {}
+                for sect,sig in model_spec.items():
+                    if count != 0:
+                        if sig == 1.0 :
+                            indiv_weights[sect] = 1/count
+                        else:
+                            indiv_weights[sect] = 0.0
+                    else:
+                        indiv_weights[sect] = 1/len(model_spec)
+                weights_across_model_spec_time_t.append(indiv_weights)
+            all_time_weights.append(weights_across_model_spec_time_t)
+        return all_time_weights
+                
+                    
+
+
 
 class prep_weights:
     """
