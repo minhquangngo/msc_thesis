@@ -13,11 +13,14 @@ import glob
 from pathlib import Path
 import yaml
 import pandas as pd
+import numpy as np
+from typing import Dict, List
 from sector_rot import all_runs
 
 
 ROOT = Path(__file__).resolve().parent.parent
 cols = ['rf_base_signal','ols_enhanced_signal','rf_enhanced_signal','ols_base_signal']
+
 
 
 class weights:
@@ -47,6 +50,82 @@ class weights:
         return all_time_weights
                 
                     
+
+class weighted_ret:
+    """Add weighted excess return columns to sector dataframes based on sector-level model weights."""
+
+    MODEL_COLS = [
+        'Excess_returns_weighted_rf_base',
+        'Excess_returns_weighted_ols_enhanced',
+        'Excess_returns_weighted_rf_enhanced',
+        'Excess_returns_weighted_ols_base'
+    ]
+
+    def __init__(self, sector_dataframes: dict, model_weights: list | None = None):
+        """Create a new weighted_ret helper.
+
+        Parameters
+        ----------
+        sector_dataframes : dict
+            Mapping ``{sector_id: DataFrame}`` where the index represents
+            time periods and columns hold excess returns of assets.
+        model_weights : list | None, optional
+            Nested structure ``[time][model_idx][sector_id] -> weight``. If
+            *None* the helper :pyclass:`weights` is invoked to calculate the
+            weights automatically.
+        """
+        self.sector_dataframes = sector_dataframes
+        self.model_weights = model_weights if model_weights is not None else weights().calc_weights()
+
+        # Basic validation – every slice should contain exactly 4 model specs
+        for slice_ in self.model_weights:
+            if len(slice_) != 4:
+                raise ValueError(
+                    "Each time slice in model_weights must have 4 model specification dictionaries"
+                )
+
+    def calc_weighted_ret(self) -> dict:
+        """Add weighted excess return columns to every sector dataframe.
+
+        The operation is performed *in-place* and the same mapping is returned
+        for convenience.
+        """
+        for sector, df in self.sector_dataframes.items():
+            if df.empty:
+                # Skip sectors without data
+                continue
+
+            # Preserve original numeric columns (the excess-return columns)
+            numeric_cols = df.select_dtypes(include="number").columns.tolist()
+
+            # Ensure the 4 new columns exist
+            for col in self.MODEL_COLS:
+                if col not in df.columns:
+                    df[col] = np.nan
+
+            # Iterate through each time index
+            for t_idx, timestamp in enumerate(df.index):
+                if t_idx >= len(self.model_weights):
+                    # No weight information for this timestamp
+                    continue
+
+                for model_idx, col_name in enumerate(self.MODEL_COLS):
+                    # Retrieve weight, tolerating str/int key mismatch
+                    weight_val = self.model_weights[t_idx][model_idx].get(str(sector),
+                                   self.model_weights[t_idx][model_idx].get(int(sector), 0.0))
+
+                    if weight_val == 0.0:
+                        df.at[timestamp, col_name] = 0.0
+                        continue
+
+                    # Use provided 'excess_ret' column if present; otherwise fallback to mean of numeric columns
+                    if 'excess_ret' in df.columns:
+                        excess_ret = df.at[timestamp, 'excess_ret']
+                    else:
+                        excess_ret = df.loc[timestamp, numeric_cols].mean()
+                    df.at[timestamp, col_name] = excess_ret * weight_val
+
+        return self.sector_dataframes
 
 class prep_weights:
     """
