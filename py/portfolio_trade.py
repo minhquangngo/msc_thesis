@@ -19,6 +19,35 @@ from sector_rot import all_runs
 ROOT = Path(__file__).resolve().parent.parent
 cols = ['rf_base_signal','ols_enhanced_signal','rf_enhanced_signal','ols_base_signal']
 
+
+class weights:
+    def __init__(self):
+        self.prepped_weights = prep_weights().get_signals_all_times_all_models()
+    
+    def calc_weights(self):
+        all_time_weights = []
+        for time_t in self.prepped_weights:
+            weights_across_model_spec_time_t =[]
+            for model_spec in time_t:
+                count = 0
+                for sect,sig in model_spec.items():
+                    if sig == 1.0:
+                        count += 1
+                indiv_weights = {}
+                for sect,sig in model_spec.items():
+                    if count != 0:
+                        if sig == 1.0 :
+                            indiv_weights[sect] = 1/count
+                        else:
+                            indiv_weights[sect] = 0.0
+                    else:
+                        indiv_weights[sect] = 1/len(model_spec)
+                weights_across_model_spec_time_t.append(indiv_weights)
+            all_time_weights.append(weights_across_model_spec_time_t)
+        return all_time_weights
+                
+                    
+
 class prep_weights:
     """
     the dataframe that is unpacked here is: {sector 10 :df, sector 15:df, ...}
