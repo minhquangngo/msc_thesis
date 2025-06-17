@@ -361,8 +361,8 @@ class rolling_pred():
         
         sig_index = apriori_df.index[self.lookback_time+1 :] 
         #TODO: take a look at sig_index
-        signal_series         = pd.Series(signal, index=sig_index, name="signal")
-        rule_diagnostics_df   = pd.DataFrame(rule_book).set_index("idx")
+        signal_series         = pd.Series(signal, index=sig_index.shift(1), name="signal") #[CHANGE]
+        rule_diagnostics_df   = pd.DataFrame(rule_book).set_index("idx").shift(1, axis=0) #[CHANGE]
             
         return signal_series, rule_diagnostics_df
 
