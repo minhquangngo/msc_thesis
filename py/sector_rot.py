@@ -219,20 +219,20 @@ class rolling_pred():
         print(f"Features {self.features}")
 
         for t in range(self.lookback_time, len(self.df)-1):
-            X_test = self.df.loc[[self.df.index[t]], self.features]
+            X_test = self.df.loc[[self.df.index[t]], self.features].shift(1)
             X_test_const = sm.add_constant(X_test, has_constant = 'add')
             
             
             if self.models[1] is None: 
                 trained_ols = self.models[0]
-                self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const.shift(1))[0]#[CHANGE]
+                self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const)[0]#[CHANGE]
             else:
                 trained_rf = self.models[0]
                 trained_surr = self.models[1]
-                self.rf_prediction_series.iloc[t] = trained_rf.predict(X_test.shift(1))[0]#[CHANGE]
+                self.rf_prediction_series.iloc[t] = trained_rf.predict(X_test)[0] #[CHANGE]
                 self.feat_imp_rf.append(trained_rf.feature_importances_)
 
-                self.surr_prediction_series.iloc[t] = trained_surr.predict(X_test.shift(1))[0]#[CHANGE]
+                self.surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]#[CHANGE]
                 self.feat_imp_surr.append(trained_surr.feature_importances_)
 
         # Return statements AFTER the loop completes
