@@ -219,13 +219,12 @@ class rolling_pred():
         print(f"Features {self.features}")
 
         for t in range(self.lookback_time, len(self.df)-1):
-            X_test = self.df.loc[[self.df.index[t]], self.features].shift(1)
+            X_test = self.df.loc[[self.df.index[t+1]], self.features]
             X_test_const = sm.add_constant(X_test, has_constant = 'add')
             
             
             if self.models[1] is None: 
                 trained_ols = self.models[0]
-                X_test_const = X_test_const.dropna()
                 self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const)[0]#[CHANGE]
             else:
                 trained_rf = self.models[0]
