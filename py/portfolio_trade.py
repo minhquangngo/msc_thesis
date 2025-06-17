@@ -23,9 +23,10 @@ cols = ['rf_base_signal','ols_enhanced_signal','rf_enhanced_signal','ols_base_si
 
 
 class weighted_portfolio_returns:
-    def __init__(self):
+    def __init__(self, weight_mode: str | None = None):
         self.sector_dataframes = self._load_org_df()
-        self.weighted_df = weighted_ret(self.sector_dataframes).calc_weighted_ret()
+        self.weight_mode = weight_mode
+        self.weighted_df = weighted_ret(self.sector_dataframes, self.weight_mode).calc_weighted_ret()
     
     def _weighted_portfolios(self):
         daily_ret_ols_base = [] 
@@ -68,7 +69,7 @@ class weighted_ret:
         'Excess_returns_weighted_ols_base'
     ]
 
-    def __init__(self, sector_dataframes: dict, model_weights: list | None = None):
+    def __init__(self, sector_dataframes: dict, weight_mode: str | None = None, model_weights: list | None = None):
         """Create a new weighted_ret helper.
 
         Parameters
@@ -82,7 +83,10 @@ class weighted_ret:
             weights automatically.
         """
         _,self.sector_dataframes = prep_weights().collect_matched_df()
-        self.model_weights = weights().calc_weights()
+        if model_weights is None:
+            self.model_weights = weights(weight_mode).calc_weights()
+        else:
+            self.model_weights = model_weights
 
         # Basic validation – every slice should contain exactly 4 model specs
         for slice_ in self.model_weights:
@@ -126,8 +130,8 @@ class weighted_ret:
                         continue
 
                     # Use provided 'ret' column if present; otherwise fallback to mean of numeric columns
-                    if 'excess_ret' in df.columns:
-                        ret = df.at[timestamp, 'excess_ret']
+                    if 'ret' in df.columns:
+                        ret = df.at[timestamp, 'ret']
                     else:
                         ret = df.loc[timestamp, numeric_cols].mean()
                     df.at[timestamp, col_name] = ret * weight_val
@@ -135,35 +139,76 @@ class weighted_ret:
         return self.sector_dataframes
 
 class weights:
-    def __init__(self):
+    """Calculate sector-level portfolio weights according to a chosen scheme.
+
+    Parameters
+    ----------
+    weight_mode : {'equal_weight', 'unconstrained', 'constrained'}
+        Determines how the sector weights are computed.
+    """
+
+    ALLOWED_MODES = {"equal_weight", "unconstrained", "constrained"}
+
+    def __init__(self, weight_mode: str = "unconstrained"):
+        # Validate weight mode first
+        if weight_mode not in self.ALLOWED_MODES:
+            raise ValueError(
+                f"weight_mode must be 'equal_weight', 'unconstrained', or 'constrained'; got {weight_mode!r}"
+            )
+        self.weight_mode = weight_mode
+
+        # Pre-compute signal structure [time][model][sector -> signal].
         self.prepped_weights = prep_weights().get_signals_all_times_all_models()
-    
-    def calc_weights(self):
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _calc_unconstrained(self):
+        """Original (legacy) weight calculation – keep for re-use."""
         all_time_weights = []
         for time_t in self.prepped_weights:
-            weights_across_model_spec_time_t =[]
+            weights_across_model_spec_time_t = []
             for model_spec in time_t:
-                count = 0
-                for sect,sig in model_spec.items():
-                    if sig == 1.0:
-                        count += 1
+                # Count active signals (== 1.0)
+                active_count = sum(1 for sig in model_spec.values() if sig == 1.0)
+
                 indiv_weights = {}
-                for sect,sig in model_spec.items():
-                    if count != 0:
-                        if sig == 1.0 :
-                            indiv_weights[sect] = 1/count
-                        else:
-                            indiv_weights[sect] = 0.0
+                for sect, sig in model_spec.items():
+                    if active_count:
+                        indiv_weights[sect] = 1 / active_count if sig == 1.0 else 0.0
                     else:
-                        indiv_weights[sect] = 1/len(model_spec)
+                        # No signals – spread weight equally across all sectors
+                        indiv_weights[sect] = 1 / len(model_spec)
+
                 weights_across_model_spec_time_t.append(indiv_weights)
             all_time_weights.append(weights_across_model_spec_time_t)
         return all_time_weights
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def calc_weights(self):
+        """Return weights according to *self.weight_mode*."""
+        unconstrained_weights = self._calc_unconstrained()
+
+        # Fast-path for legacy behaviour
+        if self.weight_mode == "unconstrained":
+            return unconstrained_weights
+
+        transformed = []
+        for time_slice in unconstrained_weights:
+            transformed_models = []
+            for weight_dict in time_slice:
+                n = len(weight_dict)
+                if self.weight_mode == "equal_weight":
+                    new_dict = {sect: 1.0 / n for sect in weight_dict}
+                else:  # self.weight_mode == "constrained"
+                    new_dict = {sect: w * 0.30 + (0.70 / n) for sect, w in weight_dict.items()}
+                transformed_models.append(new_dict)
+            transformed.append(transformed_models)
+        return transformed
                 
                     
-
-
-
 class prep_weights:
     """
     the dataframe that is unpacked here is: {sector 10 :df, sector 15:df, ...}
