@@ -225,14 +225,14 @@ class rolling_pred():
             
             if self.models[1] is None: 
                 trained_ols = self.models[0]
-                self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const)[0]
+                self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const.shift(1))[0]#[CHANGE]
             else:
                 trained_rf = self.models[0]
                 trained_surr = self.models[1]
-                self.rf_prediction_series.iloc[t] = trained_rf.predict(X_test)[0]
+                self.rf_prediction_series.iloc[t] = trained_rf.predict(X_test.shift(1))[0]#[CHANGE]
                 self.feat_imp_rf.append(trained_rf.feature_importances_)
 
-                self.surr_prediction_series.iloc[t] = trained_surr.predict(X_test)[0]
+                self.surr_prediction_series.iloc[t] = trained_surr.predict(X_test.shift(1))[0]#[CHANGE]
                 self.feat_imp_surr.append(trained_surr.feature_importances_)
 
         # Return statements AFTER the loop completes
@@ -262,12 +262,12 @@ class rolling_pred():
             - ret_up      : t excess return > ret_thresh
         """
         df = df.copy()
-        df["VR"]= realized_vol(df['excess_ret'],sr, lr)                 # rolling statistic
+        df["VR"]= realized_vol(df['ret'],sr, lr) #[CHANGE]        rolling statistic
         df["low_vr"]    = df["VR"]   < vol_threshold
-        print
+
         # Use the prediction series that matches your model type. Example below uses rf_prediction_series:
         df["high_pred"] = pred_series > pred_thresh # add more arguments for models here
-        df["ret_up"]    = df["excess_ret"]> excess_ret_pred_threshold
+        df["ret_up"]    = df["ret"]> excess_ret_pred_threshold #[CHANGE]
 
         items = df[["low_vr", "high_pred", "ret_up"]].dropna().astype("bool")
         return items
