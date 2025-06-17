@@ -225,6 +225,7 @@ class rolling_pred():
             
             if self.models[1] is None: 
                 trained_ols = self.models[0]
+                X_test_const = X_test_const.dropna()
                 self.ols_prediction_series.iloc[t] = trained_ols.predict(X_test_const)[0]#[CHANGE]
             else:
                 trained_rf = self.models[0]
