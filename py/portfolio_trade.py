@@ -129,11 +129,8 @@ class weighted_ret:
                         df.at[timestamp, col_name] = 0.0
                         continue
 
-                    # Use provided 'ret' column if present; otherwise fallback to mean of numeric columns
-                    if 'ret' in df.columns:
-                        ret = df.at[timestamp, 'ret']
-                    else:
-                        ret = df.loc[timestamp, numeric_cols].mean()
+                    
+                    ret = df.at[timestamp, 'ret']
                     df.at[timestamp, col_name] = ret * weight_val
 
         return self.sector_dataframes
