@@ -115,7 +115,7 @@ class BaseModel(ABC):
             raise ValueError("Dataset must contain at least two rows to perform next-day forecasting shift.")
 
         # Shift the target up by one row so that y_shifted[i] is the target for the *next* day
-        y_shifted = df[self.y].shift(-1)
+        y_shifted = df[self.y].shift(1)
 
         # Drop the final row that now has a missing next-day target
         valid_idx = y_shifted.notna()
