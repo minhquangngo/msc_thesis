@@ -108,11 +108,25 @@ class BaseModel(ABC):
     
     #----------internal helpers---------------------
     def _var_prep(self, df:pd.DataFrame):
-        hold_out_size = 360
-        break_point = len(df) - hold_out_size
-        
-        X= df[self.features]
-        y=df[self.y]
+        hold_out_size = 360  # size of hold-out (testing) set
+
+        # ---------- Align today's features with tomorrow's target ----------
+        if len(df) < 2:
+            raise ValueError("Dataset must contain at least two rows to perform next-day forecasting shift.")
+
+        # Shift the target up by one row so that y_shifted[i] is the target for the *next* day
+        y_shifted = df[self.y].shift(1)
+
+        # Drop the final row that now has a missing next-day target
+        valid_idx = y_shifted.notna()
+        X = df.loc[valid_idx, self.features]
+        y = y_shifted.loc[valid_idx]
+
+        # ---------------- Train / Hold-out split (after shift) -------------
+        break_point = len(X) - hold_out_size
+        if break_point <= 0:
+            raise ValueError("Hold-out size is too large for the dataset after shifting; reduce `hold_out_size` or provide more data.")
+
         X_fit = X.iloc[:break_point]
         X_hold = X.iloc[break_point:]
 
