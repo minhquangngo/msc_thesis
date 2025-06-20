@@ -81,20 +81,18 @@
 % Figure 4.1 and Figure 4.2 side by side (two-column layout) within Section 4.6.
 
 % Figure 4.3 full-width heatmap at the end of Section 4.6.
-\section{GPT}
+
 \subsection{Data Sources and Sample Period}\label{sec:data_sources}
 
-This study integrates equity, option, and macro-factor information from several well-established WRDS libraries. Daily common-share returns, share volume, shares outstanding, trade-conditioned prices, and intraday high/low quotes are drawn from the \emph{CRSP Daily Stock File} (\texttt{crsp.dsf}). Corporate identifiers (\textsc{permno}) are matched to tickers, historical company names, and exchange codes using the \texttt{crsp.dsenames} table, ensuring that delisted and renamed firms remain observable throughout the analysis period. The initial CRSP extraction contains every ordinary common share listed on the NYSE,NYSE MKT, NASDAQ and Arca exchanges between 1998 and 2018. 
+This study integrates equity, option, and macro-factor information from several well-established WRDS libraries. Daily common-share returns,risk free rate, market returns, share volume, shares outstanding, trade-conditioned prices, and intraday high/low quotes are drawn from the \emph{CRSP Daily Stock File} \cite{crsp_dsf}. Corporate identifiers (PERMNO) are matched to tickers, historical company names, and exchange codes table, ensuring that delisted and renamed firms remain in the final analysis. The initial CRSP extraction contains every ordinary common share listed on the NYSE,NYSE MKT, NASDAQ and Arca exchanges between 1998 and 2018. 
 
 The returns of this dataset value weighted and is extracted without dividends.To mitigate microstructure noise, daily returns are discarded if any of the following conditions hold: (i) the absolute price is below \$1; (ii) share volume is missing; or (iii) CRSP marks the observation with a non-regular return code.
 
-To filter out the stocks within the \texttt{crsp.dsf} that are not members of the SP500 index, the CRSP table is intersected with the historical \emph{S\&P 500 Constituents List} (\texttt{crsp\_a\_indexes.dsp500list\_v2}). The list provides the member entry (\texttt{mbrstartdt}) and member exit (\texttt{mbrenddt}) dates for every constituent since 1990. Merging the two datasets on \textsc{permno} and calendar date yields a time-varying panel that includes each firm only during its actual index membership window, which eliminates survivorship bias arising from back-filling non-constituent observations. This means that companies that enters the S\&P500 is only included in their entry date onwards, while those that either went bankrupt, removed from the index or that got acquired after 2018 remains in the analysis. After intersecting with the S\&P 500 membership file, the total number of companies remaining in the analysis is limited to 1063 unique firms (PERM) that have belonged to the index at least once during the sample period. Each security contributes observations only for the days on which it is an official constituent, thereby mirroring the investable set faced by index-tracking portfolios (such as the publicly traded S\&P500 index) in real time.
+To filter out the stocks within the \emph{CRSP Daily Stock File}  that are not members of the SP500 index, the table is intersected with the historical \emph{S\&P 500 Constituents List} \cite{compstat}. The list provides the member entry  and member exit dates for every constituent since 1990. Merging the two datasets on PERMNO and calendar date yields a time-varying panel that includes each firm only during its actual index membership window, which eliminates survivorship bias arising from back-filling non-constituent observations. This means that companies that enters the S\&P500 is only included in their entry date onwards, while those that either went bankrupt, removed from the index or that got acquired after 2018 remains in the analysis. After intersecting with the S\&P500 membership file, the total number of companies remaining in the analysis is limited to 1063 unique firms that have belonged to the index at least once during the sample period. Each security contributes observations only for the days on which it is an official constituent, thereby mirroring the investable set faced by index-tracking portfolios (such as the publicly traded S\&P500 index) in real time.
 
-Sector classification information is sourced from the \emph{Compustat North America} header table, specifically \texttt{comp.company}, which reports each firm's \texttt{gsector}—a two-digit sector code consistent with the Global Industry Classification Standard (GICS). This differs from the other datasets, which primarily identify firms using the \texttt{permno} variable. Because CRSP and Compustat employ different primary keys, firm-level observations are linked via the \texttt{crsp.ccmxpf\_lnkused} bridge table. This particular link enable one-to-one mappings between CRSP's \textsc{permno} and Compustat's \textsc{gvkey}.
+Sector classification information is sourced from the \emph{Compustat North America} header table, which reports each firm's \texttt{gsector}—a two-digit sector code consistent with the Global Industry Classification Standard (GICS) \cite{compstat}. This differs from the other datasets, which primarily identify firms using the \texttt{permno} variable. Because CRSP and Compustat utilizes different primary keys, firm-level observations are linked via a CRSP-Compustat bridge table. This particular link enable one-to-one mappings between CRSP's PERMNO and Compustat's \textsc{gvkey}.Daily macro-risk factors are sourced from Kenneth French's library,also available from WRDS, providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$), momentum ($UMD$) and the monthly treasury rate ($RF$) \cite{ff_wrds}. These series are merged to the equity panel on the trading date.
 
-Daily macro-risk factors are sourced from Kenneth French's library (\texttt{ff.fivefactors\_daily}),also available from WRDS, providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$), momentum ($UMD$) and the monthly treasury rate ($RF$).These series are merged to the equity panel on the trading date.
-
-Finally, index-level option activity is captured through \emph{OptionMetrics' Volatility Surface File} (\texttt{optionm.opvold}). Put and call trading volumes for each security identifier (\textsc{secid}) are aggregated to the daily level. The WRDS-supplied correspondence file \texttt{wrdsapps.opcrsphist} maps each \textsc{secid} to its CRSP \textsc{permno} over time, enabling a clean join between option activity and cash-equity characteristics. OptionMetrics coverage is less complete than CRSP coverage, particularly prior to 2000 when listed index options were thinly traded, or the data was not recorded properly. This could corrupt the dataset as both zero value and unavailable/corrupted call or put volume is registered in WRDS as 0.0. Nonetheless, a large portion of put-call pairs possess at least one non-missing put or call volume observation. For days in which one side of the market is absent, the Laplace adjustment preserves logarithmic ratios while preventing undefined values (division by zero). The function is outlined as:
+Finally, index-level option activity is captured through \citeA{optionsmetrics}. Put and call trading volumes for each security identifier (\textsc{secid}) are aggregated to the daily level. The WRDS-supplied correspondence file maps each \textsc{secid} to its CRSP PERMNO over time. OptionMetrics coverage is less complete than CRSP coverage, particularly prior to 2000 when listed index options were thinly traded, or the data was not recorded properly. This could corrupt the dataset as both zero value and unavailable/corrupted call or put volume is registered in WRDS as 0.0. Nonetheless, a large portion of put-call pairs possess at least one non-missing put or call volume observation. For days in which one side of the market is absent, the Laplace adjustment preserves logarithmic ratios while preventing undefined values (division by zero). The function is outlined as:
 
 \begin{equation}
      \hat{p}_i = \frac{n_i + \alpha}{N + \alpha K}
@@ -102,115 +100,134 @@ Finally, index-level option activity is captured through \emph{OptionMetrics' Vo
 
 where $n_i$ is the number of observations, $N$ is the total number of observations, $\alpha$ is the smoothing parameter, and $K$ is the number of categories. Days without any option data are excluded so that every observation contains both cash- equity and derivative variables, thereby avoiding undefined put-call ratios that would arise when one side of the market is absent.
 
-In addition to the above, investor sentiment is measured using the index from \citeA{ung_2023}. Alongside this index, the Daily News Sentiment indicators are obtained from the Federal Reserve Bank of San Francisco's Daily News Sentiment Index, which is constructed following the methodology of \citeA{shapiro_2020}. (MOVE TO METHODS) The Daily News Sentiment Index provides a high-frequency gauge of U.S. economic sentiment, capturing short-run fluctuations in public perceptions as reported by major national newspapers. Specifically, the index aggregates sentiment scores derived from economics-related articles in 24 leading U.S. newspapers, including those with nationwide reach such as the \emph{New York Times} and the \emph{Washington Post}. Articles included in the measure must contain at least 200 words and be classified by Factiva (a news aggregator) as pertaining to "economics" and the "United States". To generate the sentiment score, \citeA{shapiro_2020} combine general-purpose sentiment dictionaries with a custom, news-specific lexicon to more accurately reflect the tone and context of economic reporting. Sentiment is scored at the article level and then aggregated using a trailing weighted average, in which more recent articles receive higher weights, with geometric decay over time. This method makes sure that any adjustments for potential shifts in the composition of the newspapers within the index is accounted for.
-
- The Chicago Board Options Exchange Volatility Index (VIX) is pulled from Yahoo Finance \textbf(footnote) to capture market-wide uncertainty \cite{vix_cboe}. (MOVE TO METHODS). The VIX, commonly reffered to in the finance sector as the 'fear index' computes a 30 day forward-looking estimate of market volatility by aggregating the prices of out-of-the-money S\&P 500 index options, weighted across a broad range of strike prices and interpolated to produce a constant maturity of 30 days. It uses both put and call options with expirations between 23 and 37 days, along with current U.S. Treasury rates, to accurately reflect current market expectations. The formula essentially replicates a theoretical variance swap—summing the contributions from each eligible option—then takes the square root and annualizes the result (WHAT IS THE FORMULA). 
+In addition to the above, investor sentiment is measured using the index from \citeA{ung_2023}\footnote{https://doi.org/10.1080/1351847X.2023.2247440.}. Alongside this index, the Daily News Sentiment indicators are obtained from the Federal Reserve Bank of San Francisco's Daily News Sentiment Index, which is constructed following the methodology of \citeA{shapiro_2020} \footnote{https://www.frbsf.org/research-and-insights/data-and-indicators/daily-news-sentiment-index/}. The Chicago Board Options Exchange Volatility Index (VIX) is pulled from Yahoo Finance's Python API \footnote{https://github.com/ranaroussi/yfinance} to capture market-wide uncertainty \cite{vix_cboe}. 
  
-The final sample spans 2 January 1998 to 31 December 2018, a total of 5282 trading days. All source tables are at a daily frequency, so the merged dataset preserves the most granular timing available, though some features are still at the monthly level. The resulting panel comprises roughly {TOTAL ROWS OF PRE AGGREGATED DATASET} daily stock observations. Table \textbf(TABLE) summarises the cross-sectional distribution by GICS sector, while Table \textbf(TABLE) reports basic descriptive statistics for the key return, liquidity, option, and factor variables. 
-
-\subsection{Sample Selection and Coverage}\label{sec:sample_selection}
- 
-
-Equity days without any option data are also not retained in the panel \textbf(WHY).
-
-
 
 \subsection{Variable Construction}\label{sec:var_construct}
+The feature-engineering stage transforms the raw inputs described in Sections~\ref{sec:data_sources} into a set of features.\footnote{See the accompanying Jupyter notebook in the replication repository for full transformation code.}  Unless noted otherwise, variables are computed at the \emph{daily} horizon.
 
-The feature-engineering stage transforms the raw inputs described in Sections~\ref{sec:data_sources}-\ref{sec:sample_selection} into a set of theoretically motivated, econometrically tractable predictors.\footnote{visit github for jupyter transformation}  Unless noted otherwise, variables are computed at the \emph{daily} horizon and subsequently aggregated to end-of-month levels by arithmetic averaging (returns are cumulated). This convention matches the sampling frequency of the sector rotation strategy later on.
+\begin{description}
+  \item[Turnover (\texttt{turn}):]  
+    Calculated as the ratio of trading volume to shares outstanding.
+    \begin{equation}
+    \label{eq:turn}
+    \begin{split}
+    \text{turn}_{i,d} = \frac{\text{vol}_{i,d}}{\text{shrout}_{i,d}}
+    \end{split}
+    \end{equation}
 
+  \item[Turnover Volatility (\texttt{turn\_sd}):]  
+    The cross-sectional standard deviation of the turnover variable over a rolling window (e.g.\ one month).
+    \begin{equation}
+    \label{eq:turn_sd}
+    \begin{split}
+    \text{turn\_sd}_{i,d} = \mathrm{std}\bigl(\text{turn}_{i,d'}\bigr)_{d' \in \mathcal{W}_d}
+    \end{split}
+    \end{equation}
 
-\subsubsection{Excess Equity and Market Returns}\label{sec:excess_returns}
+  \item[Market Capitalization (\texttt{mktcap}):]  
+    The product of price and shares outstanding.
+    \begin{equation}
+    \label{eq:mktcap}
+    \begin{split}
+    \text{mktcap}_{i,d} = \text{prc}_{i,d}\times \text{shrout}_{i,d}
+    \end{split}
+    \end{equation}
 
-For each security \(i\) and business day \(d\),
-\[
-ER_{i,d}=R_{i,d}-R_{f,d},
-\qquad
-MKT\_RF_{d}=MKT_{d}-R_{f,d},
-\]
+  \item[Log Market Equity (\texttt{mvel1}):]  
+    The natural logarithm of the absolute value of market capitalization.
+    \begin{equation}
+    \label{eq:mvel1}
+    \begin{split}
+    \text{mvel1}_{i,d} = \ln\bigl|\text{mktcap}_{i,d}\bigr|
+    \end{split}
+    \end{equation}
 
-where \(R_{i,d}\)\textbf(GO BACK TO THE PROPOSAL) is the CRSP close-to-close return, \(MKT_{d}\) is the value-weighted CRSP market return converts the one-month Treasury bill quote from Kenneth French's factor file to a daily rate.  Monthly excess returns \(\{ER_{i,t}\}_{t=1}^{T}\) are obtained via geometric chaining of the daily series.
+  \item[Zero Trade Ratio (\texttt{zero\_trade\_ratio}):]  
+    The proportion of days in a calendar month where trading volume is zero.
+    \begin{equation}
+    \label{eq:zero_trade_ratio}
+    \text{zero\_trade\_ratio}_{i,m}
+    = \frac{\sum_{d\in m}\mathbbm{1}\{\text{vol}_{i,d}=0\}}{D_m}
+    \end{equation}
 
-\subsubsection{Fama-French and Momentum Factors}\label{sec:ff_factors}
+  \item[Dollar Volume (\texttt{dolvol}):]  
+    The product of trading volume and the absolute value of price, excluding zero-volume days.
+    \begin{equation}
+    \label{eq:dolvol}
+    \text{dolvol}_{i,d} = \text{vol}_{i,d}\times \bigl|\text{prc}_{i,d}\bigr|
+    \end{equation}
 
-The remaining six Fama French factors—\(SMB\), \(HML\), \(RMW\), \(CMA\), \(UMD\), and \(RF\)—are merged to the equity panel on the calendar date.  \textbf(ELAB).  To preclude look-ahead bias the factors are lagged one trading day when they enter predictive regressions; contemporaneous values are retained only for contemporaneous covariance diagnostics. \textbf(COMBINE section 4.1.1 and 4.1.2)
+  \item[Amihud Illiquidity (\texttt{daily\_illq}):]  
+    The ratio of absolute return to dollar volume, following \cite{Amihud2002}.
+    \begin{equation}
+    \label{eq:daily_illq}
+    \text{daily\_illq}_{i,d}
+    = \frac{\bigl|\text{ret}_{i,d}\bigr|}{\text{dolvol}_{i,d}}
+    \end{equation}
 
-\subsubsection{Liquidity and Depth Metrics}\label{sec:liquidity}
+  \item[Bid-Ask Spread (\texttt{baspread}):]  
+    The difference between the highest ask and lowest bid quotes.
+    \begin{equation}
+    \label{eq:baspread}
+    \text{baspread}_{i,d} = \text{askhi}_{i,d} - \text{bidlo}_{i,d}
+    \end{equation}
 
-\paragraph{Trading activity.}  Turnover normalises raw share volume:
-\[
-\text{Turn}_{i,d}=\frac{VOL_{i,d}}{SHROUT_{i,d}},
-\]
-and is annualised as \(\text{Turn}_{i,t}=252\cdot \overline{\text{Turn}}_{i,d\in t}\).  Dollar volume
-\[
-\text{DolVol}_{i,d}=VOL_{i,d}\times |PRC_{i,d}|
-\]
-facilitates scale invariant liquidity scaling.
+    
+\end{description}
 
-\paragraph{Relative‐spread cost.}  The quoted bid–ask spread
-\[
-\text{Spread}_{i,d}=2\,
-\frac{ASKHI_{i,d}-BIDLO_{i,d}}
-     {ASKHI_{i,d}+BIDLO_{i,d}}
-\]
-is averaged within calendar months.  Observations with \(\text{Spread}>1\) (indicative of data errors or halted trading) are set to missing prior to winsorisation.
+After computing stock-level features, individual stocks are aggregated to the sector level using value-weighted averages. For each sector \(s\) on date \(t\), each stock \(i\) in sector \(s\) receives a weight 
 
-\paragraph{Zero trade ratio.}  Microstructure frictions are proxied by
-% \[
-% ZTR_{i,m}=\frac{1}{D_m}\sum_{d=1}^{D_m}\mathbbm{1}(VOL_{i,d}=0),
-% \]
-the fraction of non-trading days in month \(m\).
-
-\paragraph{Amihud illiquidity.}  Following \citeA{Amihud2002}, daily price impact is
-\[
-ILLQ_{i,d}=\frac{|R_{i,d}|}{\text{DolVol}_{i,d}},
-\]
-and the monthly aggregate is
-\[
-ILLQ_{i,t}=10^{6}\cdot \frac{1}{D_t}\sum_{d=1}^{D_t} ILLQ_{i,d},
-\]
-where the \(10^{6}\) multiplier brings the series to order unity.\footnote{Multiplying by \(10^{6}\) eases numerical convergence in the optimisation routines used later.}
-
-\subsubsection{Sentiment and Uncertainty Proxies}\label{sec:sentiment}
-
-\paragraph{Investor sentiment.}  The study adopts the six-proxy framework of \citeA{BakerWurgler2006}.  Let \(\mathbf{z}_{t}\) be the vector of demeaned proxies—inflation-adjusted closed-end fund discount, NYSE share turnover, first-day returns and volume of IPOs, equity share in new issues, and dividend premium.  A 36-month rolling-window principal-component analysis yields the first component, \(STV_{t}\), scaled to unit variance.
-
-\paragraph{Orthogonalisation.}  To purge macroeconomic comovement, \(STV_{t}\) is regressed on contemporaneous growth in industrial production (\(IP\)), CPI inflation (\(\pi\)), and the yield-curve term spread (\(\text{TS}\)):
-\[
-STV_{t}^{\perp}=STV_{t}-\widehat{\beta}_{IP}IP_{t}
-                    -\widehat{\beta}_{\pi}\pi_{t}
-                    -\widehat{\beta}_{TS}\text{TS}_{t}.
-\]
-The residual series \(STV_{t}^{\perp}\) is the sentiment factor used in all empirical tests.
-
-\paragraph{News sentiment and market volatility.}  Daily polarity scores from the Federal Reserve Bank's \emph{News Sentiment Index} provide an exogenous, text-based sentiment gauge, denoted \(NSI_{d}\).  Market-wide uncertainty is proxied by the CBOE Volatility Index (\(VIX_{d}\)), downloaded from \texttt{Yahoo Finance} and linearly interpolated to cover market holidays.
-
-\subsubsection{Normalisation, Winsorisation, and Sectoral Segmentation}\label{sec:normalise}
-
-All firm-level variables \(x_{i,t}\) undergo a two-step transformation:
-
-% \begin{enumerate}[label=(\roman*)]
-% % \item \textbf{Winsorisation} at the 1st/99th cross-sectional percentiles to mitigate outlier influence.
-% % \item \textbf{Rank-scaling} to the interval \([-1,1]\):
-% % \[
-% % \tilde{x}_{i,t}=2\Bigl(\frac{\operatorname{rank}(x_{i,t})}{N_{t}}\Bigr)-1,
-% % \]
-% where \(N_{t}\) is the number of non-missing observations in month \(t\).  Scaling places every predictor on a common support, which expedites the convergence of the RuleFit algorithm employed later.
-% \end{enumerate}
-
-After transformation, the master panel is split by two-digit GICS code to create sector-specific datasets.  This segmentation permits heterogeneous coefficient estimation and eases the computational burden of high-dimensional cross-validation.  Each sector file is written to a compressed Apache Parquet object (\texttt{data/sector\_\{XX\}.parquet}), enabling columnar, vectorised I/O in subsequent Python workflows.
-
-
+\begin{equation}
+\label{eq:sect_aggr}
+w_{i,t} = \frac{\mathrm{mktcap}_{i,t}}{\sum_{j\in s}\mathrm{mktcap}_{j,t}},
+\end{equation}
+and the sector-level value of any feature \(x\) is  
+\begin{equation}
+\label{eq:sector_level}
+x_{s,t} = \sum_{i\in s} w_{i,t}\,x_{i,t}.
+\end{equation}
 
 
+Each firm is assigned to its two-digit GICS sector, and sector-level indicators are then calculated as the market-capitalization-weighted averages of the corresponding stock-level features.  The sectors and their associated GICS codes are summarized in Table \ref{tab:sectors_mapp}.  
 
-===========================
-======================
-Almost all of the data used in this thesis is obtained from the Wharton Research Data Services (WRDS), integrating several financial databases to construct a panel of US equities from 1998 to 2018. Wharton Research Data Services (WRDS) is a web-based platform developed by the University of Pennsylvania that provides access to a wide range of financial, economic, and marketing datasets from over 60 vendors, enabling researchers to query data across these different sources for their custom analysis. 
+\begin{table}[htbp]
+     \centering
+     \caption{Mapping Sector Source}
+     \label{tab:sectors_mapp}
+     \begin{threeparttable}             % NEW
+         \begin{tabular}{@{}l c@{}}
+             \toprule
+             \textbf{Sector Code} & \textbf{Sector Name}\\
+             \midrule
+             10 & Energy\\
+             15 & Materials\\
+             20 & Industrials\\
+             25 & Consumer Discretionary\\
+             30 & Consumer Staples\\
+             35 & Health Care\\
+             40 & Financials\\
+             45 & Information Technology\\
+             50 & Communication Services\\
+             55 & Utilities\\
+             60 & Real Estate\\
+             \bottomrule
+         \end{tabular}
+ 
+         \begin{tablenotes}
+             \footnotesize
+             \item[] Notes: <your note here>
+         \end{tablenotes}
+     \end{threeparttable}               % NEW
+ \end{table}
 
-For this thesis, daily stock price and trading data, including variables such as returns, volume, price, and bid-ask spread, are extracted from the CRSP (Center for Research in Security Prices) daily stock file. Each stock's permanent identifier (PERMNO) and corresponding ticker symbol are matched using CRSP's {REVISIT QUERY} and {REVISIT QUERY} tables. Sector classifications are merged from the Compustat company file, utilizing global company identifiers (GVKEY) to align with CRSP records. The Fama-French factor data—covering market, size, value, profitability, investment, momentum, and risk-free rate—are incorporated from the Kenneth French Data Library, as distributed in WRDS.
+The final sample spans 2 January 1998 to 31 December 2018, a total of 5282 trading days. All source tables are at a daily frequency, so the merged dataset preserves the most granular timing available, though some features are still at the monthly level. The resulting panel comprises roughly 2,646,081 daily stock observations. Table \textbf(TABLE) summarises the cross-sectional distribution by GICS sector, while Table \textbf(TABLE) reports basic descriptive statistics for the key return, liquidity, option, and factor variables. 
 
-The final sample spans \textbf{3 January 1990-31 December 2018} (7{,}311 trading days). All source tables are at a daily frequency, so the merged dataset preserves the most granular timing available while maintaining perfect calendar alignment across equity, option, and factor series.
+
+
+     
+
+
 
 
 %TABLE MAPPING SECTOR SOURCE
@@ -245,4 +262,4 @@ PROPOSAL---------------
 The period of this research will be from 2002 until 2023, due to data availability and quality. The main datasets in this thesis will be gathered from Wharton Research Data Services (WRDS)\footnote{https://wrds-www.wharton.upenn.edu} via Python API queries with the \texttt{wrds}, which contains all of the data points relating to liquidity risk,FF5/C4F factors and excess returns. The \texttt{permno}, or stocks the stocks' permanent identifier is specifically queried from the \texttt{crsp\_a\_indexes.dsp500list\_v2}
 file. All of the other data points relating to liquidity risk, Fama-French factors and excess returns are either queried or calculated using the data points from the \texttt{crps.dsf} database. The sector classification is specifically derived from the \texttt{comp.company} file. With the same \texttt{gvkey, permno} keys, the datasets queried could be joined.
 
-The enhanced sentiment index from the \citeA{ung_2023} is available directly from the paper's journal homepage, under "Supplemental Material" \footnote{https://doi.org/10.1080/1351847X.2023.2247440.}.
+The enhanced sentiment index from the \citeA{ung_2023} is available directly from the paper's journal homepage, under "Supplemental Material" 
