@@ -90,7 +90,7 @@ The returns of this dataset value weighted and is extracted without dividends.To
 
 To filter out the stocks within the \emph{CRSP Daily Stock File}  that are not members of the SP500 index, the table is intersected with the historical \emph{S\&P 500 Constituents List} \cite{compstat}. The list provides the member entry  and member exit dates for every constituent since 1990. Merging the two datasets on PERMNO and calendar date yields a time-varying panel that includes each firm only during its actual index membership window, which eliminates survivorship bias arising from back-filling non-constituent observations. This means that companies that enters the S\&P500 is only included in their entry date onwards, while those that either went bankrupt, removed from the index or that got acquired after 2018 remains in the analysis. After intersecting with the S\&P500 membership file, the total number of companies remaining in the analysis is limited to 1063 unique firms that have belonged to the index at least once during the sample period. Each security contributes observations only for the days on which it is an official constituent, thereby mirroring the investable set faced by index-tracking portfolios (such as the publicly traded S\&P500 index) in real time.
 
-Sector classification information is sourced from the \emph{Compustat North America} header table, which reports each firm's \texttt{gsector}—a two-digit sector code consistent with the Global Industry Classification Standard (GICS) \cite{compstat}. This differs from the other datasets, which primarily identify firms using the \texttt{permno} variable. Because CRSP and Compustat utilizes different primary keys, firm-level observations are linked via a CRSP-Compustat bridge table. This particular link enable one-to-one mappings between CRSP's PERMNO and Compustat's \textsc{gvkey}.Daily macro-risk factors are sourced from Kenneth French's library,also available from WRDS, providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$), momentum ($UMD$) and the monthly treasury rate ($RF$) \cite{ff_wrds}. These series are merged to the equity panel on the trading date.
+Sector classification information is sourced from the \emph{Compustat North America} header table, which reports each firm's \texttt{gsector}—a two-digit sector code consistent with the Global Industry Classification Standard (GICS) \cite{compstat}. This differs from the other datasets, which primarily identify firms using the \texttt{permno} variable. Because CRSP and Compustat utilizes different primary keys, firm-level observations are linked via a CRSP-Compustat bridge table. This particular link enable one-to-one mappings between CRSP's PERMNO and Compustat's \textsc{gvkey}.Daily macro-risk factors are sourced from Kenneth French's library,also available from WRDS, providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$), momentum ($UMD$) and the treasury rate ($RF$) \cite{ff_wrds}. These series are merged to the equity panel on the trading date.
 
 Finally, index-level option activity is captured through \citeA{optionsmetrics}. Put and call trading volumes for each security identifier (\textsc{secid}) are aggregated to the daily level. The WRDS-supplied correspondence file maps each \textsc{secid} to its CRSP PERMNO over time. OptionMetrics coverage is less complete than CRSP coverage, particularly prior to 2000 when listed index options were thinly traded, or the data was not recorded properly. This could corrupt the dataset as both zero value and unavailable/corrupted call or put volume is registered in WRDS as 0.0. Nonetheless, a large portion of put-call pairs possess at least one non-missing put or call volume observation. For days in which one side of the market is absent, the Laplace adjustment preserves logarithmic ratios while preventing undefined values (division by zero). The function is outlined as:
 
@@ -104,7 +104,7 @@ In addition to the above, investor sentiment is measured using the index from \c
  
 
 \subsection{Variable Construction}\label{sec:var_construct}
-The feature-engineering stage transforms the raw inputs described in Sections~\ref{sec:data_sources} into a set of features.\footnote{See the accompanying Jupyter notebook in the replication repository for full transformation code.}  Unless noted otherwise, variables are computed at the \emph{daily} horizon.
+The feature-engineering stage transforms the raw inputs described in Sections~\ref{sec:data_sources} into a set of features\footnote{See the accompanying Jupyter notebook in the replication repository for full transformation code.}. Unless noted otherwise, variables are computed at the \emph{daily} horizon.
 
 \begin{description}
   \item[Turnover (\texttt{turn}):]  
@@ -221,30 +221,73 @@ Each firm is assigned to its two-digit GICS sector, and sector-level indicators 
      \end{threeparttable}               % NEW
  \end{table}
 
-The final sample spans 2 January 1998 to 31 December 2018, a total of 5282 trading days. All source tables are at a daily frequency, so the merged dataset preserves the most granular timing available, though some features are still at the monthly level. The resulting panel comprises roughly 2,646,081 daily stock observations. Table \textbf(TABLE) summarises the cross-sectional distribution by GICS sector, while Table \textbf(TABLE) reports basic descriptive statistics for the key return, liquidity, option, and factor variables. 
+The final sample spans 2 January 1998 to 31 December 2018, a total of 5282 trading days. All source tables are at a daily frequency, so the merged dataset preserves the most granular timing available, though some features are still at the monthly level. The resulting panel comprises roughly 2,646,081 daily stock observations. 
+
+\subsubsection{Descriptive Statistics}
+Figure \ref{fig:descriptive_stats} plots the average price, 21-day rolling mean and volatility, and average trading volume for the full cross-section of stocks over the entire sample horizon. From the late 1990s peak, prices retreat from roughly \$56 to about \$45 during the 2000 dot-com bubble burst, accompanied by a pronounced surge in trading volume. Volume is a key liquidity indicator, as spikes in trading activity can confirm the strength of price moves and signal shifting investor sentiment. In the 2008 financial crisis, the average price plunges from near \$50 to around \$30, while volume spikes to its highest levels on record, reflecting widespread deleveraging and fire-sales. Modest downturns in 2012 and 2016 correspond to slight price dips (to approximately \$50 and \$75, respectively) with moderate volume upticks, signalling short-lived recessions. Finally, the contraction beginning in the middle of 2018—marked by a renewed drop in price and rising volumes—warrants a more granular “zoom-in,” as it will serve as the hold-out period for our subsequent analyses.
 
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{/Users/minhquangngo/Documents/vsc/erasmus/msc_thesis/latex/plots/data/summary_stats_avgprice_avgvol.png}
+    \caption{Average price and volume in the sample period (1998-2018).}
+    \label{fig:avgprice_avgvol}
+\end{figure}
 
-     
+
+The late-2018 equity downturn was precipitated by escalating US-China trade tensions, as each new round of tariffs eroded investor confidence in global supply chains. Simultaneously, the Federal Reserve's fourth rate hike of the year and the brief inversion of the Treasury yield curve heightened recession fears among market participants. Signs of a synchronized global slowdown—particularly in Europe and emerging markets—further weighed on equity valuations as growth forecasts were revised downward. Finally, profit-taking in the technology sector, driven by concerns over maturing growth trajectories and mounting regulatory scrutiny, amplified the overall market sell-off \cite{reuters_2018}.
+
+\begin{figure}[H]
+     \centering
+     \includegraphics[width=\textwidth]{/Users/minhquangngo/Documents/vsc/erasmus/msc_thesis/latex/plots/data/summary_stats_avgprice_avgvol_2018.png}
+     \caption{Average price and volume in the sample period (2018).}
+     \label{fig:avgprice_avgvol_2018}
+ \end{figure}
+ 
+ Figure \ref{fig:his_mktrf_ret_rf} suggest that individual stock returns and broad market returns both oscillate around a constant mean of zero with roughly stable variance over time, indicating weak stationarity. Meanwhile, the risk-free rate appears as a near-point mass at zero, further confirming its stationary behavior given its negligible volatility. However, to formally verify stationarity we apply the Augmented Dickey-Fuller (ADF) test. It tests the null hypothesis that a time series contains a unit root (i.e.\ is non-stationary) against the alternative of stationarity. The resulting ADF statistic, done on a full panel OLS regression shows an ADF statistic of -30.6 with a p-value below 0.001, which decisively rejects the null, confirming that all three return series are stationary.
 
 
+\begin{figure}[H]
+     \centering
+     \includegraphics[width=\textwidth]{/Users/minhquangngo/Documents/vsc/erasmus/msc_thesis/latex/plots/data/hist_mktrf_ret_rf.png}
+     \caption{Distribution of returns, factors, liquidity, sentiment.}
+     \label{fig:his_mktrf_ret_rf}
+ \end{figure}
+
+ Variance inflation factors (VIFs) quantify the extent to which multicollinearity among regressors inflates the variance of estimated coefficients. They are defined as
+ \begin{equation}
+ \label{eq:vif}
+\mathrm{VIF}_j = \frac{1}{1 - \beta_j^2},
+\end{equation}
+
+where $\beta_j^2$ is the coefficient of determination from regressing the $j$-th predictor on all other predictors.
+
+ The VIFs in Table \ref{tab:vif} show that, while most predictors exhibit minimal collinearity (VIFs near 1), two liquidity measures stand out with markedly elevated values: turnover and dollar trading volume. Such high VIFs indicate that these variables are highly linearly related to other regressors, violating the OLS assumption that features are not multicollinear. In particular, a VIF above 10 for dollar volume suggests severe redundancy, which can inflate coefficient variances and undermine the stability of parameter estimates. By contrast, variables like SMB, HML and the Enhanced Sentiment Index maintain low VIFs (around 1), indicating they contribute largely unique information to the model. To address high multicollinearity for attribution, one could consider removing or combining one of these highly correlated liquidity proxies (e.g., via PCA or LASSO) to restore estimation precision. However, since the comparison criteria for this paper is based on the predictive power of the models, and the OLS serves as baseline, we will not explicitly address this issue.
 
 
-%TABLE MAPPING SECTOR SOURCE
-% %  gsector_map = {
-%      10: "Energy",
-%      15: "Materials",
-%      20: "Industrials",
-%      25: "Consumer Discretionary",
-%      30: "Consumer Staples",
-%      35: "Health Care",
-%      40: "Financials",
-%      45: "Information Technology",
-%      50: "Communication Services",
-%      55: "Utilities",
-%      60: "Real Estate"
-%  } FIND SOURCE ON WRDS
+ \begin{table}[H]
+    \centering
+    \caption{\textit{Variance inflation factors}}
+    \label{tab:vif}
+    % Resize to full text width so the wide table fits the page
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{l*{15}{c}}
+        \toprule
+        excess\_mkt\_ret & smb & hml & umd & cma & turn & turn\_sd & mvel1 & dolvol & daily\_illq & zero\_trade\_ratio & baspread & enhanced\_baker & vix\_close & put\_call\_ratio & news\_sent \\
+        \midrule
+        1.264 & 1.024 & 1.598 & 1.310 & 1.548 & 10.613 & 2.019e-17 & 2.497 & 13.034 & 1.875 & 1.042 & 2.647 & 1.114 & 2.428 & 1.021 & 1.994 \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
 
+Figure~\ref{fig:sector_price} shows that most sectors move in tandem at modest levels until roughly 2005, after which dispersion (and thus opportunities for investors) begins to emerge. Notably, the Real Estate sector (60) surges from a roughly \$50 baseline to nearly \$900 by 2018-19, far outstripping its peers. The sector's rapid ascent (after the 2008 financial crisis) mark it as a high-beta, high-reward investment \textbf(WHY?). The Communication Service sector demonstrates significant volatility, with pronounced drawdowns around the end of 2009 and a massive plunge in mid-2014 (WHY). These sharp reversals highlight the sector's sensitivity to both macroeconomic shocks and industry-specific disruptions, yet its underlying growth drivers support a rapid recovery. Even after the 2008 crisis, this sector saw an immediate rebound. By the late 2010s, Communication Services had rebounded steadily to rank among the priciest investment sectors, showing that this sector has a strong appeal despite intermittent bouts of extreme risk. Information Technology staged a dramatic recovery after the 2008-09 financial crisis, surging from its troughs into sustained rapid growth. However, this ascent was interrupted by a sharp correction in early 2013 and an even more pronounced plunge in 2015. Although the sector began closing the gap on its pre-plunge highs by 2018, the pace of recovery implies that, if current trends persist, it may take several more years before Information Technology fully retraces its earlier losses.
+
+
+\begin{figure}[H]
+     \centering
+     \includegraphics[width=\textwidth]{plots/data/sector_price.png}
+     \caption{Sector price (1998--2018)}\label{fig:sector_price}
+ \end{figure}
 
 
 % 4.6 Descriptive Statistics and Preliminary Visualizations
@@ -258,8 +301,4 @@ The final sample spans 2 January 1998 to 31 December 2018, a total of 5282 tradi
 %   Figure 4.3: Correlation matrix heatmap
 
 
-PROPOSAL---------------
-The period of this research will be from 2002 until 2023, due to data availability and quality. The main datasets in this thesis will be gathered from Wharton Research Data Services (WRDS)\footnote{https://wrds-www.wharton.upenn.edu} via Python API queries with the \texttt{wrds}, which contains all of the data points relating to liquidity risk,FF5/C4F factors and excess returns. The \texttt{permno}, or stocks the stocks' permanent identifier is specifically queried from the \texttt{crsp\_a\_indexes.dsp500list\_v2}
-file. All of the other data points relating to liquidity risk, Fama-French factors and excess returns are either queried or calculated using the data points from the \texttt{crps.dsf} database. The sector classification is specifically derived from the \texttt{comp.company} file. With the same \texttt{gvkey, permno} keys, the datasets queried could be joined.
 
-The enhanced sentiment index from the \citeA{ung_2023} is available directly from the paper's journal homepage, under "Supplemental Material" 
