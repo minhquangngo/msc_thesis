@@ -10,10 +10,11 @@ py/.env
 .pgpass
 todo.md
 py/test.ipynb
-data/
+/data/
 py/__pycache__
 .DS_Store
 mlruns/
 mlartifacts/
 py/mlruns/
 py/*.png
+
