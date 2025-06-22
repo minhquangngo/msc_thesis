@@ -100,7 +100,7 @@ The empirical analysis will begin by establishing a baseline for each asset pric
 where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:ff5_expanded} the enhanced FF5 enhanced baseline (FF5-BE). 
 
 
-\subsection{Random Forest}
+\subsection{Random Forest for Regression}
 
 %%%%%%%%OUTLINE%%%%%%%%%%
 %Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
@@ -110,7 +110,7 @@ where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:
 The C4F-B, C4F-BE, FF5-B and FF5-BE, since based on OLS, are linear in nature. These models are favored by finance practitioners because they produce interpretable results. The main results that the practitioners look for is the sensitivities of the factor within the models, or the beta coefficients within the OLS. However, the method is constraint to several assumptions. The features and the target variables of this method are assummed to be linear and the features themselves are not multicollinear. Furthermore, homoskedactiy is assumed, where the residuals have constant variance at every level of the features. The residuals should also be independent.
 
 %maybe motivate more why tree based methods.
-ML models offer a more robust framework, especially decision tree based models such as Random Forest (RF). With regression based problems like asset pricing, decision trees start from a root node and splits into brances. Each branch contains a condition to be fullfilled (for example $turn > 10$ or $turn < 10$). A tree can have numerous amounts of these brances, leading to a complex model that can take into account non-linearity and interactions. The leaf of the decision tree, or the final prediction, is a real number that is predicted given all of the previous conditions in the branches are true \cite{cutler_2012}. This method ressembles multiple nested if-then statements, where each if-then statement is a branch of the tree. An example of a decision tree can be observed in Figure \cref{fig:decision_tree_viz}.
+ML models offer a more robust framework, especially decision tree based models such as Random Forest (RF). With regression based problems like asset pricing, decision trees start from a root node and splits into branches. Each branch contains a condition to be full-filled (for example $turn > 10$ or $turn < 10$). A tree can have numerous amounts of these branches, leading to a complex model that can take into account non-linearity and interactions. The leaf of the decision tree, or the final prediction where the tree does not splits further, is a real number that is predicted given all of the previous conditions in the branches are true \cite{cutler_2012}. This method ressembles multiple nested if-then statements, where each if-then statement is a branch of the tree. An example of a decision tree (pruned at depth 3) can be observed in Figure \cref{fig:decision_tree_viz}.
 
 \begin{figure}[H]
     \centering
@@ -126,7 +126,8 @@ At its core, a regression tree tries to approximate an unknown regression functi
     =
     \mathbb{E}[Y \mid \mathbf{X}=\mathbf{x}]
 \end{equation}
-by partitioning the $p$-dimensional predictor space into a set of disjoint rectangles (terminal nodes) and assigning a constant prediction (usually the sample mean of $Y$) to every rectangle.  The Classification-And-Regression-Tree (CART) algorithm (outlined in Algorithm \ref{alg:binary_recursive_partitioning}) achieves this with a binary recursive partition procedure that is entirely data-driven. Features are essentially evaluated based on how well they minimize the cost function, and the value that does it best is chosen as the split value. The Recursive Partitioning takes place at each layer of the tree and the value that is observed at each leaf is the mean of all observations in that node. % ASK GPT TO SEE IF THERE IS ANYTHIG WONG
+
+by partitioning the $p$-dimensional predictor space  by selecting, at each node, the feature and split point that maximally reduce the squared-error loss. The Classification-And-Regression-Tree (CART) algorithm (outlined in Algorithm \ref{alg:binary_recursive_partitioning}) achieves this with a binary recursive partition procedure that is entirely data-driven. The algorith continues until a stopping criterion is met (for example the leaf size, tree depth,etc.) and each leaf is assigned the mean of all of the observations in that node.
 
 \begin{algorithm}[H]
     \caption{Binary Recursive Partitioning}
@@ -141,21 +142,224 @@ by partitioning the $p$-dimensional predictor space into a set of disjoint recta
         \Indp
         \Begin{
             Find the best binary split among all binary splits on all $p$ predictors.\;
-            Split the node into two descendant nodes using the best split (step 2a).\;
+            Split the node into two descendant nodes using the best split.\;
         }
         \Indm
         
         For prediction at $x$, pass $x$ down the tree until it lands in a terminal node. Let $k$ denote the terminal node, and let $y_{k_1}, \ldots, y_{k_n}$ denote the response values of the training data in node $k$. Predicted values of the response variable for regression are given by $\hat{h}(x) = \bar{y}_k = \frac{1}{n} \sum_{i=1}^n y_{k_i}$\;
-        Source: \cite{cutler_2012}
     }
+    Source: \cite{cutler_2012}
     \end{algorithm}
 
-(THEN RF IS A COLLECTION OF DECISION  TREES...)
+Random Forests construct a predictive model by aggregating (“bagging”) a large number of decision trees, each of which is grown on a different bootstrap sample of the original data. Bootstrapping means that for each tree, a sample of $N$ observations is drawn with replacement from the training set. This “bootstrap” procedure ensures that each tree sees a slightly different dataset, thereby reducing overall model variance without substantially increasing bias. Moreover, at each split within a tree only a random subset of the available predictors is considered, which further decorrelates the trees and enhances ensemble diversity. Once all trees are grown (usually without pruning), the predictions each tree yields are averaged to yield the final prediction \cite{cutler_2012}. The exact process is outlined in Algorithm \ref{alg:random_forests}. 
 
+\begin{algorithm}[H]
+    \caption{Random Forests}
+    \label{alg:random_forests}
+    
+    Let $\mathcal{D} = \{(x_1, y_1), \ldots, (x_N, y_N)\}$ denote the training data, with $x_i = (x_{i,1}, \ldots, x_{i,p})^T$. For $j = 1$ to $J$:
+    
+    \Begin{
+        Take a bootstrap sample $\mathcal{D}_j$ of size $N$ from $\mathcal{D}$.\;
+        
+        Using the bootstrap sample $\mathcal{D}_j$ as the training data, fit a tree using binary recursive partitioning (Sect. 2.1):\;
+        \Indp
+        \Begin{
+            Start with all observations in a single node.\;
+            Repeat the following steps recursively for each unsplit node until the stopping criterion is met:\;
+            \Indp
+            \Begin{
+                Select $m$ predictors at random from the $p$ available predictors.\;
+                Find the best binary split among all binary splits on the $m$ predictors from step i.\;
+                Split the node into two descendant nodes using the split from step ii.\;
+            }
+            \Indm
+        }
+        \Indm
+    }
+    
+    To make a prediction at a new point $x$,
+    \Begin{
+        $\widehat{f}(x) = \frac{1}{J} \sum_{j=1}^J \widehat{h}_j(x)$ for regression\;
+        $\widehat{f}(x) = \arg\max_y \sum_{j=1}^J I(\widehat{h}_j(x) = y)$ for classification\;
+    }
+    
+    where $\widehat{h}_j(x)$ is the prediction of the response variable at $x$ using the $j$th tree (Algorithm \ref{alg:random_forests}).
+
+    Source: \cite{cutler_2012}
+\end{algorithm}
+
+Since the data used in this paper is a time series across 20 years (more about data in \ref{sec:data}), we must evaluate model performance in a time dependent context. Hence, we cannot use a simple train-test split. Instead, an extending window approach is used. Concretely, at iteration $t$ the model is trained on observations from time 1 up to $t$, then tested on the hold-out at $t+1$, after which the observation at $t+1$ is appended to the training window for the next evaluation. A visualization of this approach is shown in \ref{fig:extend_win}. Unlike a rolling window split, where the training set maintains a constant size by dropping the oldest observation as the window slides forward, the extending window approach uses the full historical dataset at each step. With this approach, by the time the model is trained on the full dataset, it has seen all the patterns in the data available up to that point. The data that the model is trained on should be stationary (Section \ref{sec:data} shows that excess returns are stationary), otherwise the model will overfit to the noise in the data.
+
+The dataset is divided into 80 sequential train-test folds, with the training window growing by one quarter at each iteration. This quarterly partitioning aligns with the benchmark portfolios of \citeA{ff5_2015}, which are also rebalanced on a quarterly basis. Although realistically using fewer folds would yield very similar predictive performance, we retain all 80 to enhance the precision of our attribution analysis.
+
+Each test block comprises 21 consecutive trading days (one trading month), with a fixed gap of five trading days between the end of the training window and the start of the evaluation window to avoid look-ahead bias. It balances short-term predictability with realistic transaction-cost assumptions and is widely adopted in recent ML studies of return forecasting \cite{htun_2024}. Introducing a one-week (5-business-day) gap between the folds removes any overlaps between features or labels that span multiple days and the first observations in the test block, eliminating look-ahead bias. This process is called an "Embargo" and is popular in applied quantitative finance Cross Validation workflows \cite{embargo_2020}. %2nd DRAFT: MORE MOTIAVTION WHY?
+
+
+\begin{figure}[H]
+    \centering
+    \caption{Extending Window Time Series Cross-Validation}
+    \label{fig:extend_win}
+    \begin{tikzpicture}[scale=0.8]
+        % Define parameters
+        \def\totalwidth{12}
+        \def\blockheight{0.8}
+        \def\spacing{1.2}
+        \def\testsize{2}
+        
+        % Time axis
+        \draw[thick, ->] (0, -0.5) -- (\totalwidth + 0.5, -0.5);
+        \node[below] at (\totalwidth/2, -1.2) {Time};
+        
+        % Time labels
+        \foreach \i in {0,2,4,6,8,10,12} {
+            \draw (\i, -0.4) -- (\i, -0.6);
+            \node[below, font=\small] at (\i, -0.6) {t\textsubscript{\i}};
+        }
+        
+        % Split 1
+        \node[left] at (-0.5, 4*\spacing) {Split 1:};
+        % Training data
+        \fill[traincolor] (0, 4*\spacing - \blockheight/2) rectangle (4, 4*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (2, 4*\spacing) {Training};
+        % Test data
+        \fill[testcolor] (4, 4*\spacing - \blockheight/2) rectangle (6, 4*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (5, 4*\spacing) {Test};
+        % Future data
+        \fill[futurecolor] (6, 4*\spacing - \blockheight/2) rectangle (\totalwidth, 4*\spacing + \blockheight/2);
+        \node[black, font=\small] at (9, 4*\spacing) {Future (unused)};
+        
+        % Split 2
+        \node[left] at (-0.5, 3*\spacing) {Split 2:};
+        % Training data (extended)
+        \fill[traincolor] (0, 3*\spacing - \blockheight/2) rectangle (6, 3*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (3, 3*\spacing) {Training (Extended)};
+        % Test data
+        \fill[testcolor] (6, 3*\spacing - \blockheight/2) rectangle (8, 3*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (7, 3*\spacing) {Test};
+        % Future data
+        \fill[futurecolor] (8, 3*\spacing - \blockheight/2) rectangle (\totalwidth, 3*\spacing + \blockheight/2);
+        \node[black, font=\small] at (10, 3*\spacing) {Future (unused)};
+        
+        % Split 3
+        \node[left] at (-0.5, 2*\spacing) {Split 3:};
+        % Training data (further extended)
+        \fill[traincolor] (0, 2*\spacing - \blockheight/2) rectangle (8, 2*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (4, 2*\spacing) {Training (Further Extended)};
+        % Test data
+        \fill[testcolor] (8, 2*\spacing - \blockheight/2) rectangle (10, 2*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (9, 2*\spacing) {Test};
+        % Future data
+        \fill[futurecolor] (10, 2*\spacing - \blockheight/2) rectangle (\totalwidth, 2*\spacing + \blockheight/2);
+        \node[black, font=\small] at (11, 2*\spacing) {Future};
+        
+        % Split 4
+        \node[left] at (-0.5, 1*\spacing) {Split 4:};
+        % Training data (maximum extension)
+        \fill[traincolor] (0, 1*\spacing - \blockheight/2) rectangle (10, 1*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (5, 1*\spacing) {Training (Maximum Extension)};
+        % Test data
+        \fill[testcolor] (10, 1*\spacing - \blockheight/2) rectangle (\totalwidth, 1*\spacing + \blockheight/2);
+        \node[white, font=\small\bfseries] at (11, 1*\spacing) {Test};
+        
+    \end{tikzpicture}
+    \caption{Extending Window Time Series Cross-Validation: Training window grows while test window size remains constant}
+    \end{figure}
+
+Model performance further depends on the choice of several tuning parameters.  Key hyperparameters are the number of trees $J$, the number of features to consider at each split $m$, the minimum leaf size, and the maximum tree depth $d$, among others.  However, because both bootstrapping and feature sub-sampling introduce stochasticity, selecting an appropriate combination of these parameters is essential to achieve optimal bias-variance tradeoffs and overall predictive accuracy. Therefore, this paper utilizes Random Search, randomly sampling a set of hyperparameters (with a defined number of iterations) to find the optimal hyperparameters. 
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[scale=1.0]
+        % Random Search Process
+        \node[font=\Large\bfseries] at (6, 10) {Random Search with Time Series CV};
+        
+        % Parameter Space
+        \draw[thick] (0, 8) rectangle (4, 9.5);
+        \node[above] at (2, 9.5) {Parameter Space};
+        \node at (2, 8.75) {$\theta = \{lr, n\_est, depth, ...\}$};
+        
+        % Arrow to sampling
+        \draw[thick, ->] (4.2, 8.75) -- (5.8, 8.75);
+        \node[above] at (5, 8.75) {Sample};
+        
+        % Random sampling
+        \draw[thick] (6, 8) rectangle (10, 9.5);
+        \node[above] at (8, 9.5) {Random Parameter Sets};
+        \foreach \i in {1,2,3} {
+            \node[circle, fill=paramcolor, inner sep=2pt] at (6.5 + \i*0.8, 8.75) {};
+            \node[font=\small] at (6.5 + \i*0.8, 8.3) {$\theta_\i$};
+        }
+        \node at (9.5, 8.75) {$\ldots$};
+        
+        % Arrow down to CV
+        \draw[thick, ->] (8, 7.8) -- (8, 7.2);
+        \node[right] at (8.2, 7.5) {For each $\theta_i$};
+        
+        % Cross-validation box
+        \draw[thick, dashed] (0.5, 1) rectangle (11.5, 6.8);
+        \node[above left] at (11.5, 6.8) {Time Series Cross-Validation};
+        
+        % Mini time series splits for each parameter set
+        \def\miniwidth{2.5}
+        \def\miniheight{0.2}
+        \def\minispacing{0.4}
+        
+        % Parameter set 1
+        \node[color=paramcolor, font=\small\bfseries] at (2.5, 6.2) {$\theta_1$};
+        \foreach \split in {1,2,3,4} {
+            \pgfmathsetmacro{\ypos}{5.8 - \split*\minispacing}
+            \pgfmathsetmacro{\trainend}{0.6 + \split*0.25}
+            % Training
+            \fill[traincolor] (1.2, \ypos - \miniheight/2) rectangle (1.2 + \trainend, \ypos + \miniheight/2);
+            % Test
+            \fill[testcolor] (1.2 + \trainend, \ypos - \miniheight/2) rectangle (1.2 + \trainend + 0.4, \ypos + \miniheight/2);
+            % Score
+            \node[font=\tiny] at (3.5, \ypos) {$s_{\split,1}$};
+        }
+        \node[font=\small] at (2.5, 3.8) {$CV_1 = \frac{1}{4}\sum s_{i,1}$};
+        
+        % Parameter set 2
+        \node[color=paramcolor, font=\small\bfseries] at (6, 6.2) {$\theta_2$};
+        \foreach \split in {1,2,3,4} {
+            \pgfmathsetmacro{\ypos}{5.8 - \split*\minispacing}
+            \pgfmathsetmacro{\trainend}{0.6 + \split*0.25}
+            % Training
+            \fill[traincolor] (4.7, \ypos - \miniheight/2) rectangle (4.7 + \trainend, \ypos + \miniheight/2);
+            % Test
+            \fill[testcolor] (4.7 + \trainend, \ypos - \miniheight/2) rectangle (4.7 + \trainend + 0.4, \ypos + \miniheight/2);
+            % Score
+            \node[font=\tiny] at (7, \ypos) {$s_{\split,2}$};
+        }
+        \node[font=\small] at (6, 3.8) {$CV_2 = \frac{1}{4}\sum s_{i,2}$};
+        
+        % Parameter set 3
+        \node[color=paramcolor, font=\small\bfseries] at (9.5, 6.2) {$\theta_3$};
+        \foreach \split in {1,2,3,4} {
+            \pgfmathsetmacro{\ypos}{5.8 - \split*\minispacing}
+            \pgfmathsetmacro{\trainend}{0.6 + \split*0.25}
+            % Training
+            \fill[traincolor] (8.2, \ypos - \miniheight/2) rectangle (8.2 + \trainend, \ypos + \miniheight/2);
+            % Test
+            \fill[testcolor] (8.2 + \trainend, \ypos - \miniheight/2) rectangle (8.2 + \trainend + 0.4, \ypos + \miniheight/2);
+            % Score
+            \node[font=\tiny] at (10.5, \ypos) {$s_{\split,3}$};
+        }
+        \node[font=\small] at (9.5, 3.8) {$CV_3 = \frac{1}{4}\sum s_{i,3}$};
+        
+        % Best parameter selection
+        \draw[thick, ->] (6, 3.2) -- (6, 2.5);
+        \draw[thick, bestcolor] (3.5, 1.5) rectangle (8.5, 2.2);
+        \node[color=bestcolor, font=\bfseries] at (6, 1.85) {Best: $\theta^* = \arg\max_i CV_i$};
+        
+    \end{tikzpicture}
+    \caption{Random Search Process with Time Series Cross-Validation}
+    \end{figure}
+    
 
 Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively C4F-RF, C4F-RFE, FF5-RF, FF5-RFE. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
 
-A downside of RF (and most other ML models) is their "black-box" nature, where their inner workings are unintuitive, which makes it unattractive to many investment professionals. RF captures non-geometric relationships between factors, therefore it is not analogous to the interpretation of common methods in the financial field (OLS, PCA). However, there are still multiple ways that can give investors insights into the RF black-box. The most common method utilized is the Relative Feature Importance (RFI hereafter), which weighs all of the factors within the RF according to their predictive robustness. \citeA{simonian_2019} attemted to generate what is similar to "betas" in traditional asset pricing models from RFI. An accepted understanding of "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed:
+A downside of RF (and most other ML models) is their “black-box” nature, capturing complex, non-linear relationships between predictors that resist the intuitive loading interpretation of common financial methods such as OLS or PCA. In traditional asset-pricing frameworks, each factor's loading or exposure is represented by its $\beta$, measuring the elasticity of a security's returns with respect to that factor, while the model's intercept $\alpha$ is the number that indicates the percentage difference between the chosen index and the stock's actual performance. Practitioners routinely estimate betas to gauge exposures to market, size, and value factors, and interpret alphas as indicators of manager skill or persistent mispricing. With RF, Relative Feature Importance (RFI) is often employed to rank predictors by their contribution to out-of-sample predictive performance. RFI weighs all of the factors within the RF according to their predictive robustness. \citeA{simonian_2019} used RFI to construct “pseudo-betas”, or RFI-weighted elasticities analogous to traditional factor loadings. An accepted understanding of "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed as follows:
 %EXPLAIN MORE WHAT BETA ALPHA IS
 \begin{equation}
     \label{eq:psuedo}
@@ -163,10 +367,6 @@ A downside of RF (and most other ML models) is their "black-box" nature, where t
 \end{equation}
 
 By utilizing this method, the interpretation of the RF models could be communicated with investment professionals who are more familiar with OLS betas or PCA loadings.
-
-
-    
-    
 
 \subsection{Rule-based models}
 There are statistical methods that only sacrifice a small amount of accuracy, but its inner workings are translated into "if-then" statements that could be communicated to investment managers. Rule-based models turns the “black box” RF into a transparent collection of "if-then" statements \cite{benard_2021}. Each rule summarizes a path of decisions about factor values. In this particular context, a rule could be “If $\texttt{ILLQ}$ exceeds a certain threshold and \texttt{HML} remains below a specific level, then $\texttt{Expected Excess Return} = x$.”. Such structures mirror how a practitioner might articulate investment strategies.
