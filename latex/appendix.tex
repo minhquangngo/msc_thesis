@@ -1,3 +1,87 @@
+\subsection{Feature Engineering} \label{sec:feature_engineering}
+\begin{description}
+    \item[Turnover (\texttt{turn}):]  
+      Calculated as the ratio of trading volume to shares outstanding.
+      \begin{equation}
+      \label{eq:turn}
+      \begin{split}
+      \text{turn}_{i,d} = \frac{\text{vol}_{i,d}}{\text{shrout}_{i,d}}
+      \end{split}
+      \end{equation}
+  
+    \item[Turnover Volatility (\texttt{turn\_sd}):]  
+      The cross-sectional standard deviation of the turnover variable over a rolling window (e.g.\ one month).
+      \begin{equation}
+      \label{eq:turn_sd}
+      \begin{split}
+      \text{turn\_sd}_{i,d} = \mathrm{std}\bigl(\text{turn}_{i,d'}\bigr)_{d' \in \mathcal{W}_d}
+      \end{split}
+      \end{equation}
+  
+    \item[Market Capitalization (\texttt{mktcap}):]  
+      The product of price and shares outstanding.
+      \begin{equation}
+      \label{eq:mktcap}
+      \begin{split}
+      \text{mktcap}_{i,d} = \text{prc}_{i,d}\times \text{shrout}_{i,d}
+      \end{split}
+      \end{equation}
+  
+    \item[Log Market Equity (\texttt{mvel1}):]  
+      The natural logarithm of the absolute value of market capitalization.
+      \begin{equation}
+      \label{eq:mvel1}
+      \begin{split}
+      \text{mvel1}_{i,d} = \ln\bigl|\text{mktcap}_{i,d}\bigr|
+      \end{split}
+      \end{equation}
+  
+    \item[Zero Trade Ratio (\texttt{zero\_trade\_ratio}):]  
+      The proportion of days in a calendar month where trading volume is zero.
+      \begin{equation}
+      \label{eq:zero_trade_ratio}
+      \text{zero\_trade\_ratio}_{i,m}
+      = \frac{\sum_{d\in m}\mathbbm{1}\{\text{vol}_{i,d}=0\}}{D_m}
+      \end{equation}
+  
+    \item[Dollar Volume (\texttt{dolvol}):]  
+      The product of trading volume and the absolute value of price, excluding zero-volume days.
+      \begin{equation}
+      \label{eq:dolvol}
+      \text{dolvol}_{i,d} = \text{vol}_{i,d}\times \bigl|\text{prc}_{i,d}\bigr|
+      \end{equation}
+  
+    \item[Amihud Illiquidity (\texttt{daily\_illq}):]  
+      The ratio of absolute return to dollar volume, following \cite{Amihud2002}.
+      \begin{equation}
+      \label{eq:daily_illq}
+      \text{daily\_illq}_{i,d}
+      = \frac{\bigl|\text{ret}_{i,d}\bigr|}{\text{dolvol}_{i,d}}
+      \end{equation}
+  
+    \item[Bid-Ask Spread (\texttt{baspread}):]  
+      The difference between the highest ask and lowest bid quotes.
+      \begin{equation}
+      \label{eq:baspread}
+      \text{baspread}_{i,d} = \text{askhi}_{i,d} - \text{bidlo}_{i,d}
+      \end{equation}
+  
+      
+  \end{description}
+  
+  After computing stock-level features, individual stocks are aggregated to the sector level using value-weighted averages. For each sector \(s\) on date \(t\), each stock \(i\) in sector \(s\) receives a weight 
+  
+  \begin{equation}
+  \label{eq:sect_aggr}
+  w_{i,t} = \frac{\mathrm{mktcap}_{i,t}}{\sum_{j\in s}\mathrm{mktcap}_{j,t}},
+  \end{equation}
+  and the sector-level value of any feature \(x\) is  
+  \begin{equation}
+  \label{eq:sector_level}
+  x_{s,t} = \sum_{i\in s} w_{i,t}\,x_{i,t}.
+  \end{equation}
+
+\subsection{Descriptive Statistics per Sector}
 \begin{table}[ht]
     \centering
 

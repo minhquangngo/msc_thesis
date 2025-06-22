@@ -1,8 +1,8 @@
 This chapter outlines the methodological approach adopted to measure liquidity risk and investors' sentiment, along with their rationale. These factors are integrated into an enhanced asset pricing framework based on the FF5 and C4F. Subsequently, the implementation of the Random Forest (RF) algorithm is detailed. Next, the rule-based model will be extracted from the RF for comparison and application to the Association Rule Learning Sector Rotation Strategy.
 
 
-
-\subsection{Liquidity Risk factor}
+\subsection{Factor enhancements}
+\subsubsection{Liquidity Risk factors}
 The construction of liquidity factors closely aligns with the methodology outlined by \citeA{gu_2020}. The authors include a comprehensive suite of seven stock-level liquidity proxies: turnover and turnover volatility (\texttt{turn}, \texttt{SDturn}), log market equity (\texttt{mvel1}), dollar volume (\texttt{dolvol}), Amihud illiquidity (\texttt{ILLQ}), number of zero trading days (\texttt{zerotrade}), and bid-ask spread (\texttt{baspread})—to capture the multifaceted nature of trading costs and depth. Turnover measures trading frequency (\[\frac{Number of shares traded}{Number of outstanding shares}\]), while its standard deviation (\texttt{SDturn}) captures episodic illiquidity shocks (stocks with infrequent or highly variable trading demand higher expected returns as compensation). Log market equity (\texttt{mvel1}) and dollar volume (\texttt{dolvol}) proxy for firm size and the how active the market is, respectively, since smaller firms and low-\texttt{dolvol} issues exhibit thinner order-book depth (not a lot of people are buying and selling). Bid-ask spread (\texttt{baspread}) directly reflects immediacy costs, and a wider spread signals greater liquidity risk. The count of zero-trading days (\texttt{zerotrade}) quantifies outright market “gaps” where trading is impossible (your equity literally cannot be liquidated), each gap intensifying illiquidity premia. Finally, Amihud's \texttt{ILLQ}—defined as
 \begin{equation}
 \label{eq:amihud}
@@ -12,7 +12,7 @@ where $R_{i,d}$ is the daily return and $VOL_{i,d}$ the dollar trading volume fo
 
 
 
-\subsection{Sentiment}
+\subsubsection{Sentiment factors}
 %% OUTLINE: wurgler -> antoniu -> XU enhanced
 \citeA{wurgler_2006} constructed a sentiment index (BW index hereafter) by capturing the principal components within six proxies: closed-end fund discount (\texttt{CEFD}), NYSE share turnover (\texttt{turn}), the number and average first-day returns of IPOs (\texttt{NIPO, RIPO} respectively), equity share in new issues (\texttt{S}) and dividend premium (\texttt{P}). \footnote{However, by March 2016, the NYSE share turnover proxy has been dropped in the database due to "the explosion of institutional high-frequency trading and the migration of trading to a variety of venues" \cite{ung_2023}}%can definitely add more after the proposal here, from the paper
 
@@ -40,12 +40,32 @@ However, \citeA{ung_2023} pointed out several problems with the BW index. First,
 
 In addition to the Enhanced BW index, the Daily News Sentiment Index from the Federal Reserve Bank of San Francisco provides a high-frequency gauge of U.S. economic sentiment, capturing short-run fluctuations in public perceptions as reported by major national newspapers. Specifically, the index aggregates sentiment scores derived from economics-related articles in 24 leading U.S. newspapers, including those with nationwide reach such as the \emph{New York Times} and the \emph{Washington Post}. Articles included in the measure must contain at least 200 words and be classified by Factiva (a news aggregator) as pertaining to "economics" and the "United States". To generate the sentiment score, \citeA{shapiro_2020} combine general-purpose sentiment dictionaries with a custom, news-specific lexicon to more accurately reflect the tone and context of economic reporting. Sentiment is scored at the article level and then aggregated using a trailing weighted average, in which more recent articles receive higher weights, with geometric decay over time. This method makes sure that any adjustments for potential shifts in the composition of the newspapers within the index is accounted for.
 
-Complementing the two official sentiment indexes, this paper also utilizes a proxy for sentimet, the Volatility Index (VIX hereafter). The VIX, commonly reffered to in the finance sector as the 'fear index' computes a 30 day forward-looking estimate of market volatility by aggregating the prices of out-of-the-money S\&P 500 index options, weighted across a broad range of strike prices and interpolated to produce a constant maturity of 30 days. It uses both put and call options with expirations between 23 and 37 days, along with current U.S. Treasury rates, to accurately reflect current market expectations. The formula essentially replicates a theoretical variance swap—summing the contributions from each eligible option—then takes the square root and annualizes the result (WHAT IS THE FORMULA). 
+Complementing the two official sentiment indexes, this paper also utilizes a proxy for sentimet, the Volatility Index (VIX hereafter). The VIX, commonly reffered to in the finance sector as the 'fear index' computes a 30 day forward-looking estimate of market volatility by aggregating the prices of out-of-the-money S\&P 500 index options, weighted across a broad range of strike prices and interpolated to produce a constant maturity of 30 days. It uses both put and call options with expirations between 23 and 37 days, along with current U.S. Treasury rates, to accurately reflect current market expectations. The formula essentially replicates a theoretical variance swap—summing the contributions from each eligible option—then takes the square root and annualizes the result 
+%-0------------------------------TODO: VIX FORMULA-----------------------
 
-(EXPLAIN WHAT BETA AND ALPHA IS)
+ 
+\subsection{Model training and its enhancements}
 
+Each model specification is estimated across four variations—C4F only, FF5 only, C4F + liquidity + sentiment, and FF5 + liquidity + sentiment—and applied to each of the 11 sectors over the 1998–2017 in-sample period, with 2018 reserved for out-of-sample evaluation.  Model performance is assessed using three standard metrics.  First, the coefficient of determination (R-squared) is defined as  
+\begin{equation}
+\label{eq:rsquared}
+R^2 \;=\; 1 \;-\; \frac{\sum_{t=1}^{T}\bigl(y_{t}-\hat y_{t}\bigr)^2}{\sum_{t=1}^{T}\bigl(y_{t}-\bar y\bigr)^2},
+\end{equation}  
+where \(y_t\) denotes the observed return, \(\hat y_t\) the model prediction, \(\bar y = T^{-1}\sum_{t=1}^T y_t\), and \(T\) is the number of observations in the sample.  To adjust for differing numbers of predictors \(p\), we compute the adjusted \(R^2\):  
+\begin{equation}
+\label{eq:adjrsquared}
+\mathrm{Adj}\,R^2 \;=\; 1 \;-\; \bigl(1 - R^2\bigr)\,\frac{T - 1}{T - p - 1}.
+\end{equation}  
 
-\subsection{Factor models}
+Finally, predictive accuracy is summarized by the root-mean-square error:  
+\begin{equation}
+\label{eq:rmse}
+\mathrm{RMSE} \;=\; \sqrt{\frac{1}{T}\sum_{t=1}^{T}\bigl(y_{t}-\hat y_{t}\bigr)^2}.
+\end{equation}  
+
+Each of these metrics is computed separately for the in-sample period (1998-2017) and the out-of-sample year of 2018 to gauge both explanatory power and true predictive performance. Unlike \citeA{simonian_2019}, the data in this paper is daily, therefore the implementation of the paper's method is on a daily basis instead of monthly. All of the model variations in this section are used to forecast the one day ahead return of each individual sector in 2018. 
+
+\subsubsection{Traditional OLS Factor regression models}
 %%%%%%ACTUAL%%%%%%
 This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF5 of \citeA{ff5_2015}. The following are their respective formulas:
 
@@ -100,7 +120,8 @@ The empirical analysis will begin by establishing a baseline for each asset pric
 where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:ff5_expanded} the enhanced FF5 enhanced baseline (FF5-BE). 
 
 
-\subsection{Random Forest for Regression}
+
+\subsubsection{Random Forest for Regression}
 
 %%%%%%%%OUTLINE%%%%%%%%%%
 %Factor models are generally linear. Which kinds of regression are they usally used with (fama macbeth)? 
@@ -152,6 +173,13 @@ by partitioning the $p$-dimensional predictor space  by selecting, at each node,
     \end{algorithm}
 
 Random Forests construct a predictive model by aggregating (“bagging”) a large number of decision trees, each of which is grown on a different bootstrap sample of the original data. Bootstrapping means that for each tree, a sample of $N$ observations is drawn with replacement from the training set. This “bootstrap” procedure ensures that each tree sees a slightly different dataset, thereby reducing overall model variance without substantially increasing bias. Moreover, at each split within a tree only a random subset of the available predictors is considered, which further decorrelates the trees and enhances ensemble diversity. Once all trees are grown (usually without pruning), the predictions each tree yields are averaged to yield the final prediction \cite{cutler_2012}. The exact process is outlined in Algorithm \ref{alg:random_forests}. 
+
+A feature of the bootstrap procedure in Random Forests is by sampling with replacement, each tree's training sample could randomly excludes some original observations. These omitted observations are referred to as "out-of-bag" (OOB) samples. For each observation \(i\), one can obtain an OOB prediction \(\hat f_{\mathrm{OOB}}(x_i)\) by averaging the outputs of all trees for which \(i\) was not included in the bootstrap sample. This OOB estimate provides an internal, unbiased measure of predictive performance without the need for a separate validation set. In regression settings, the OOB mean-squared error can be mathematically defined as:
+\begin{equation}
+\mathrm{MSE}_{\mathrm{OOB}} \;=\; \frac{1}{N}\sum_{i=1}^N\bigl(y_i - \hat f_{\mathrm{OOB}}(x_i)\bigr)^2,
+\end{equation}
+This metric serves as an efficient proxy for out-of-sample error and can guide hyperparameter tuning (e.g.\ number of trees \(J\), variables per split \(m\), minimum leaf size). Moreover, because each observation is OOB for a different subset of trees, the distribution of OOB residuals is also used to compute variable importance \cite{breiman2001,cutler_2012}. 
+
 
 \begin{algorithm}[H]
     \caption{Random Forests}
@@ -268,11 +296,10 @@ Each test block comprises 21 consecutive trading days (one trading month), with 
 
 Model performance further depends on the choice of several tuning parameters.  Key hyperparameters are the number of trees $J$, the number of features to consider at each split $m$, the minimum leaf size, and the maximum tree depth $d$, among others.  However, because both bootstrapping and feature sub-sampling introduce stochasticity, selecting an appropriate combination of these parameters is essential to achieve optimal bias-variance tradeoffs and overall predictive accuracy. Therefore, this paper utilizes Random Search, randomly sampling a set of hyperparameters (with a defined number of iterations) to find the optimal hyperparameters. 
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \begin{tikzpicture}[scale=1.0]
         % Random Search Process
-        \node[font=\Large\bfseries] at (6, 10) {Random Search with Time Series CV};
         
         % Parameter Space
         \draw[thick] (0, 8) rectangle (4, 9.5);
@@ -355,42 +382,210 @@ Model performance further depends on the choice of several tuning parameters.  K
     \end{tikzpicture}
     \caption{Random Search Process with Time Series Cross-Validation}
     \end{figure}
+
     
 
 Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively C4F-RF, C4F-RFE, FF5-RF, FF5-RFE. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
 
-A downside of RF (and most other ML models) is their “black-box” nature, capturing complex, non-linear relationships between predictors that resist the intuitive loading interpretation of common financial methods such as OLS or PCA. In traditional asset-pricing frameworks, each factor's loading or exposure is represented by its $\beta$, measuring the elasticity of a security's returns with respect to that factor, while the model's intercept $\alpha$ is the number that indicates the percentage difference between the chosen index and the stock's actual performance. Practitioners routinely estimate betas to gauge exposures to market, size, and value factors, and interpret alphas as indicators of manager skill or persistent mispricing. With RF, Relative Feature Importance (RFI) is often employed to rank predictors by their contribution to out-of-sample predictive performance. RFI weighs all of the factors within the RF according to their predictive robustness. \citeA{simonian_2019} used RFI to construct “pseudo-betas”, or RFI-weighted elasticities analogous to traditional factor loadings. An accepted understanding of "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed as follows:
-%EXPLAIN MORE WHAT BETA ALPHA IS
+
+A downside of RF (and most other ML models) is their “black-box” nature, capturing complex, non-linear relationships between predictors that resist the intuitive loading interpretation of common financial methods such as OLS or PCA. In traditional asset-pricing frameworks, each factor's loading or exposure is represented by its beta, measuring the elasticity of a security's returns with respect to that factor, while alpha is the number that indicates the percentage difference between the chosen index and the stock's actual performance. Practitioners routinely estimate betas to gauge exposures to market, size, and value factors, and interpret alphas as indicators of manager skill or persistent mispricing. With RF, Feature Importance (FI) is often used as a substitue for feature attribution. To calculate this variable, the calculated OOB predictions are substracted from randomly permuted OOB predictions. Taking the mean square root of the difference between the two predictions gives us the OOB MSE. The FI is calculated using the average of the OOB MSE over all observations. Its specific procedures is outlined in Algorithm \ref{alg:fi}. However, FI is not a good indicator of the traditional beta that is commonly used in the finance sector. That is why \citeA{simonian_2019} used Relative Feature Importance to construct 'pseudo-betas'. RFIT is often employed to rank predictors by their contribution to out-of-sample predictive performance. RFI weighs all of the factors within the RF according to their predictive robustness.“pseudo-betas” are defined as  RFI-weighted elasticities analogous to traditional factor loadings. Since "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed as follows:
+
 \begin{equation}
     \label{eq:psuedo}
     \frac{\text{Target Variable value}}{\text{{Feature value}}}* \text{RFI}
 \end{equation}
 
-By utilizing this method, the interpretation of the RF models could be communicated with investment professionals who are more familiar with OLS betas or PCA loadings.
+By utilizing this method, the interpretation of the RF models could be communicated with investment professionals who are more familiar with OLS betas or PCA loadings. 
 
-\subsection{Rule-based models}
-There are statistical methods that only sacrifice a small amount of accuracy, but its inner workings are translated into "if-then" statements that could be communicated to investment managers. Rule-based models turns the “black box” RF into a transparent collection of "if-then" statements \cite{benard_2021}. Each rule summarizes a path of decisions about factor values. In this particular context, a rule could be “If $\texttt{ILLQ}$ exceeds a certain threshold and \texttt{HML} remains below a specific level, then $\texttt{Expected Excess Return} = x$.”. Such structures mirror how a practitioner might articulate investment strategies.
+\begin{algorithm}[H]
+    \caption{Permutation Variable Importance}
+    \label{alg:fi}
+    
+    To find the importance of variable $k$, for $k = 1$ to $p$:
+    
+    \Begin{
+        (Find $\hat{y}_{i,j}$) For $i = 1$ to $N$:\;
+        \Indp
+        \Begin{
+            Let $\mathcal{F}_i = \{j : (x_i, y_i) \notin \mathcal{D}_j\}$ and let $J_i$ be the cardinality of $\mathcal{F}_i$ (Algorithm \ref{alg:random_forests}).\;
+            Let $\hat{y}_{i,j} = \hat{h}_j(x_i)$ for all $j \in \mathcal{F}_i$.\;
+        }
+        \Indm
+        
+        (Find $\hat{y}^*_{i,j}$) For $j = 1$ to $J$:\;
+        \Indp
+        \Begin{
+            Let $\mathcal{D}_j$ be the $j$th bootstrap sample (Algorithm \ref{alg:random_forests}).\;
+            Let $\widetilde{\mathcal{F}}_j = \{i : (x_i, y_i) \notin \mathcal{D}_j\}$.\;
+            Randomly permute the value of variable $k$ for the data points $\{x_i : i \in \widetilde{\mathcal{F}}_j\}$ to give $\mathcal{P}_j = \{x_i^* : i \in \widetilde{\mathcal{F}}_j\}$.\;
+            Let $\hat{y}^*_{i,j} = \hat{h}_j(x_i^*)$ for all $i \in \widetilde{\mathcal{F}}_j$.\;
+        }
+        \Indm
+        
+        For $i = 1$ to $N$:\;
+        \Indp
+        \Begin{
+            For classification: $\text{Imp}_i = \frac{1}{J_i} \sum_{j \in \mathcal{F}_i} I(y_i \neq \hat{y}^*_{i,j}) - \frac{1}{J_i} \sum_{j \in \mathcal{F}_i} I(y_i \neq \hat{y}_{i,j})$.\;
+            For regression: $\text{Imp}_i = \frac{1}{J_i} \sum_{j \in \mathcal{F}_i} (y_i - \hat{y}^*_{i,j})^2 - \frac{1}{J_i} \sum_{j \in \mathcal{F}_i} (y_i - \hat{y}_{i,j})^2$.\;
+        }
+    }
+    Source: \cite{cutler_2012}
+    \end{algorithm}
 
-This intepretable rule based model is outlined in \citeA{benard_2021}, which introduces \textbf{S}table and \textbf{I}nterpretable \textbf{RU}le \textbf{S}et (SIRUS) for regression, based on RF. After the Random Forest is built, every possible condition-based rule that can come out of the trees is examined. Because each tree splits the data in different ways, some rules will appear in multiple trees, whereas others might appear only once. Rules that show up more frequently across the entire forest are considered more reliable because their conditions hold under various random draws and data subsets. Next, we choose a cutoff point to decide when a rule appears “often enough” to be considered important. If a rule meets or exceeds this cutoff in how frequently it shows up in the RF, we keep it; if not, we discard it. After keeping only the important rules, we bring them together into a single model. Essentially, each rule can give a “low” or “high” prediction, depending on whether its condition applies or not. We then assign a weight to each rule, so that the final prediction is just the sum of these weighted rules plus an overall baseline value. Because we only keep a handful of the most frequent rules, the end result is both more concise and easier to understand, resembling a clear list of if-then statements with associated weights. The best performing RF model out of C4F-RF, C4F-RFE, FF5-RF and FF5-RFE in predicting returns will be eligible for SIRUS rule extraction. This model will be referred to as RF-SIRUS hereafter.
- 
+
+
+\subsection{Rule-based trading strategies}
+After building OLS and RF factor models to forecast one-month-ahead sector returns, \citeA{simonian_2019} uses Association Rule Learning (ARL) to transform those forecasts, along with volatility indicators, into a transparent trading rule. This paper also examines RuleFit, which also generates the same "if-then" rules as RF+ARL, but does it all in one step.
+
+
+\subsubsection{Association Rule Learning: Extracting Rules from Random Forest}
+Association rule learning (ARL) is a pattern-mining technique that scans historical data for simple “if-then” co-occurrences whose joint frequency exceeds two thresholds: support (how often the pattern appears) and confidence (how often the consequent is true given the antecedent). In \citeA{simonian_2019}, the authors repurpose this supermarket-aisle algorithm to the stock market. The procedure is outlined in Algorithm \ref{alg:arl}.
+
+\begin{algorithm}[H]
+    \caption{Association-Rule Learning (Apriori)}
+    \label{alg:arl_apriori}
+
+    Let $\mathcal{D} = \{T_1,\ldots,T_N\}$ be a transaction database, each
+    $T_i$ a set of items.  
+    Let \textit{minsup} and \textit{minconf} denote the minimum support and confidence thresholds.
+
+    \textbf{Phase I: Frequent-itemset generation}
+
+    \Begin{
+        $L_1 \leftarrow$ all 1-itemsets whose support $\ge \textit{minsup}$.\;
+        $k \leftarrow 1$.\;
+        \While{$L_k \neq \emptyset$}{
+            Generate candidate $(k{+}1)$-itemsets $C_{k+1}$ by \emph{self-joining} $L_k$.\;
+            \ForEach{$c \in C_{k+1}$}{
+                Compute $\operatorname{support}(c)$ by scanning $\mathcal{D}$.\;
+            }
+            $L_{k+1} \leftarrow \{\,c \in C_{k+1} : \operatorname{support}(c) \ge \textit{minsup}\,\}$.\;
+            $k \leftarrow k + 1$.\;
+        }
+        $\mathcal{L} \leftarrow \bigcup_{j=1}^{k-1} L_j$ (set of all frequent itemsets).\;
+    }
+
+    \vspace{4pt}
+    \textbf{Phase II: Rule generation}
+
+    \Begin{
+        $\mathcal{R} \leftarrow \emptyset$.\;
+        \ForEach{frequent itemset $l \in \mathcal{L}$ with $|l| \ge 2$}{
+            \ForEach{non-empty proper subset $s \subset l$}{
+                $\operatorname{conf} \leftarrow \operatorname{support}(l)\,/\,\operatorname{support}(s)$.\;
+                \If{$\operatorname{conf} \ge \textit{minconf}$}{
+                    Add rule $s \;\rightarrow\; (l\setminus s)$ to $\mathcal{R}$.\;
+                }
+            }
+        }
+        \Return $\mathcal{R}$.\;
+    }
+
+    Source: \cite{agrawal_1993}
+\end{algorithm}
+
+
+\subsubsection{Rule-fit}
+    There are machine-learning approaches that trade only a modest amount of predictive power for a large gain in interpretability, because their inner workings can be distilled into human-readable “if-then” rules.  A prominent example is RuleFit \cite{friedman_rulefit_2018}.  RuleFit begins by growing a collection of shallow decision trees like a random forest but then decomposes every path from the root to an internal or terminal node into a binary rule.  Each rule is an indicator function, for example,
+    
+    \begin{equation}
+        \label{eq:rulefit}
+        r_{k}(x)=\mathbb{I}\bigl(\texttt{ILLQ}>0.005\ \wedge\ \texttt{HML}<0.2\bigr),
+    \end{equation}
+    
+    so that all model predictions can ultimately be expressed as linear combinations of simple conditions on familiar factor values.  Such rule structures match how investment managers naturally phrase trading strategies (e.g. “If liquidity is poor \emph{and} the value factor is low, then expect excess return~$x$,” etc.). Detailed description of the RuleFit algorithm can be found in Algorithm \ref{alg:rulefit}.
+    
+    
+    \begin{algorithm}[H]
+        \caption{RuleFit regression training procedure }
+        \label{alg:rulefit}
+        
+        \textbf{Inputs}: training set $\mathcal{D}=\{(x_i,y_i)\}_{i=1}^{N}$ with $x_i=(x_{i1},\dots,x_{ip})^\top$,  
+        number of trees $M$, average tree size $\bar{L}$ (in terminal nodes),  
+        subsample size $\eta$, learning/shrinkage rate $\nu$, and $\ell_{1}$‐penalty $\lambda$.  \\[2pt]
+        \textbf{Outputs}: intercept $\hat{a}_0$, rule weights $\{\hat{a}_k\}_{k=1}^{K}$, optional linear weights $\{\hat{b}_j\}_{j=1}^{p}$,  
+        yielding the predictive model  
+        \[
+          \widehat{F}(x)=\hat{a}_0+\sum_{k=1}^{K}\hat{a}_k\,r_k(x)+\sum_{j=1}^{p}\hat{b}_j\,\ell_j(x_j).
+        \]
+    
+        \BlankLine
+        \tcp{\small A. \,Generate an ensemble of shallow trees (ISLE / gradient boosting step)}
+        \For(\tcp*[f]{repeat $M$ times}){$m=1$ {\bf to} $M$}{
+            Draw without replacement a subsample $\mathcal{S}_m\subset\mathcal{D}$ of size $\eta$. \\
+            Fit a regression tree $T_m$ with $\operatorname{Poisson}(\bar{L})$‐distributed number of leaves  
+            to the current pseudo‐response (gradient) on $\mathcal{S}_m$. \\
+            Update the additive stage–wise model: $F_{m}(x)=F_{m-1}(x)+\nu\,T_m(x)$.
+        }
+    
+        \BlankLine
+        \tcp{\small B. \,Convert every tree path into a binary rule}
+        Initialise empty rule set $\mathcal{R}=\varnothing$. \\
+        \ForEach{tree $T_m$}{
+            \ForEach{non-root node $j$ in $T_m$}{
+                Let $r_{k}(x)=\prod_{s\in\text{path}(j)}\!I(x_{v(s)}\in \mathcal{A}_s)$,  
+                where $v(s)$ is the split variable and $\mathcal{A}_s$ its retained side; \\
+                Add $r_{k}$ to $\mathcal{R}$.
+            }
+        }
+        Denote the total number of extracted rules by $K=|\mathcal{R}|$.
+    
+        \BlankLine
+        \tcp{\small C. \,Optional linear basis (Winsorised main effects)}
+        \For{$j=1$ {\bf to} $p$}{
+            Define $\ell_j(x_j)=\min(\delta^+_j,\max(\delta^-_j,x_j))$ with  
+            $\delta^-_j,\delta^+_j$ the $\beta$ and $(1-\beta)$ empirical quantiles of $x_j$.
+        }
+    
+        \BlankLine
+        \tcp{\small D. \,Estimate sparse additive coefficients (lasso)}
+        Solve
+        \[
+          (\hat{a}_0,\hat{\mathbf{a}},\hat{\mathbf{b}})=
+          \arg\min_{a_0,\mathbf{a},\mathbf{b}}\;
+            \sum_{i=1}^{N}L\!\bigl(y_i,\;
+              a_0+\sum_{k=1}^{K}a_k r_k(x_i)+\sum_{j=1}^{p}b_j \ell_j(x_{ij})\bigr)
+            +\lambda\!\Bigl(\sum_{k=1}^{K}|a_k|+\sum_{j=1}^{p}|b_j|\Bigr),
+        \]
+        where $L$ is squared-error or Huber loss \cite{friedman_popescu_2008}.  \\
+        (Coefficients with zero solutions are automatically discarded.)
+    
+        \BlankLine
+        \tcp{\small E. \,Prediction for a new observation $x$}
+        \KwRet{$\displaystyle \widehat{F}(x)=\hat{a}_0+\sum_{k=1}^{K}\hat{a}_k\,r_k(x)+\sum_{j=1}^{p}\hat{b}_j\,\ell_j(x_j)$}.
+    \end{algorithm}
+    
+    
+Because the final predictor is additive in the surviving rules, each rule's weight $a_{k}$ can be read as “the estimated impact on excess return when this condition fires,” making the model transparently interpretable while still capturing non-linear interactions uncovered by the trees.
+
+RuleFit offers three advantages compared with a two-stage RF+ARL procedure. First, RuleFit combines tree-based rule extraction and weight estimation in a single optimization, instead of training a random forest and then mining signals from its point forecasts with ARL. Second, thanks to its sparse, additive structure, RuleFit applies an $\ell_{1}$ (lasso) penalty so that only a small subset of rules (and optional linear terms) survive, producing a model that is orders of magnitude smaller than a full forest and whose individual contributions can be inspected directly. Finally, RuleFit' built-in variable scoring means that the fitted coefficients themselves provide immediate global and local importance measures for every factor and rule, eliminating the need for a separate permutation-importance step.
+
 
 \subsection{Sector rotation strategy}
-The best RF variant and its SIRUS extraction will be adapted to a practical trading application, providing investors and practitioners in the field a tool that provide insights and guide them on investment decisions. After the RF and SIRUS forecasts, the excess returns of each sector will be aggregated by sector for the month ahead. With a sector rotation strategy, the sector that is held in the portfolio is the one that signals outperformance on the market. The sector rotation strategy implemented in this paper closely follows \citeA{simonian_2019} methods, using Association Rule Learning (ARL). The signals utilized by the authors are the one month ahead predicted returns and ratio of shorter-term to longer-term realized volatility (24-month vs. 36-month), which is calculated as follows:
+%REWRITE THIS 2nd DRAFT
 
-\begin{equation}
-    \label{eq:vol_ratio}
-    VR_t = \text{Volatility ratio at time } t = \frac{\text{Volatility}(t-24, t)}{\text{Volatility}(t-36, t)}
-\end{equation}
-    
+For each sector $s\in\{1,\dots,11\}$ and for every trading day $t$ in 2018, we estimate the next-day excess sector return, $\widehat{r}^{\text{ex}}_{s,t+1}$, using every OLS and RF variation. Conditional on these forecasts we construct a volatility ratio%
+\[
+\operatorname{VR}_{s,t}^{(5,21)}=\frac{\sigma_{s,t}^{\;(5)}}{\sigma_{s,t}^{\;(21)}},
+\]
+where $\sigma_{s,t}^{\;(h)}$ is the realised volatility of sector $s$ over the previous $h$ trading days.  A binary trading signal is issued according to
+\[
+\text{Signal}_{s,t}=\mathbf{1}
+\!\bigl(
+\widehat{r}^{\text{ex}}_{s,t+1}>0
+\;\wedge\;
+\operatorname{VR}_{s,t}^{(5,21)}<1
+\bigr).
+\]
+The requirement $\operatorname{VR}_{s,t}^{(5,21)}<1$ ensures that the model-implied positive excess return is accompanied by a \emph{compression} of short-run volatility relative to its longer-run benchmark, a configuration empirically associated with more favourable risk-adjusted pay-offs and lower drawdown probability.  Repeating this procedure over the full calendar year yields an $(\text{days}\times\text{sectors})$ matrix of investment signals.
 
-Generally, ARL searches through large observations to find association rules. It is a rolling-window learning approach, meaning it updates on new data that comes in. Instead of using a fixed model trained once on historical data, it re-estimates the relationships every 18 months, which is called a "look-back" window.  The idea is to discover whether certain thresholds of “predicted return” and “volatility ratio” tend to coincide with above-average returns in the following month. The sector will be owned in the portfolio if the following conditions are sastisfied \footnote{A more formal description will be provided in the Methods section of the thesis}:
 
-\begin{equation}
-    \label{eq:arl}
-    (\text{Volatility ratio} < 1) \land (\text{RF-predicted return} > \alpha) \implies (\text{Sector return} > \beta)
-\end{equation}
-
-\subsection{S\&P500 as a benchmark}
+Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is flagged, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder.  These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution.
 
 
-%iterative add factor de xem la feature importance co doi ko 
+
+
+
+
+
+

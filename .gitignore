@@ -18,3 +18,4 @@ mlartifacts/
 py/mlruns/
 py/*.png
 
+latex/appendix.aux
