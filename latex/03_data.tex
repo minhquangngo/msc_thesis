@@ -16,21 +16,7 @@
 
 % 4.3 Variable Construction
 %   4.3.1 Monthly excess returns:  
-% 𝑅
-% 𝑖
-% ,
-% 𝑡
-% −
-% 𝑅
-% 𝑓
-% ,
-% 𝑡
-% R 
-% i,t
-% ​
-%  −R 
-% f,t
-% ​
+
 %   (CRSP return minus 1-month T-bill)
 %   4.3.2 Fama–French factors: construction and alignment with return data
 %   4.3.3 Liquidity measures:
@@ -198,7 +184,7 @@ Each firm is assigned to its two-digit GICS sector, and sector-level indicators 
      \begin{threeparttable}             % NEW
          \begin{tabular}{@{}l c@{}}
              \toprule
-             \textbf{Sector Code} & \textbf{Sector Name}\\
+             \textbf{GICS Sector Code} & \textbf{Sector Name}\\
              \midrule
              10 & Energy\\
              15 & Materials\\
@@ -214,17 +200,17 @@ Each firm is assigned to its two-digit GICS sector, and sector-level indicators 
              \bottomrule
          \end{tabular}
  
-         \begin{tablenotes}
-             \footnotesize
-             \item[] Notes: <your note here>
-         \end{tablenotes}
+        %  \begin{tablenotes}
+        %      \footnotesize
+        %      \item[] Notes: 
+        %  \end{tablenotes}
      \end{threeparttable}               % NEW
  \end{table}
 
 The final sample spans 2 January 1998 to 31 December 2018, a total of 5282 trading days. All source tables are at a daily frequency, so the merged dataset preserves the most granular timing available, though some features are still at the monthly level. The resulting panel comprises roughly 2,646,081 daily stock observations. 
 
 \subsubsection{Descriptive Statistics}
-Figure \ref{fig:descriptive_stats} plots the average price, 21-day rolling mean and volatility, and average trading volume for the full cross-section of stocks over the entire sample horizon. From the late 1990s peak, prices retreat from roughly \$56 to about \$45 during the 2000 dot-com bubble burst, accompanied by a pronounced surge in trading volume. Volume is a key liquidity indicator, as spikes in trading activity can confirm the strength of price moves and signal shifting investor sentiment. In the 2008 financial crisis, the average price plunges from near \$50 to around \$30, while volume spikes to its highest levels on record, reflecting widespread deleveraging and fire-sales. Modest downturns in 2012 and 2016 correspond to slight price dips (to approximately \$50 and \$75, respectively) with moderate volume upticks, signalling short-lived recessions. Finally, the contraction beginning in the middle of 2018—marked by a renewed drop in price and rising volumes—warrants a more granular “zoom-in,” as it will serve as the hold-out period for our subsequent analyses.
+Table \cref{tab:descr_stats,tab:descr_stats2,tab:descr_stats3} shows the descriptive statistics for the variables used in the time panel. Figure \ref{fig:descriptive_stats} plots the cross-sectional average of $prc$, its 21-day rolling mean and volatility, and mean $vol$ over our 1990-2018 horizon, revealing clear regime shifts that mirror well-known macroeconomic episodes: after the late-1990s peak, prices retreat and $vol$ surges during the 2000 dot-com collapse; in the 2008 crisis, average $prc$ plunges and trading activity spikes to record highs as fire-sales and deleveraging dominate. Milder dips in 2012 and 2016 produce modest volume upticks, signalling brief recessions. These episodic extremes coincide with varying daily returns and put-call imbalances, spike in $vix_close$ and troughs in enhanced Baker-Wurgler sentiment, and outsized swings in the near-zero Fama-French factors ($mktrf$, $smb$, $hml$, $rmw$, $umd$, $cma$). The third quarter 2018 plunge (which is our hold-out period) shows massive price declines with rising $vol$, calling for a more detailed look into the events that happened in 2018. 
 
 
 \begin{figure}[H]
@@ -234,6 +220,67 @@ Figure \ref{fig:descriptive_stats} plots the average price, 21-day rolling mean 
     \label{fig:avgprice_avgvol}
 \end{figure}
 
+\begin{table}[H]
+  \centering
+  \caption{\textit{Descriptive Statistics (1/3)}}
+  \label{tab:descr_stats}
+  
+  \begin{tabular}{lcccc}
+  \toprule
+  Statistic & $prc$ & $ret$ & $vol$ & $put\_call\_ratio$ \\\midrule
+  N & 2646071 & 2645995 & 2646067 & 2631963 \\
+  Mean & 56.690 & 0.000 & 4644742.786 & 2.451 \\
+  SD & 70.228 & 0.025 & 14088422.298 & 35.811 \\
+  Min & -116.812 & -0.942 & 0.000 & 0.000 \\
+  Q1 & 27.660 & -0.010 & 915800.000 & 0.259 \\
+  Median & 43.380 & 0.000 & 1987272.000 & 0.626 \\
+  Q3 & 65.570 & 0.010 & 4372000.000 & 1.208 \\
+  Max & 2206.090 & 1.024 & 1897900032.000 & 20979.000 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  \begin{table}[H]
+  \centering
+  \caption{Descriptive Statistics (2/3)}
+  \label{tab:descr_stats2}
+  
+  \begin{tabular}{lcccccc}
+  \toprule
+  Statistic & $mktrf$ & $smb$ & $hml$ & $rmw$ & $umd$ & $cma$ \\\midrule
+  N & 2646081 & 2646081 & 2646081 & 2646081 & 2646081 & 2646081 \\
+  Mean & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 \\
+  SD & 0.012 & 0.006 & 0.007 & 0.005 & 0.010 & 0.004 \\
+  Min & -0.089 & -0.042 & -0.044 & -0.030 & -0.082 & -0.059 \\
+  Q1 & -0.005 & -0.003 & -0.003 & -0.002 & -0.004 & -0.002 \\
+  Median & 0.001 & 0.000 & -0.000 & 0.000 & 0.001 & 0.000 \\
+  Q3 & 0.006 & 0.004 & 0.003 & 0.003 & 0.005 & 0.002 \\
+  Max & 0.114 & 0.045 & 0.049 & 0.045 & 0.071 & 0.025 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  \begin{table}[H]
+  \centering
+  \caption{Descriptive Statistics (3/3)}
+  \label{tab:descr_stats3}
+  
+  \begin{tabular}{lccc}
+  \toprule
+  Statistic & $rf$ & $enhanced\_baker$ & $vix\_close$ \\\midrule
+  N & 2646081 & 2646081 & 2645576 \\
+  Mean & 0.000 & -0.264 & 20.197 \\
+  SD & 0.000 & 2.023 & 8.497 \\
+  Min & 0.000 & -5.085 & 9.140 \\
+  Q1 & 0.000 & -1.567 & 13.870 \\
+  Median & 0.000 & -0.287 & 18.530 \\
+  Q3 & 0.000 & 0.980 & 24.030 \\
+  Max & 0.000 & 5.254 & 80.860 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  
 
 The late-2018 equity downturn was precipitated by escalating US-China trade tensions, as each new round of tariffs eroded investor confidence in global supply chains. Simultaneously, the Federal Reserve's fourth rate hike of the year and the brief inversion of the Treasury yield curve heightened recession fears among market participants. Signs of a synchronized global slowdown—particularly in Europe and emerging markets—further weighed on equity valuations as growth forecasts were revised downward. Finally, profit-taking in the technology sector, driven by concerns over maturing growth trajectories and mounting regulatory scrutiny, amplified the overall market sell-off \cite{reuters_2018}.
 
@@ -280,7 +327,10 @@ where $\beta_j^2$ is the coefficient of determination from regressing the $j$-th
     \end{tabular}}
 \end{table}
 
-Figure~\ref{fig:sector_price} shows that most sectors move in tandem at modest levels until roughly 2005, after which dispersion (and thus opportunities for investors) begins to emerge. Notably, the Real Estate sector (60) surges from a roughly \$50 baseline to nearly \$900 by 2018-19, far outstripping its peers. The sector's rapid ascent (after the 2008 financial crisis) mark it as a high-beta, high-reward investment \textbf(WHY?). The Communication Service sector demonstrates significant volatility, with pronounced drawdowns around the end of 2009 and a massive plunge in mid-2014 (WHY). These sharp reversals highlight the sector's sensitivity to both macroeconomic shocks and industry-specific disruptions, yet its underlying growth drivers support a rapid recovery. Even after the 2008 crisis, this sector saw an immediate rebound. By the late 2010s, Communication Services had rebounded steadily to rank among the priciest investment sectors, showing that this sector has a strong appeal despite intermittent bouts of extreme risk. Information Technology staged a dramatic recovery after the 2008-09 financial crisis, surging from its troughs into sustained rapid growth. However, this ascent was interrupted by a sharp correction in early 2013 and an even more pronounced plunge in 2015. Although the sector began closing the gap on its pre-plunge highs by 2018, the pace of recovery implies that, if current trends persist, it may take several more years before Information Technology fully retraces its earlier losses.
+Figure~\ref{fig:sector_price} shows that most sectors move in tandem at modest levels until roughly 2005, after which dispersion (and thus opportunities for investors) begins to emerge. The full list of descriptive statistics for each sector is provided in the appendix, with Tables \cref{tab:sec10_a,tab:sec10_b,tab:sec15_a,tab:sec15_b,tab:sec20_a,tab:sec20_b,tab:sec25_a,tab:sec25_b,tab:sec30_a,tab:sec30_b,tab:sec35_a,tab:sec35_b,tab:sec40_a,tab:sec40_b,tab:sec45_a,tab:sec45_b,tab:sec50_a,tab:sec50_b,tab:sec55_a,tab:sec55_b,tab:sec60_a,tab:sec60_b,tab:sec65_a,tab:sec65_b}. With 11 sectors, there are some data points for these sectors that are worth noting. Notably, the Real Estate sector (60) surges from a roughly \$50 baseline to nearly \$900 by 2018-19, far outstripping its peers. The sector's rapid ascent (after the 2008 financial crisis) mark it as a high-beta, high-reward investment. The sector exhibits an average daily return of 0.1\% alongside substantial daily volatility of 1.9\%. With mean daily dollar trading volume near \$13.5 million and turnover spiking to 50 \% on certain days, this market remains exceptionally active and had exceptional performance due to several macroeconomic factors. After the 2008 crash, central banks drove interest rates down to almost zero and bought massive amounts of bonds, which made real estate look like a much better deal than savings or government debt. Big pension funds and insurance companies, desperate for higher returns, poured billions into property markets, pushing prices up even further. In many major cities, tough zoning laws and a shortage of new construction meant there simply were not enough homes or offices to go around, so prices climbed rapidly. At the same time, wealthy investors from all over the world snapped up trophy buildings and luxury developments, driving the Real Estate sector index up \cite{cbre_2018}. 
+
+%THERE ARE ROOM TO IMPROVE THIS. MAYBE 2nd DRAFT
+The Communication Service (50) sector demonstrates significant volatility, with pronounced drawdowns around the end of 2009 and a massive plunge in mid-2014. These sharp reversals highlight the sector's sensitivity to both macroeconomic shocks and industry-specific disruptions, yet its underlying growth drivers support a rapid recovery. Even after the 2008 crisis, this sector saw an immediate rebound. By the late 2010s, Communication Services had rebounded steadily to rank among the priciest investment sectors, showing that this sector has a strong appeal despite intermittent bouts of extreme risk.Information Technology (45) staged a dramatic recovery after the 2008-09 financial crisis, surging from its troughs into sustained rapid growth. However, this ascent was interrupted by a sharp correction in early 2013 and an even more pronounced plunge in 2015. Although the sector began closing the gap on its pre-plunge highs by 2018, the pace of recovery implies that, if current trends persist, it may take several more years before Information Technology fully retraces its earlier losses.
 
 
 \begin{figure}[H]
@@ -289,6 +339,8 @@ Figure~\ref{fig:sector_price} shows that most sectors move in tandem at modest l
      \caption{Sector price (1998--2018)}\label{fig:sector_price}
  \end{figure}
 
+
+ 
 
 % 4.6 Descriptive Statistics and Preliminary Visualizations
 %   4.6.1 Summary statistics for all variables (mean, SD, skew, kurtosis)

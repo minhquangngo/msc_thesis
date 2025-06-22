@@ -3,7 +3,7 @@
 
 % FILL OUT THE DETAILS BELOW:
 \author{Minh Quang Ngo}
-\title{Thesis proposal \\ Enhancing Asset Pricing Models with Liquidity Factors and Sentiment: A Rule-Based Approach}
+\title{Machine Learning Approach to Asset Pricing Models: A Rule-Based Approach}
 % \date{An optional custom date, the default is today}
 \newcommand{\studentnumber}{597115}
 \newcommand{\program}{Data Science and Marketing Analytics}
@@ -23,7 +23,8 @@
 \usepackage{bbm}
 \usepackage{threeparttable}
 \usepackage{float}
-
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{amssymb}
 %drawing trees
 % \usepackage{tikz}
 % \usetikzlibrary{trees}
@@ -69,7 +70,7 @@
 \end{titlepage}
 
 \begin{abstract}
-	\textbf{NOT APPLICABLE FOR PROPOSAL}
+	
 \end{abstract}
 \newpage
 
@@ -87,19 +88,24 @@
     \input{04_method}
 \section{Data}
     \input{03_data}
-
-
-
+\section{Results}
+	\input{05_results}
+\section{Conclusion}
+	\input{06_conclusion}
 
 \newpage
 \bibliographystyle{apacite} 
-\bibliography{ref_masterthesis.bib} 
+\bibliography{ref_masterthesis} 
 
 \newpage
 \appendix
 \section{Appendix}
+\include{appendix}
+
 \subsection{Github repository}
 You can find the Git Repo here
 
+The visual plots are designed using \citeA{scienceplots}.
 
+The formatting of tables and figures are APA.
 \end{document}
