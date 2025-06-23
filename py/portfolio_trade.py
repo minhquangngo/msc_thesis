@@ -64,14 +64,14 @@ class weighted_portfolio_returns:
             daily_ret_rf_enhanced_ff5.append(sum(ret_lists['excess_returns_weighted_rf_enhanced_ff5']))
             
         return (
-            daily_ret_rf_base_ff5,
-            daily_ret_rf_base_c4f,
-            daily_ret_ols_base_c4f,
-            daily_ret_ols_base_ff5,
-            daily_ret_ols_enhanced_c4f,
-            daily_ret_ols_enhanced_ff5,
-            daily_ret_rf_enhanced_c4f,
-            daily_ret_rf_enhanced_ff5
+            daily_ret_rf_enhanced_c4f,   # rf_enhanced_c4f
+            daily_ret_rf_enhanced_ff5,   # rf_enhanced_ff5
+            daily_ret_ols_base_c4f,      # ols_base_c4f
+            daily_ret_ols_base_ff5,      # ols_base_ff5
+            daily_ret_ols_enhanced_ff5,  # ols_enhanced_ff5
+            daily_ret_rf_base_c4f,       # rf_base_c4f
+            daily_ret_ols_enhanced_c4f,  # ols_enhanced_c4f
+            daily_ret_rf_base_ff5        # rf_base_ff5
         )
 
     def _load_org_df(self):
@@ -388,8 +388,7 @@ class matching_df:
                     # Convert first column to datetime index
                     signal_df.iloc[:, 0] = pd.to_datetime(signal_df.iloc[:, 0])
                     signal_df.set_index(signal_df.columns[0], inplace=True)
-                    # Join with sector_df
-                    sector_df = sector_df.join(signal_df, how='left')
+
                     # Determine feature specification (c4f vs ff5) from the run parameters
                     features_path = os.path.join("mlruns", str(experiment_numb), str(run), "params", "features")
                     feature_type = "ff5"  # default assumption
@@ -410,39 +409,30 @@ class matching_df:
                     except Exception as e:
                         print(f"Error reading/parsing features file {features_path}: {e}")
                     print(f"Feature type determined: {feature_type}")
-                    # Rename the newly joined column based on model, enhancement, and feature type
+                    # Build new column name based on model, enhancement flag, and feature type
                     if "_rf" in sect:
-                        if "_enhanced" in sect:
-                            new_col_name = f"rf_enhanced_{feature_type}_signal"
-                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
-                            print(f"Renamed column to {new_col_name}")
-                        else:
-                            new_col_name = f"rf_base_{feature_type}_signal"
-                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
-                            print(f"Renamed column to {new_col_name}")
-                    else:  # OLS models
-                        if "_enhanced" in sect:
-                            new_col_name = f"ols_enhanced_{feature_type}_signal"
-                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
-                            print(f"Renamed column to {new_col_name}")
-                        else:
-                            new_col_name = f"ols_base_{feature_type}_signal"
-                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
-                            print(f"Renamed column to {new_col_name}")
+                        prefix = "rf_enhanced" if "_enhanced" in sect else "rf_base"
+                    else:
+                        prefix = "ols_enhanced" if "_enhanced" in sect else "ols_base"
+                    new_col_name = f"{prefix}_{feature_type}_signal"
+
+                    # Rename the signal column inside signal_df BEFORE joining
+                    old_col_name = signal_df.columns[0]
+                    signal_df.rename(columns={old_col_name: new_col_name}, inplace=True)
+                    print(f"Renamed signal column '{old_col_name}' to '{new_col_name}'")
+
+                    # Join with sector_df (column already correctly named)
+                    sector_df = sector_df.join(signal_df, how='left')
                 else:
                     print(f"No signal files found matching pattern: {signal_csv_path}")
 
         
         return sector_df
                                 
-
-
     def _load_all_signals(self):
         sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = match_sig_ret(self.sector).fit()
         return sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run
         
-        
-    
     def _load_org_df(self):
         data_dir = Path('data')
         print(f"Data directory: {data_dir}")
