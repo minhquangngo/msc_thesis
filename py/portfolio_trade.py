@@ -386,8 +386,6 @@ class matching_df:
 
     def _load_all_signals(self):
         sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run = match_sig_ret(self.sector).fit()
-        sig_sector_matching_run = UniqueValueDictList(sig_sector_matching_run).get_unique()
-        df_sector_matching_run = UniqueValueDictList(df_sector_matching_run).get_unique()
         return sig_sector_matching_run, df_sector_matching_run, df_dict_exp_run, sig_dict_exp_run
         
         
@@ -403,35 +401,6 @@ class matching_df:
         return sector_df
 
 
-
-class UniqueValueDictList:
-    """
-    Removes dictionaries with duplicate values from a list of single-key dictionaries, keeping the first occurrence.
-    Example:
-        input = [
-            {'a': 'x'}, {'b': 'x'}, {'c': 'y'}, {'d': 'y'}, {'e': 'z'}
-        ]
-        output = [
-            {'a': 'x'}, {'c': 'y'}, {'e': 'z'}
-        ]
-    """
-    def __init__(self, dict_list):
-        self.original_list = dict_list
-        self.unique_list = self._remove_duplicates(dict_list)
-
-    def _remove_duplicates(self, dict_list):
-        seen_values = set()
-        unique_dicts = []
-        for d in dict_list:
-            # Each dict is assumed to have only one key-value pair
-            value = next(iter(d.values()))
-            if value not in seen_values:
-                unique_dicts.append(d)
-                seen_values.add(value)
-        return unique_dicts
-
-    def get_unique(self):
-        return self.unique_list
 
 class match_sig_ret:
     """

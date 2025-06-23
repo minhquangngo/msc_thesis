@@ -388,14 +388,14 @@ class rolling_pred():
                 model_name = meta.get("name") #get the model spec from the meta.yaml
                 print(f"meta.yaml name extract: {model_name}")
                 
-                if model_name in ["baseline_ols", "enhanced_ols"]:
+                if model_name in ["baseline_ols_c4f","baseline_ols_ff5","enhanced_ols_c4f","enhanced_ols_ff5"]:
                     ols_path = os.path.join(
                         "py", "mlartifacts", str(self.experiment_numb), str(self.run),"artifacts","ols_model", "*.statsmodels")
                     print(f"OLS pattern: {ols_path}")
                     ols_pkl_file = glob.glob(ols_path)
                     print(f"OLS files found: {ols_pkl_file}")
                     
-                elif model_name in ["rf", "enhanced_rf"]:
+                elif model_name in ["rf_baseline_c4f",'rf_baseline_ff5','enhanced_rf_c4f','enhanced_rf_ff5']:
                     rf_path = os.path.join("py", "mlartifacts", str(self.experiment_numb), str(self.run),"artifacts","rf_model","*.pkl")
                     surr_path = os.path.join("py", "mlartifacts", str(self.experiment_numb), str(self.run),"artifacts","surr_model","*.pkl")
 
@@ -429,7 +429,7 @@ class rolling_pred():
             model_name = meta.get("name")
             print(f"Processing model type: {model_name}")
             
-            if ols_path and model_name in ["baseline_ols", "enhanced_ols"]:
+            if ols_path and model_name in ["baseline_ols_c4f", "baseline_ols_ff5", "enhanced_ols_c4f", "enhanced_ols_ff5"]:
                 print(f"Loading OLS model from: {ols_path[0]}")  # ols_path is a list
                 try:
                     ols_model = sm.load(ols_path[0])  # Take first file from list
@@ -439,7 +439,7 @@ class rolling_pred():
                     print(f"Error loading OLS model: {e}")
                     raise
                     
-            elif rf_path and surr_path and model_name in ["rf", "enhanced_rf"]:
+            elif rf_path and surr_path and model_name in ["rf_baseline_c4f", "rf_baseline_ff5", "enhanced_rf_c4f", "enhanced_rf_ff5"]:
                 print(f"Loading RF model from: {rf_path[0]}")  
                 print(f"Loading Surr model from: {surr_path[0]}")
                 try:
@@ -494,6 +494,7 @@ class rolling_pred():
             print(f"Error loading features: {e}")
             raise
     
+
     def model_fingerprint_check(self)-> str | None:
         """
         Use the experiment_check external func to get the list of experiment_id
