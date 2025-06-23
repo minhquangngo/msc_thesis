@@ -37,26 +37,42 @@ class weighted_portfolio_returns:
         self.weighted_df = weighted_ret(self.sector_dataframes, self.weight_mode).calc_weighted_ret()
     
     def _weighted_portfolios(self):
-        daily_ret_ols_base = [] 
-        daily_ret_ols_enhanced = []
-        daily_ret_rf_base = []
-        daily_ret_rf_enhanced = []
+        daily_ret_rf_base_ff5 = []
+        daily_ret_rf_base_c4f = []
+        daily_ret_ols_base_c4f = []
+        daily_ret_ols_base_ff5 = []
+        daily_ret_ols_enhanced_c4f = []
+        daily_ret_ols_enhanced_ff5 = []
+        daily_ret_rf_enhanced_c4f = []
+        daily_ret_rf_enhanced_ff5 = []
+        
         numb_rows = len(self.weighted_df['10'])
         for i in range(numb_rows):
-            ols_weighted_ret_list = []
-            ols_enhanced_weighted_ret_list = []
-            rf_weighted_ret_list = []
-            rf_enhanced_weighted_ret_list = []
-            for sector, weighted_df in self.weighted_df.items():    
-                ols_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_ols_base'])
-                ols_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_ols_enhanced'])
-                rf_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_rf_base'])
-                rf_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_rf_enhanced'])
-            daily_ret_ols_base.append(sum(ols_weighted_ret_list))
-            daily_ret_ols_enhanced.append(sum(ols_enhanced_weighted_ret_list))
-            daily_ret_rf_base.append(sum(rf_weighted_ret_list))
-            daily_ret_rf_enhanced.append(sum(rf_enhanced_weighted_ret_list))            
-        return daily_ret_ols_base, daily_ret_ols_enhanced, daily_ret_rf_base, daily_ret_rf_enhanced
+            ret_lists = {col: [] for col in weighted_ret.MODEL_COLS}
+            
+            for sector, weighted_df in self.weighted_df.items():
+                for col in weighted_ret.MODEL_COLS:
+                    ret_lists[col].append(weighted_df.iloc[i][col])
+            
+            daily_ret_rf_base_ff5.append(sum(ret_lists['excess_returns_weighted_rf_base_ff5']))
+            daily_ret_rf_base_c4f.append(sum(ret_lists['excess_returns_weighted_rf_base_c4f']))
+            daily_ret_ols_base_c4f.append(sum(ret_lists['excess_returns_weighted_ols_base_c4f']))
+            daily_ret_ols_base_ff5.append(sum(ret_lists['excess_returns_weighted_ols_base_ff5']))
+            daily_ret_ols_enhanced_c4f.append(sum(ret_lists['excess_returns_weighted_ols_enhanced_c4f']))
+            daily_ret_ols_enhanced_ff5.append(sum(ret_lists['excess_returns_weighted_ols_enhanced_ff5']))
+            daily_ret_rf_enhanced_c4f.append(sum(ret_lists['excess_returns_weighted_rf_enhanced_c4f']))
+            daily_ret_rf_enhanced_ff5.append(sum(ret_lists['excess_returns_weighted_rf_enhanced_ff5']))
+            
+        return (
+            daily_ret_rf_base_ff5,
+            daily_ret_rf_base_c4f,
+            daily_ret_ols_base_c4f,
+            daily_ret_ols_base_ff5,
+            daily_ret_ols_enhanced_c4f,
+            daily_ret_ols_enhanced_ff5,
+            daily_ret_rf_enhanced_c4f,
+            daily_ret_rf_enhanced_ff5
+        )
 
     def _load_org_df(self):
         data_dir = Path('data')
@@ -71,14 +87,14 @@ class weighted_ret:
     """Add weighted excess return columns to sector dataframes based on sector-level model weights."""
 
     MODEL_COLS = [
-        'excess_returns_weighted_rf_base_ff5',
-        'excess_returns_weighted_rf_base_c4f',
+        'excess_returns_weighted_rf_enhanced_c4f',
+        'excess_returns_weighted_rf_enhanced_ff5',
         'excess_returns_weighted_ols_base_c4f',
         'excess_returns_weighted_ols_base_ff5',
-        'excess_returns_weighted_ols_enhanced_c4f',
         'excess_returns_weighted_ols_enhanced_ff5',
-        'excess_returns_weighted_rf_enhanced_c4f',
-        'excess_returns_weighted_rf_enhanced_ff5'
+        'excess_returns_weighted_rf_base_c4f',
+        'excess_returns_weighted_ols_enhanced_c4f',
+        'excess_returns_weighted_rf_base_ff5'
     ]
 
     def __init__(self, sector_dataframes: dict, weight_mode: str | None = None, model_weights: list | None = None):
@@ -100,11 +116,11 @@ class weighted_ret:
         else:
             self.model_weights = model_weights
 
-        # Basic validation – every slice should contain exactly 4 model specs
+        # Basic validation – every slice should contain exactly 8 model specs
         for slice_ in self.model_weights:
-            if len(slice_) != 4:
+            if len(slice_) != 8:
                 raise ValueError(
-                    "Each time slice in model_weights must have 4 model specification dictionaries"
+                    "Each time slice in model_weights must have 8 model specification dictionaries"
                 )
 
     def calc_weighted_ret(self) -> dict:
@@ -121,7 +137,7 @@ class weighted_ret:
             # Preserve original numeric columns (the excess-return columns)
             numeric_cols = df.select_dtypes(include="number").columns.tolist()
 
-            # Ensure the 4 new columns exist
+            # Ensure the 8 new columns exist
             for col in self.MODEL_COLS:
                 if col not in df.columns:
                     df[col] = np.nan
