@@ -48,10 +48,10 @@ class weighted_portfolio_returns:
             rf_weighted_ret_list = []
             rf_enhanced_weighted_ret_list = []
             for sector, weighted_df in self.weighted_df.items():    
-                ols_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_ols_base'])
-                ols_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_ols_enhanced'])
-                rf_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_rf_base'])
-                rf_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['Excess_returns_weighted_rf_enhanced'])
+                ols_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_ols_base'])
+                ols_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_ols_enhanced'])
+                rf_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_rf_base'])
+                rf_enhanced_weighted_ret_list.append(weighted_df.iloc[i]['excess_returns_weighted_rf_enhanced'])
             daily_ret_ols_base.append(sum(ols_weighted_ret_list))
             daily_ret_ols_enhanced.append(sum(ols_enhanced_weighted_ret_list))
             daily_ret_rf_base.append(sum(rf_weighted_ret_list))
@@ -71,10 +71,14 @@ class weighted_ret:
     """Add weighted excess return columns to sector dataframes based on sector-level model weights."""
 
     MODEL_COLS = [
-        'Excess_returns_weighted_rf_base',
-        'Excess_returns_weighted_ols_enhanced',
-        'Excess_returns_weighted_rf_enhanced',
-        'Excess_returns_weighted_ols_base'
+        'excess_returns_weighted_rf_base_ff5',
+        'excess_returns_weighted_rf_base_c4f',
+        'excess_returns_weighted_ols_base_c4f',
+        'excess_returns_weighted_ols_base_ff5',
+        'excess_returns_weighted_ols_enhanced_c4f',
+        'excess_returns_weighted_ols_enhanced_ff5',
+        'excess_returns_weighted_rf_enhanced_c4f',
+        'excess_returns_weighted_rf_enhanced_ff5'
     ]
 
     def __init__(self, sector_dataframes: dict, weight_mode: str | None = None, model_weights: list | None = None):
