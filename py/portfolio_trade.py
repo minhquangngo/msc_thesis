@@ -19,7 +19,15 @@ from sector_rot import all_runs
 
 
 ROOT = Path(__file__).resolve().parent.parent
-cols = ['rf_base_signal','ols_enhanced_signal','rf_enhanced_signal','ols_base_signal']
+cols = [
+    'rf_enhanced_c4f_signal',
+    'rf_enhanced_ff5_signal',
+    'ols_base_c4f_signal',
+    'ols_base_ff5_signal',
+    'ols_enhanced_ff5_signal',
+    'rf_base_c4f_signal',
+    'ols_enhanced_c4f_signal',
+    'rf_base_ff5_signal']
 
 
 class weighted_portfolio_returns:
