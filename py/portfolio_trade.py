@@ -362,20 +362,45 @@ class matching_df:
                     signal_df.set_index(signal_df.columns[0], inplace=True)
                     # Join with sector_df
                     sector_df = sector_df.join(signal_df, how='left')
+                    # Determine feature specification (c4f vs ff5) from the run parameters
+                    features_path = os.path.join("mlruns", str(experiment_numb), str(run), "params", "features")
+                    feature_type = "ff5"  # default assumption
+                    try:
+                        if os.path.exists(features_path):
+                            with open(features_path, "r", encoding="utf-8") as f:
+                                raw_content = f.read()
+                                try:
+                                    features_list = yaml.safe_load(raw_content)
+                                except Exception:
+                                    features_list = []
+                            if (isinstance(features_list, (list, tuple)) and any("umd" in str(item).lower() for item in features_list)) \
+                                or (isinstance(features_list, str) and "umd" in features_list.lower()) \
+                                or ("umd" in raw_content.lower()):
+                                feature_type = "c4f"
+                        else:
+                            print(f"Features file not found for run {run}, defaulting feature_type to ff5")
+                    except Exception as e:
+                        print(f"Error reading/parsing features file {features_path}: {e}")
+                    print(f"Feature type determined: {feature_type}")
+                    # Rename the newly joined column based on model, enhancement, and feature type
                     if "_rf" in sect:
                         if "_enhanced" in sect:
-                            sector_df.rename(columns={sector_df.columns[-1]: "rf_enhanced_signal"}, inplace=True)
-                            print(f"Renamed column to rf_enhanced_signal")
+                            new_col_name = f"rf_enhanced_{feature_type}_signal"
+                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
+                            print(f"Renamed column to {new_col_name}")
                         else:
-                            sector_df.rename(columns={sector_df.columns[-1]: "rf_base_signal"}, inplace=True)
-                            print(f"Renamed column to rf_base_signal")
-                    else:
+                            new_col_name = f"rf_base_{feature_type}_signal"
+                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
+                            print(f"Renamed column to {new_col_name}")
+                    else:  # OLS models
                         if "_enhanced" in sect:
-                            sector_df.rename(columns={sector_df.columns[-1]: "ols_enhanced_signal"}, inplace=True)
-                            print(f"Renamed column to ols_enhanced_signal")
+                            new_col_name = f"ols_enhanced_{feature_type}_signal"
+                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
+                            print(f"Renamed column to {new_col_name}")
                         else:
-                            sector_df.rename(columns={sector_df.columns[-1]: "ols_base_signal"}, inplace=True)
-                            print(f"Renamed column to ols_base_signal")
+                            new_col_name = f"ols_base_{feature_type}_signal"
+                            sector_df.rename(columns={sector_df.columns[-1]: new_col_name}, inplace=True)
+                            print(f"Renamed column to {new_col_name}")
                 else:
                     print(f"No signal files found matching pattern: {signal_csv_path}")
 
