@@ -31,10 +31,10 @@ cols = [
 
 
 class weighted_portfolio_returns:
-    def __init__(self, weight_mode: str | None = None):
+    def __init__(self, weight_mode: str | None = None, return_type: str = 'ret'):
         self.sector_dataframes = self._load_org_df()
         self.weight_mode = weight_mode
-        self.weighted_df = weighted_ret(self.sector_dataframes, self.weight_mode).calc_weighted_ret()
+        self.weighted_df = weighted_ret(self.sector_dataframes, self.weight_mode, return_type=return_type).calc_weighted_ret()
     
     def _weighted_portfolios(self):
         daily_ret_rf_base_ff5 = []
@@ -97,7 +97,7 @@ class weighted_ret:
         'excess_returns_weighted_rf_base_ff5'
     ]
 
-    def __init__(self, sector_dataframes: dict, weight_mode: str | None = None, model_weights: list | None = None):
+    def __init__(self, sector_dataframes: dict, weight_mode: str | None = None, model_weights: list | None = None, return_type: str = 'ret'):
         """Create a new weighted_ret helper.
 
         Parameters
@@ -109,12 +109,15 @@ class weighted_ret:
             Nested structure ``[time][model_idx][sector_id] -> weight``. If
             *None* the helper :pyclass:`weights` is invoked to calculate the
             weights automatically.
+        return_type : str, optional
+            The return column to use, by default 'ret'
         """
         _,self.sector_dataframes = prep_weights().collect_matched_df()
         if model_weights is None:
             self.model_weights = weights(weight_mode).calc_weights()
         else:
             self.model_weights = model_weights
+        self.return_type = return_type
 
         # Basic validation – every slice should contain exactly 8 model specs
         for slice_ in self.model_weights:
@@ -157,9 +160,9 @@ class weighted_ret:
                         df.at[timestamp, col_name] = 0.0
                         continue
 
-                    # Use provided 'ret' column if present; otherwise fallback to mean of numeric columns
-                    if 'ret' in df.columns:
-                        ret = df.at[timestamp, 'ret']
+                    # Use provided return type column if present; otherwise fallback to mean of numeric columns
+                    if self.return_type in df.columns:
+                        ret = df.at[timestamp, self.return_type]
                     else:
                         ret = df.loc[timestamp, numeric_cols].mean()
                     df.at[timestamp, col_name] = ret * weight_val

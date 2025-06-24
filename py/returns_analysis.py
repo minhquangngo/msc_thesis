@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.stats import norm
 import scienceplots  # noqa: F401 – used implicitly by `plt.style.use`
 
 # Constants -------------------------------------------------------------------
@@ -46,20 +47,22 @@ class ReturnAnalyzer:
         self,
         index_returns: pd.DataFrame,
         weighted_portfolio_returns: Tuple[List[float], ...],
+        portfolio_excess_returns: tuple[list[float], ...],
         *,
         annualisation_factor: int = _ANNUALISATION_FACTOR,
     ) -> None:
         self.annualisation_factor: int = annualisation_factor
-        self.index_name: str = index_returns.columns[0]
+        self.index_name: str = "S\&P500"
 
         # ─── Validate & Combine Inputs ────────────────────────────────────────
-        self._validate_inputs(index_returns, weighted_portfolio_returns)
+        self._validate_inputs(index_returns, weighted_portfolio_returns, portfolio_excess_returns)
         self.returns: pd.DataFrame = self._combine_inputs(
             index_returns, weighted_portfolio_returns
         )
-
+        self.portfolio_excess_returns = portfolio_excess_returns
+        self.weighted_portfolio_returns = weighted_portfolio_returns
         # Pre-compute summary statistics --------------------------------------
-        self.statistics_: pd.DataFrame = self._compute_statistics()
+        self.statistics_, self.skipped_portfolios_ = self._compute_statistics()
 
     # ---------------------------------------------------------------------
     # Public API
@@ -85,7 +88,7 @@ class ReturnAnalyzer:
         else:
             fig = ax.figure
 
-        cumulative.plot(ax=ax, alpha=0.45)
+        cumulative.plot(ax=ax, alpha=0.75)
         ax.set_xlabel("Date")
         ax.set_ylabel("Cumulative Return")
         ax.set_title("Cumulative Returns of Index and Portfolios")
@@ -100,6 +103,7 @@ class ReturnAnalyzer:
     def _validate_inputs(
         index_returns: pd.DataFrame,
         weighted_portfolio_returns: Tuple[List[float], ...],
+        portfolio_excess_returns: tuple[list[float], ...],
     ) -> None:
         # Check index type ----------------------------------------------------
         if not isinstance(index_returns.index, pd.DatetimeIndex):
@@ -115,31 +119,45 @@ class ReturnAnalyzer:
                 raise ValueError(
                     f"Length mismatch for portfolio {i}: expected {expected_len}, got {len(lst)}."
                 )
+        for i, lst in enumerate(portfolio_excess_returns, start=1):
+            if len(lst) != 250:
+                raise ValueError(
+                    f"Length mismatch for excess return portfolio {i}: expected 250, got {len(lst)}."
+                )
 
     @staticmethod
     def _combine_inputs(
         index_returns: pd.DataFrame,
         weighted_portfolio_returns: Tuple[List[float], ...],
     ) -> pd.DataFrame:
-        portfolios_df = pd.DataFrame(
-            {
-                f"Portfolio_{i}": vals for i, vals in enumerate(weighted_portfolio_returns, start=1)
-            },
-            index=index_returns.index,
-        )
-        return pd.concat([index_returns, portfolios_df], axis=1)
+        # Define the desired column names in the required publication order
+        portfolio_names = [
+            "rf_en_c4f",
+            "rf_base_ff5",
+            "rf_en_ff5",
+            "ols_en_ff5",
+            "rf_base_c4f",
+            "ols_en_c4f",
+            "ols_base_c4f",
+            "ols_base_ff5",
+        ]
+
+        # Build the portfolio DataFrame so that each list corresponds to a column
+        portfolios_df = pd.DataFrame(weighted_portfolio_returns).T
+        portfolios_df.columns = portfolio_names
+        portfolios_df.index = index_returns.index
+
+        # Rename the benchmark column and concatenate
+        benchmark_renamed = index_returns.rename(columns={index_returns.columns[0]: "S\&P500"})
+        combined = pd.concat([benchmark_renamed, portfolios_df], axis=1)
+        return combined
 
     # ---------------------------------------------------------------------
     # Statistics & Table Helpers
     # ---------------------------------------------------------------------
-    def _compute_statistics(self) -> pd.DataFrame:
+    def _compute_statistics(self) -> tuple[pd.DataFrame, list[str]]:
         returns = self.returns
-        stats = pd.DataFrame(index=returns.columns, columns=[
-            "Cumulative Return",
-            "Annualised Return",
-            "Annualised Volatility",
-            "Alpha",
-        ])
+        stats = pd.DataFrame(index=returns.columns)
 
         # ── Compute basic metrics ────────────────────────────────────────────
         cumulative = (1 + returns).prod() - 1
@@ -155,56 +173,148 @@ class ReturnAnalyzer:
         stats["Alpha"] = stats["Annualised Return"] - index_ar
         stats.loc[self.index_name, "Alpha"] = 0.0
 
-        # Format -------------------------------------------------------------
-        stats = stats.applymap(lambda x: round(x, 4))  # 4 decimal precision
-        return stats
+        # ── PSR Calculations ───────────────────────────────────────────────
+        psr_columns = ["Sharpe Ratio", "Skewness", "Excess Kurtosis", "PSR (S*=0)", "PSR (S*=0.1)", "PSR (S*=0.2)"]
+        psr_stats = pd.DataFrame(index=returns.columns.drop(self.index_name), columns=psr_columns)
+        skipped_portfolios = []
+
+        for i, portfolio_name in enumerate(psr_stats.index):
+            excess_returns = self.portfolio_excess_returns[i]
+            
+            if not all(np.isfinite(excess_returns)):
+                skipped_portfolios.append(portfolio_name)
+                psr_stats.loc[portfolio_name] = ['N/A'] * len(psr_columns)
+                continue
+
+            n = len(excess_returns)
+            mean = np.mean(excess_returns)
+            std_dev = np.std(excess_returns, ddof=1)
+
+            if std_dev == 0:
+                sharpe, skew, kurtosis = 'N/A', 'N/A', 'N/A'
+                psr_0, psr_1, psr_2 = 'N/A', 'N/A', 'N/A'
+            else:
+                sharpe = self._calculate_sharpe_ratio(mean, std_dev)
+                skew = self._calculate_skewness(excess_returns, mean, std_dev)
+                kurtosis = self._calculate_excess_kurtosis(excess_returns, mean, std_dev)
+                
+                psr_0 = self._calculate_psr(sharpe, skew, kurtosis, n, 0.0)
+                psr_1 = self._calculate_psr(sharpe, skew, kurtosis, n, 0.1)
+                psr_2 = self._calculate_psr(sharpe, skew, kurtosis, n, 0.2)
+
+            psr_stats.loc[portfolio_name] = [sharpe, skew, kurtosis, psr_0, psr_1, psr_2]
+
+        stats = stats.join(psr_stats)
+        return stats, skipped_portfolios
+
+    @staticmethod
+    def _calculate_sharpe_ratio(mean: float, std_dev: float) -> float:
+        return mean / std_dev
+
+    @staticmethod
+    def _calculate_skewness(returns: list[float], mean: float, std_dev: float) -> float:
+        n = len(returns)
+        return (1 / n) * np.sum(((returns - mean) / std_dev) ** 3)
+
+    @staticmethod
+    def _calculate_excess_kurtosis(returns: list[float], mean: float, std_dev: float) -> float:
+        n = len(returns)
+        return (1 / n) * np.sum(((returns - mean) / std_dev) ** 4) - 3
+
+    @staticmethod
+    def _calculate_psr(sharpe: float, skew: float, kurtosis: float, n: int, benchmark: float) -> float | str:
+        if any(not isinstance(val, (int, float)) for val in [sharpe, skew, kurtosis]):
+            return 'N/A'
+        
+        numerator = (sharpe - benchmark) * np.sqrt(n - 1)
+        denominator_sq = 1 - skew * sharpe + (kurtosis - 1) / 4 * sharpe**2
+        
+        if denominator_sq <= 0:
+            return 'N/A' 
+            
+        return norm.cdf(numerator / np.sqrt(denominator_sq))
 
     def _build_apa_table_latex(self, table_number: int, title: str) -> str:
         """Construct LaTeX string for APA table with *booktabs* rules."""
         stats = self.statistics_.copy()
 
-        # Convert numeric columns to percentage strings (2 dp) for readability
-        percent_cols = [
-            "Cumulative Return",
-            "Annualised Return",
-            "Annualised Volatility",
-            "Alpha",
-        ]
-        for col in percent_cols:
-            stats[col] = stats[col].apply(lambda x: f"{x * 100:.2f}%")
+        # Define column groups for formatting
+        percent_cols = ["Cumulative Return", "Annualised Return", "Annualised Volatility", "Alpha"]
+        decimal_cols = ["Sharpe Ratio", "Skewness", "Excess Kurtosis"]
+        psr_cols = ["PSR (S*=0)", "PSR (S*=0.1)", "PSR (S*=0.2)"]
 
-        # Build LaTeX body ----------------------------------------------------
+        # Apply formatting
+        for col in percent_cols:
+            if col in stats.columns:
+                stats[col] = stats[col].apply(lambda x: f"{x * 100:.2f}%" if isinstance(x, (int, float)) else x)
+        
+        for col in decimal_cols + psr_cols:
+            if col in stats.columns:
+                stats[col] = stats[col].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else x)
+
+        stats.fillna('', inplace=True)
+
+        # Reorder columns for the final table
+        column_order = [
+            "Cumulative Return", "Annualised Return", "Annualised Volatility", "Alpha",
+            "Sharpe Ratio", "Skewness", "Excess Kurtosis",
+            "PSR (S*=0)", "PSR (S*=0.1)", "PSR (S*=0.2)"
+        ]
+        stats = stats[column_order]
+
+        # Build LaTeX body
         body_lines = [
-            " & ".join([row] + stats.loc[row].tolist()) + r" \\" for row in stats.index
+            " & ".join([row.replace('_', '\\_')] + stats.loc[row].tolist()) + r" \\" for row in stats.index
         ]
         body = "\n".join(body_lines)
+
+        # Note for skipped portfolios
+        note = ""
+        if self.skipped_portfolios_:
+            skipped_list = ", ".join(p.replace('_', '\\_') for p in self.skipped_portfolios_)
+            note = f"\\textit{{Note:}} Portfolios skipped due to non-finite values: {skipped_list}."
+
+        # Define table headers
+        header = " & ".join(stats.columns) + r" \\"
 
         latex = rf"""
 % \usepackage{{booktabs}} must be included in the preamble.
 \begin{{table}}[ht]
     \centering
-    % Table number and title (APA) -----------------------------------------
-    \textbf{{Table {table_number}}}\\[12pt]
-    \textit{{{title}}}\\[6pt]
-    % ----------------------------------------------------------------------
-    \begin{{tabular}}{{lcccc}}
+    \caption*{{\textbf{{Table {table_number}}}: \textit{{{title}}}}}
+    \label{{tab:return_stats_{table_number}}}
+    \begin{{tabular}}{{lcccccccccc}}
         \toprule
-        {{}} & Cumulative return & Annualised return & Annualised volatility & Alpha \\
+        {{}} & {header}
         \midrule
         {body}
-        \\
         \bottomrule
     \end{{tabular}}
-    \label{{tab:return_stats_{table_number}}}
+    {note}
 \end{{table}}
 """
-        # Trim leading spaces for neatness
-        return "\n".join([line.rstrip() for line in latex.splitlines()])
+        return "\n".join([line.strip() for line in latex.splitlines()])
 
     # ---------------------------------------------------------------------
     # Plotting Helpers
     # ---------------------------------------------------------------------
     @staticmethod
     def _ensure_matplotlib_style() -> None:
-        """Apply the mandated matplotlib styles (science, ieee, custom)."""
+        """Apply matplotlib styles then override with a custom colour cycle."""
+        # Apply the base styles (science + high-vis + custom APA tweaks)
         plt.style.use(["science", "high-vis", "apa_custom.mplstyle"])
+
+        # Define a clear, colour-blind-friendly palette for the 9 series
+        custom_colors = [
+            "#1f77b4",  # blue      – S&P500
+            "#d62728",  # red       – ols_en_c4f
+            "#2ca02c",  # green     – ols_base_ff5
+            "#ff7f0e",  # orange    – ols_base_c4f
+            "#9467bd",  # purple    – rf_base_ff5
+            "#8c564b",  # brown     – rf_base_c4f
+            "#e377c2",  # pink      – ols_en_ff5
+            "#7f7f7f",  # grey      – rf_en_ff5
+            "#17becf",  # cyan      – rf_en_c4f
+        ]
+
+        mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=custom_colors)
