@@ -435,7 +435,9 @@ By utilizing this method, the interpretation of the RF models could be communica
 
 
 \subsection{Rule-based trading strategies}
-After building OLS and RF factor models to forecast one-month-ahead sector returns, \citeA{simonian_2019} uses Association Rule Learning (ARL) to transform those forecasts, along with volatility indicators, into a transparent trading rule. This paper also examines RuleFit, which also generates the same "if-then" rules as RF+ARL, but does it all in one step.
+After building OLS and RF factor models to forecast one-month-ahead sector returns, \citeA{simonian_2019} uses Association Rule Learning (ARL) to transform those forecasts, along with volatility indicators, into a transparent trading rule. 
+
+% This paper also examines RuleFit, which also generates the same "if-then" rules as RF+ARL, but does it all in one step.
 
 
 \subsubsection{Association Rule Learning: Extracting Rules from Random Forest}
@@ -485,80 +487,80 @@ Association rule learning (ARL) is a pattern-mining technique that scans histori
 \end{algorithm}
 
 
-\subsubsection{Rule-fit}
-    There are machine-learning approaches that trade only a modest amount of predictive power for a large gain in interpretability, because their inner workings can be distilled into human-readable “if-then” rules.  A prominent example is RuleFit \cite{friedman_rulefit_2018}.  RuleFit begins by growing a collection of shallow decision trees like a random forest but then decomposes every path from the root to an internal or terminal node into a binary rule.  Each rule is an indicator function, for example,
+% \subsubsection{Rule-fit}
+%     There are machine-learning approaches that trade only a modest amount of predictive power for a large gain in interpretability, because their inner workings can be distilled into human-readable “if-then” rules.  A prominent example is RuleFit \cite{friedman_rulefit_2018}.  RuleFit begins by growing a collection of shallow decision trees like a random forest but then decomposes every path from the root to an internal or terminal node into a binary rule.  Each rule is an indicator function, for example,
     
-    \begin{equation}
-        \label{eq:rulefit}
-        r_{k}(x)=\mathbb{I}\bigl(\texttt{ILLQ}>0.005\ \wedge\ \texttt{HML}<0.2\bigr),
-    \end{equation}
+%     \begin{equation}
+%         \label{eq:rulefit}
+%         r_{k}(x)=\mathbb{I}\bigl(\texttt{ILLQ}>0.005\ \wedge\ \texttt{HML}<0.2\bigr),
+%     \end{equation}
     
-    so that all model predictions can ultimately be expressed as linear combinations of simple conditions on familiar factor values.  Such rule structures match how investment managers naturally phrase trading strategies (e.g. “If liquidity is poor \emph{and} the value factor is low, then expect excess return~$x$,” etc.). Detailed description of the RuleFit algorithm can be found in Algorithm \ref{alg:rulefit}.
+%     so that all model predictions can ultimately be expressed as linear combinations of simple conditions on familiar factor values.  Such rule structures match how investment managers naturally phrase trading strategies (e.g. “If liquidity is poor \emph{and} the value factor is low, then expect excess return~$x$,” etc.). Detailed description of the RuleFit algorithm can be found in Algorithm \ref{alg:rulefit}.
     
     
-    \begin{algorithm}[H]
-        \caption{RuleFit regression training procedure }
-        \label{alg:rulefit}
+%     \begin{algorithm}[H]
+%         \caption{RuleFit regression training procedure }
+%         \label{alg:rulefit}
         
-        \textbf{Inputs}: training set $\mathcal{D}=\{(x_i,y_i)\}_{i=1}^{N}$ with $x_i=(x_{i1},\dots,x_{ip})^\top$,  
-        number of trees $M$, average tree size $\bar{L}$ (in terminal nodes),  
-        subsample size $\eta$, learning/shrinkage rate $\nu$, and $\ell_{1}$‐penalty $\lambda$.  \\[2pt]
-        \textbf{Outputs}: intercept $\hat{a}_0$, rule weights $\{\hat{a}_k\}_{k=1}^{K}$, optional linear weights $\{\hat{b}_j\}_{j=1}^{p}$,  
-        yielding the predictive model  
-        \[
-          \widehat{F}(x)=\hat{a}_0+\sum_{k=1}^{K}\hat{a}_k\,r_k(x)+\sum_{j=1}^{p}\hat{b}_j\,\ell_j(x_j).
-        \]
+%         \textbf{Inputs}: training set $\mathcal{D}=\{(x_i,y_i)\}_{i=1}^{N}$ with $x_i=(x_{i1},\dots,x_{ip})^\top$,  
+%         number of trees $M$, average tree size $\bar{L}$ (in terminal nodes),  
+%         subsample size $\eta$, learning/shrinkage rate $\nu$, and $\ell_{1}$‐penalty $\lambda$.  \\[2pt]
+%         \textbf{Outputs}: intercept $\hat{a}_0$, rule weights $\{\hat{a}_k\}_{k=1}^{K}$, optional linear weights $\{\hat{b}_j\}_{j=1}^{p}$,  
+%         yielding the predictive model  
+%         \[
+%           \widehat{F}(x)=\hat{a}_0+\sum_{k=1}^{K}\hat{a}_k\,r_k(x)+\sum_{j=1}^{p}\hat{b}_j\,\ell_j(x_j).
+%         \]
     
-        \BlankLine
-        \tcp{\small A. \,Generate an ensemble of shallow trees (ISLE / gradient boosting step)}
-        \For(\tcp*[f]{repeat $M$ times}){$m=1$ {\bf to} $M$}{
-            Draw without replacement a subsample $\mathcal{S}_m\subset\mathcal{D}$ of size $\eta$. \\
-            Fit a regression tree $T_m$ with $\operatorname{Poisson}(\bar{L})$‐distributed number of leaves  
-            to the current pseudo‐response (gradient) on $\mathcal{S}_m$. \\
-            Update the additive stage–wise model: $F_{m}(x)=F_{m-1}(x)+\nu\,T_m(x)$.
-        }
+%         \BlankLine
+%         \tcp{\small A. \,Generate an ensemble of shallow trees (ISLE / gradient boosting step)}
+%         \For(\tcp*[f]{repeat $M$ times}){$m=1$ {\bf to} $M$}{
+%             Draw without replacement a subsample $\mathcal{S}_m\subset\mathcal{D}$ of size $\eta$. \\
+%             Fit a regression tree $T_m$ with $\operatorname{Poisson}(\bar{L})$‐distributed number of leaves  
+%             to the current pseudo‐response (gradient) on $\mathcal{S}_m$. \\
+%             Update the additive stage–wise model: $F_{m}(x)=F_{m-1}(x)+\nu\,T_m(x)$.
+%         }
     
-        \BlankLine
-        \tcp{\small B. \,Convert every tree path into a binary rule}
-        Initialise empty rule set $\mathcal{R}=\varnothing$. \\
-        \ForEach{tree $T_m$}{
-            \ForEach{non-root node $j$ in $T_m$}{
-                Let $r_{k}(x)=\prod_{s\in\text{path}(j)}\!I(x_{v(s)}\in \mathcal{A}_s)$,  
-                where $v(s)$ is the split variable and $\mathcal{A}_s$ its retained side; \\
-                Add $r_{k}$ to $\mathcal{R}$.
-            }
-        }
-        Denote the total number of extracted rules by $K=|\mathcal{R}|$.
+%         \BlankLine
+%         \tcp{\small B. \,Convert every tree path into a binary rule}
+%         Initialise empty rule set $\mathcal{R}=\varnothing$. \\
+%         \ForEach{tree $T_m$}{
+%             \ForEach{non-root node $j$ in $T_m$}{
+%                 Let $r_{k}(x)=\prod_{s\in\text{path}(j)}\!I(x_{v(s)}\in \mathcal{A}_s)$,  
+%                 where $v(s)$ is the split variable and $\mathcal{A}_s$ its retained side; \\
+%                 Add $r_{k}$ to $\mathcal{R}$.
+%             }
+%         }
+%         Denote the total number of extracted rules by $K=|\mathcal{R}|$.
     
-        \BlankLine
-        \tcp{\small C. \,Optional linear basis (Winsorised main effects)}
-        \For{$j=1$ {\bf to} $p$}{
-            Define $\ell_j(x_j)=\min(\delta^+_j,\max(\delta^-_j,x_j))$ with  
-            $\delta^-_j,\delta^+_j$ the $\beta$ and $(1-\beta)$ empirical quantiles of $x_j$.
-        }
+%         \BlankLine
+%         \tcp{\small C. \,Optional linear basis (Winsorised main effects)}
+%         \For{$j=1$ {\bf to} $p$}{
+%             Define $\ell_j(x_j)=\min(\delta^+_j,\max(\delta^-_j,x_j))$ with  
+%             $\delta^-_j,\delta^+_j$ the $\beta$ and $(1-\beta)$ empirical quantiles of $x_j$.
+%         }
     
-        \BlankLine
-        \tcp{\small D. \,Estimate sparse additive coefficients (lasso)}
-        Solve
-        \[
-          (\hat{a}_0,\hat{\mathbf{a}},\hat{\mathbf{b}})=
-          \arg\min_{a_0,\mathbf{a},\mathbf{b}}\;
-            \sum_{i=1}^{N}L\!\bigl(y_i,\;
-              a_0+\sum_{k=1}^{K}a_k r_k(x_i)+\sum_{j=1}^{p}b_j \ell_j(x_{ij})\bigr)
-            +\lambda\!\Bigl(\sum_{k=1}^{K}|a_k|+\sum_{j=1}^{p}|b_j|\Bigr),
-        \]
-        where $L$ is squared-error or Huber loss \cite{friedman_popescu_2008}.  \\
-        (Coefficients with zero solutions are automatically discarded.)
+%         \BlankLine
+%         \tcp{\small D. \,Estimate sparse additive coefficients (lasso)}
+%         Solve
+%         \[
+%           (\hat{a}_0,\hat{\mathbf{a}},\hat{\mathbf{b}})=
+%           \arg\min_{a_0,\mathbf{a},\mathbf{b}}\;
+%             \sum_{i=1}^{N}L\!\bigl(y_i,\;
+%               a_0+\sum_{k=1}^{K}a_k r_k(x_i)+\sum_{j=1}^{p}b_j \ell_j(x_{ij})\bigr)
+%             +\lambda\!\Bigl(\sum_{k=1}^{K}|a_k|+\sum_{j=1}^{p}|b_j|\Bigr),
+%         \]
+%         where $L$ is squared-error or Huber loss \cite{friedman_popescu_2008}.  \\
+%         (Coefficients with zero solutions are automatically discarded.)
     
-        \BlankLine
-        \tcp{\small E. \,Prediction for a new observation $x$}
-        \KwRet{$\displaystyle \widehat{F}(x)=\hat{a}_0+\sum_{k=1}^{K}\hat{a}_k\,r_k(x)+\sum_{j=1}^{p}\hat{b}_j\,\ell_j(x_j)$}.
-    \end{algorithm}
+%         \BlankLine
+%         \tcp{\small E. \,Prediction for a new observation $x$}
+%         \KwRet{$\displaystyle \widehat{F}(x)=\hat{a}_0+\sum_{k=1}^{K}\hat{a}_k\,r_k(x)+\sum_{j=1}^{p}\hat{b}_j\,\ell_j(x_j)$}.
+%     \end{algorithm}
     
     
-Because the final predictor is additive in the surviving rules, each rule's weight $a_{k}$ can be read as “the estimated impact on excess return when this condition fires,” making the model transparently interpretable while still capturing non-linear interactions uncovered by the trees.
+% Because the final predictor is additive in the surviving rules, each rule's weight $a_{k}$ can be read as “the estimated impact on excess return when this condition fires,” making the model transparently interpretable while still capturing non-linear interactions uncovered by the trees.
 
-RuleFit offers three advantages compared with a two-stage RF+ARL procedure. First, RuleFit combines tree-based rule extraction and weight estimation in a single optimization, instead of training a random forest and then mining signals from its point forecasts with ARL. Second, thanks to its sparse, additive structure, RuleFit applies an $\ell_{1}$ (lasso) penalty so that only a small subset of rules (and optional linear terms) survive, producing a model that is orders of magnitude smaller than a full forest and whose individual contributions can be inspected directly. Finally, RuleFit' built-in variable scoring means that the fitted coefficients themselves provide immediate global and local importance measures for every factor and rule, eliminating the need for a separate permutation-importance step.
+% RuleFit offers three advantages compared with a two-stage RF+ARL procedure. First, RuleFit combines tree-based rule extraction and weight estimation in a single optimization, instead of training a random forest and then mining signals from its point forecasts with ARL. Second, thanks to its sparse, additive structure, RuleFit applies an $\ell_{1}$ (lasso) penalty so that only a small subset of rules (and optional linear terms) survive, producing a model that is orders of magnitude smaller than a full forest and whose individual contributions can be inspected directly. Finally, RuleFit' built-in variable scoring means that the fitted coefficients themselves provide immediate global and local importance measures for every factor and rule, eliminating the need for a separate permutation-importance step.
 
 
 \subsection{Sector rotation strategy}
@@ -580,10 +582,84 @@ where $\sigma_{s,t}^{\;(h)}$ is the realised volatility of sector $s$ over the p
 The requirement $\operatorname{VR}_{s,t}^{(5,21)}<1$ ensures that the model-implied positive excess return is accompanied by a \emph{compression} of short-run volatility relative to its longer-run benchmark, a configuration empirically associated with more favourable risk-adjusted pay-offs and lower drawdown probability.  Repeating this procedure over the full calendar year yields an $(\text{days}\times\text{sectors})$ matrix of investment signals.
 
 
-Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is flagged, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder.  These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution.
+Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is flagged, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution.
 
+\begin{algorithm}[H]
+    \caption{Sector Rotation Strategy}
+    \label{alg:sector_rotation}
 
+    Let $T$ be the set of all observations (time periods).
+    Let $\alpha$ and $\beta$ be non-negative thresholds (e.g., $\alpha = 0$, $\beta = 0.02$).
+    Let $VR_t$ denote the volatility ratio at time $t$, defined as:
+    $$VR_t = \frac{\text{Volatility}(t-5, t)}{\text{Volatility}(t-21, t)}$$
+    where near-term volatility is smaller than long-term volatility when $VR_t < 1$.
 
+    \textbf{Input:} Historical sector returns, RF predictions $\hat{r}_{t+1}$, volatility data
+    
+    \textbf{Output:} Portfolio weights $w_i$ for each sector $i$
+
+    \Begin{
+        \textbf{Phase I: Signal Generation}
+        
+        \For{each time period $t$}{
+            Compute volatility ratio: $VR_t = \frac{\text{Volatility}(t-5, t)}{\text{Volatility}(t-21, t)}$\;
+            
+            Compute RF prediction $\hat{r}_{t+1}$ for one-month-ahead sector return\;
+            
+            \textbf{Association Rule Check:}
+            
+            Compute support: $\text{supp}((VR_t < 1, \hat{r}_{t+1} > \alpha)) = \frac{\#\text{ of months }(VR_t < 1, \hat{r}_{t+1} > \alpha)}{\text{Window Length}}$\;
+            
+            Compute lift: $\text{lift}((VR_t < 1, \hat{r}_{t+1} > \alpha) \Rightarrow r_{t+1} > \beta) = \frac{\text{supp}((VR_t < 1, \hat{r}_{t+1} > \alpha, r_{t+1} > \beta))}{\text{supp}((VR_t < 1, \hat{r}_{t+1} > \alpha)) \times \text{supp}(r_{t+1} > \beta)}$\;
+        }
+        
+        \vspace{4pt}
+        \textbf{Phase II: Trading Decision}
+        
+        \For{each sector $i$ at end of month $t$}{
+            \If{sector's $\text{lift}_{(t+1)} > 0$ \textbf{and} $VR_t < 1$ \textbf{and} $\hat{r}_{t+1} > \alpha$}{
+                Set signal $s_i = 1$ (positive signal)\;
+            }
+            \Else{
+                Set signal $s_i = 0$ (no signal)\;
+            }
+        }
+        
+        \vspace{4pt}
+        \textbf{Phase III: Portfolio Construction}
+        
+        Count number of sectors with positive signals: $N = \sum_{i} s_i$\;
+        
+        \If{$N \neq 0$}{
+            \For{each sector $i$}{
+                \If{$s_i = 1$}{
+                    $w_i = \frac{100\%}{N}$ (equal weight among selected sectors)\;
+                }
+                \Else{
+                    $w_i = 0$\;
+                }
+            }
+        }
+        \Else{
+            \For{each sector $i$}{
+                $w_i = \frac{100\%}{\#\text{Assets}}$ (equal weight across all sectors)\;
+            }
+        }
+        
+        \Return portfolio weights $\{w_i\}$\;
+    }
+
+    \textbf{Note:} The strategy uses association rules to identify when the combination of low volatility ratio and positive RF predictions reliably predicts positive sector performance.
+
+    Source: \cite{simonian_2019}
+\end{algorithm}
+
+% \subsection{Hypothesis}
+
+% - OLS base : both c4f and ff5 Features significant in prediciting excess returns (EXPLAIN WHY HERE). However will not be explaining variations in the out of sample model, though high R2 in sample. Would not perform good on sector rotation strategy. Unable to adjust to market conditions (risk,liquidity, sentiment) due to OLs linearity nature (parametric) Suspect that martket excess returns will have the most effect and will always be highly statistically significant. {EXPLAIN WHY YOU SUSPECT HIGH MARKET EXCESS COULD LEAD TO HIGH EXCESS RET FOR LINEAR MODELS}. { ARGUE WHICH c4F FACTORS (['excess_mkt_ret','smb', 'hml','umd']) DO YOU THINK WILL HAVE POSITIVE/NEGATIVE EFFECT ON EXCESS RET, AND TO WHAT EXTENT} { ARGUE WHICH ff5 FACTORS ['excess_mkt_ret','smb', 'hml','rmw','cma'] DO YOU THINK WILL HAVE POSITIVE/NEGATIVE EFFECT ON EXCESS RET, AND TO WHAT EXTENT}
+
+% - OLS enhanced : only c4f Features significant in prediciting excess returns (EXPLAIN WHY HERE). However, due to multicollinearity, some features (escpecially features ...) does not work in an OLS (REPHRASE THIS TO BE MORE CLEAR). Therfore expect this to perform even worse than OLS base, in terms of predictive power and variation explained. Though for attribution, Suspect it would be better than OLS base as some biases are accounted for. Still, still expect excess ret to be the most important n varaible in lienar models. However, {ARGUE WHICH VARIABLE YOU SUSPECT WILL BE REMOVED DUE TO MULTICOLLINEARITY AND WHICH WILL BE INSIGNIFICANT 'turn','turn_sd','mvel1','dolvol','daily_illq','zero_trade_ratio','baspread','enhanced_baker','vix_close','put_call_ratio','news_sent'}
+%- RF based models:
 
 
 

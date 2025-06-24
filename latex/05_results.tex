@@ -6,43 +6,60 @@
 % compare coefficients between feat imp and ols coef
 % Sector rotation strat
 
+\subsection{Hypothesis}
+
+The aim of this subsection is to formalise ex ante hypotheses concerning the predictive accuracy and interpretability of all OLS and RF variations. 
+
+We first consider the OLS base models. I speculate that within the estimation window, all factors in both the C4F and FF5 sets will attain statistical significance at the 5\% level when explaining monthly excess returns, yielding in\-sample $R^{2}$ values of at least 0.35.  This expectation is based on the well\-established risk\-pricing role of each factor: market excess return ($R_{M}-R_{f}$) as the primary driver per the Capital Asset Pricing Model, size ($SMB$) and value ($HML$) premia from \citeA{ff3_1993} foundational empirical findings, and the momentum effect ($UMD$) extended by \citeA{cahart_1997}. In the FF5 context, profitability ($RMW$) and investment ($CMA$) factors are likewise anticipated to be positively signed and signifitcant consistent with \citeA{novymarx_2013} Nevertheless, we expect the predictive $R^{2}$ out of sample to not be too low despite the inability of a static OLS framework to adapt to evolving market regimes (e.g.\ shifts in liquidity, sentiment, or sectoral leadership). An equity excess returns is usually not too wildly volatile (as we would see in section \ref{sec:data}), therefore it would not be too volatile to predict. %improve this in 2nd draft
+
+%['vol', 'ret', 'shrout', 'prc', 'askhi', 'bidlo', 'put_volume','call_volume', 'put_call_ratio', 'vix_close', 'turn','zero_trade_ratio', 'baspread', 'mktrf', 'smb', 'hml', 'rmw', 'umd','cma', 'rf', 'enhanced_baker', 'news_sent', 'mktcap', 'turn_sd','sect_mktcap', 'mvel1', 'dolvol', 'daily_illq', 'excess_ret','excess_mkt_ret']
+
+OLS enhanced models, due to possible multicollinearity among regressors inflating variance inflation factors and coefficients, I hypothesize that most of the Liquidity and Sentiment factors will remain statistically insignificant.  Consequently, I anticipate that only the original C4F factors (and market excess return in particular) will retain reliable significance, while overall in\-sample and out\-of\-sample $R^{2}$ will decline relative to the base OLS models. Therefore, OLS enhanced models is hypothesized to yield less accurate predictions.
+
+The exceptionally turbulent market conditions of 2018 would exacerbate the limitations of linear OLS models, particularly in sectors such as Real Estate and Communication Services where idiosyncratic drivers dominate. In these conditions and certain segments, asset returns often exhibit behaviours that are macroeconomic dependent and nonlinear drawdowns that violate the constant-beta and homoskedasticity assumptions underlying OLS, which I hypothesize would yield biased forecasts and poor risk-adjusted performance. Consequently, while the expanded factor set may capture more risk dimensions, it is undermined by both linear model misspecification and the market conditions.
+
+RF regression models offer a compelling non-parametric alternative to OLS by relaxing the linearity and additivity assumptions inherent in OLS. As an ensemble of decision trees, RF can capture nonlinear relationships and high order interactions among predictors without requiring an exact functional form. I therefore hypothesise that, when applied to monthly excess-return forecasting, RF will achieve both a higher in-sample $R^2$ and lower out-of-sample MSE than comparable OLS specifications. RF mitigates overfitting through bootstrap aggregation and random feature subsampling, so long as tuning parameters (tree depth, number of trees, minimum node size) are selected via cross-validation or out-of-bag error minimisation.
+
+Nevertheless, the flexibility of RF does not guarantee uniform improvements across all forecasting Fama-French variations and enhancements. While RF inherently down weights irrelevant or redundant predictors through its random bootstrapping mechanism, deep trees can still split on spurious patterns or overfit if hyperparameters are poorly specified. We therefore anticipate that, under strict point forecast metrics or in macroeconomic situations that have low signal-to-noise ratio, an OLS model may outperform a naively tuned RF baseline. Still, for volatile and high growth sectors such as Real Estate where return drivers exhibit threshold effects, regime dependent nonlinearities, and intricate macro micro interactions RF's adaptive partitioning will yield substantial gains in predictive accuracy relative to linear models. Furthermore, due to the Random Forest specification, including a broad array of liquidity risk and sentiment proxies will not harm and even enhance—RF's forecasting performance, in stark contrast to the coefficient instability induced by multicollinearity in OLS. Because each tree in the forest sees only a random subset of predictors at each split, correlated or redundant features are unlikely to dominate model variance, and the ensemble average remains stable. In terms of attribution, RF FI metrics (e.g., permutation importance or SHAP values) are expected to convey the same principal drivers of excess returns as OLS $t-statistics$, albeit without formal inferential guarantees such as confidence intervals or $p-values$. Thus, while RF output richer insights into interaction effects and nonlinear contributions, its interpretability must be framed in predictive terms
+
+\subsection{Model Interpretability}
 \subsection{Sector Rotation Strategy}
 % - With hold out set 2018,, we test the strategy performance against the actual sp500 returns index.
-% - How Sp500 is weighted: market cap (price *total shares outstanding)
 % - As discussed in the data section, 20o18 is a turbulent year and highly volatile . There fore the cummulative return of the index is negative at -6.24\%.
 % - As expected, the Enhanced Random forest yields the highest alpha, followed by base line rf. HOwever, surpising is that ols baseline is higher performing than rf baseline
-%  - It is confirmed that RF with ARL rule set performes really well with sentiment and liquidity risk factors. RF can train on the enhanced set of features, even if they are multicollinear and yield forcast that could create good signals. OLS on the other hand cannot
+%  - It is confirmed that RF with ARL rule set performes really well with sentiment and liquidity risk factors. RF can train on the enhanced set of features, even if they are multicollinear and yield forcast that could create good signals. 
 
-We evaluate the sector rotation strategy over a hold-out sample comprising the calendar year 2018. The strategy's performance is benchmarked against the S\&P500 returns index, which is weighted by market capitalization,computed as the product of share price and total shares outstanding. As detailed in \cref{sec:data}, 2018 was characterized by heightened market volatility and adverse macroeconomic shocks; consequently, the cumulative return of the S\&P500 over this period was $-6.24\%$ \footnote{This paper omits the data point on 31-12-2018, therefore the reported returns is different. If this data point is included, the cumulative return of the S\&P500 over this period was $-6.24\%$ indeed.}.
+We evaluate the sector rotation strategy over a hold-out sample comprising the calendar year 2018. The strategy's performance is benchmarked against the S\&P500 returns index, which is weighted by market capitalization, computed as the product of share price and total shares outstanding. Many empirical studies benchmark their investment or sector rotation strategies against the S\&P500 due to its status as the primary large-cap U.S. equity market proxy, such as \citeA{sawar_2017} where the authors uses S\&P500 as a benchmark for a sector rotation strategy using FF5 alphas. 
+
+
+As detailed in \cref{sec:data}, 2018 was characterized by heightened market volatility and adverse macroeconomic shocks; consequently, the cumulative return of the S\&P500 over this period was $-6.24\%$ \footnote{This paper omits the data point on 31-12-2018, therefore the reported returns is different. If this data point is included, the cumulative return of the S\&P500 over this period was $-6.24\%$ indeed.}.
 
 Applying the enhanced Random Forest model within the sector rotation framework yields the largest alpha relative to the S\&P500, followed in descending order by the baseline Random Forest and the OLS baseline. Notably, the OLS baseline delivers a higher alpha than the baseline Random Forest, a result that deviates from initial expectations and suggests that the mere introduction of nonlinear interactions does not guarantee superior performance absent robust signal extraction and risk adjustment.
 
-The robustness of the Random Forest with Association Rule Learning (ARL) rule set in capturing sentiment and liquidity risk factors is confirmed by its superior rotation signals. The Random Forest algorithm accommodates the full enhanced feature set—including multicollinear predictors—producing forecasts that translate into timely sector-allocation shifts. In contrast, the OLS approach is constrained by its linear assumptions and sensitivity to multicollinearity, which limits its ability to exploit complex factor interdependencies and yields less effective rotation signals.
+The robustness of the Random Forest with Association Rule Learning (ARL) rule set in capturing sentiment and liquidity risk factors is confirmed by its superior rotation signals. The Random Forest algorithm accommodates the full enhanced feature set—including multicollinear predictors—producing forecasts that translate into timely sector-allocation shifts. In contrast, the OLS approach is constrained by its linear assumptions and sensitivity to multicollinearity, which limits its ability to exploit complex factor interdependencies and yields less effective rotation signals. 
 
 \begin{table}[ht]
     \centering
-    \caption{Descriptive Statistics of Index and Portfolio Returns}
+    \caption{Descriptive Statistics and Probabilistic Sharpe Ratios of Portfolio Returns}
     \label{tab:return_stats_1}
-    \begin{tabular}{lcccc}
+    \begin{tabular}{lcccccccccc}
         \toprule
-        {} & Cumulative return & Annualised return & Annualised volatility & Alpha \\
+        {} & Cumulative Return & Annualised Return & Annualised Volatility & Alpha & Sharpe Ratio & Skewness & Excess Kurtosis & PSR (S*=0) & PSR (S*=0.1) & PSR (S*=0.2) \\
         \midrule
-        sprtrn & -7.03\% & -7.08\% & 17.06\% & 0.00\% \\
-        Portfolio\_1 & -3.34\% & -3.36\% & 15.81\% & 3.72\% \\
-        Portfolio\_2 & -8.16\% & -8.23\% & 16.31\% & -1.15\% \\
-        Portfolio\_3 & -2.71\% & -2.73\% & 15.67\% & 4.35\% \\
-        Portfolio\_4 & -5.45\% & -5.49\% & 16.24\% & 1.59\% \\
-        \\
+        S\&P500 & -7.03\% & -7.08\% & 17.06\% & 0.00\% & nan & nan & nan & nan & nan & nan \\
+        rf\_en\_c4f & 3.54\% & 3.57\% & 16.55\% & 10.65\% & 0.0117 & -0.3995 & 3.7112 & 0.5731 & 0.0823 & 0.0015 \\
+        rf\_base\_ff5 & -3.85\% & -3.89\% & 16.48\% & 3.20\% & -0.0168 & -0.1316 & 3.9315 & 0.3952 & 0.0325 & 0.0003 \\
+        rf\_en\_ff5 & 2.53\% & 2.55\% & 16.27\% & 9.63\% & 0.0079 & -0.1690 & 3.1400 & 0.5496 & 0.0732 & 0.0012 \\
+        ols\_en\_ff5 & -0.08\% & -0.08\% & 16.10\% & 7.00\% & -0.0023 & -0.2800 & 3.7646 & 0.4856 & 0.0532 & 0.0007 \\
+        rf\_base\_c4f & -10.58\% & -10.66\% & 17.14\% & -3.58\% & -0.0426 & -0.3018 & 3.1780 & 0.2494 & 0.0118 & 0.0001 \\
+        ols\_en\_c4f & 5.19\% & 5.23\% & 15.72\% & 12.31\% & 0.0182 & -0.2327 & 3.4393 & 0.6126 & 0.0988 & 0.0021 \\
+        ols\_base\_c4f & -5.34\% & -5.38\% & 17.23\% & 1.70\% & -0.0214 & -0.2817 & 3.5408 & 0.3676 & 0.0274 & 0.0002 \\
+        ols\_base\_ff5 & 4.33\% & 4.36\% & 16.45\% & 11.44\% & 0.0146 & -0.4262 & 3.8216 & 0.5911 & 0.0897 & 0.0018 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{/Users/minhquangngo/Documents/vsc/erasmus/msc_thesis/latex/plots/results/cum_ret_plot.png}
-    \caption{Cumulative returns of sector rotation strategies compared to S\&P500 index in 2018.}
-    \label{fig:cum_ret_plot}
-\end{figure}
-
 - closer inspection of result however shows that for most of 2018, the S\&P500 index outperformed the sector rotation strategies.
 - Surprsing that OLS baseline seems to keep up with the index from June to October (albeit a few percentage lower), while RF underperforms.
+
+
