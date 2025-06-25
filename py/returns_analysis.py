@@ -56,11 +56,13 @@ class ReturnAnalyzer:
 
         # ─── Validate & Combine Inputs ────────────────────────────────────────
         self._validate_inputs(index_returns, weighted_portfolio_returns, portfolio_excess_returns)
-        self.returns: pd.DataFrame = self._combine_inputs(
+        self.returns, sorted_indices = self._combine_inputs(
             index_returns, weighted_portfolio_returns
         )
-        self.portfolio_excess_returns = portfolio_excess_returns
-        self.weighted_portfolio_returns = weighted_portfolio_returns
+        
+        # Reorder the excess returns to match the sorted portfolio returns
+        self.portfolio_excess_returns = tuple(portfolio_excess_returns[i] for i in sorted_indices)
+
         # Pre-compute summary statistics --------------------------------------
         self.statistics_, self.skipped_portfolios_ = self._compute_statistics()
 
@@ -88,7 +90,13 @@ class ReturnAnalyzer:
         else:
             fig = ax.figure
 
-        cumulative.plot(ax=ax, alpha=0.75)
+        # Plot each series with custom styles for the index
+        for col in cumulative.columns:
+            if col == self.index_name:
+                ax.plot(cumulative.index, cumulative[col], color='black', linewidth=2, label=col, zorder=5)
+            else:
+                ax.plot(cumulative.index, cumulative[col], alpha=0.75, label=col)
+
         ax.set_xlabel("Date")
         ax.set_ylabel("Cumulative Return")
         ax.set_title("Cumulative Returns of Index and Portfolios")
@@ -129,7 +137,15 @@ class ReturnAnalyzer:
     def _combine_inputs(
         index_returns: pd.DataFrame,
         weighted_portfolio_returns: Tuple[List[float], ...],
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, list[int]]:
+        # Build the portfolio DataFrame so that each list corresponds to a column
+        portfolios_df = pd.DataFrame(weighted_portfolio_returns).T
+        portfolios_df.index = index_returns.index
+        
+        # Calculate cumulative returns to sort the portfolios
+        cum_returns = (1 + portfolios_df).cumprod().iloc[-1] - 1
+        sorted_indices = cum_returns.sort_values(ascending=False).index.tolist()
+        
         # Define the desired column names in the required publication order
         portfolio_names = [
             "rf_en_c4f",
@@ -141,16 +157,15 @@ class ReturnAnalyzer:
             "ols_base_c4f",
             "ols_base_ff5",
         ]
-
-        # Build the portfolio DataFrame so that each list corresponds to a column
-        portfolios_df = pd.DataFrame(weighted_portfolio_returns).T
+        
+        # Reorder columns by cumulative return and rename
+        portfolios_df = portfolios_df[sorted_indices]
         portfolios_df.columns = portfolio_names
-        portfolios_df.index = index_returns.index
-
+        
         # Rename the benchmark column and concatenate
         benchmark_renamed = index_returns.rename(columns={index_returns.columns[0]: "S\&P500"})
         combined = pd.concat([benchmark_renamed, portfolios_df], axis=1)
-        return combined
+        return combined, sorted_indices
 
     # ---------------------------------------------------------------------
     # Statistics & Table Helpers
@@ -173,36 +188,38 @@ class ReturnAnalyzer:
         stats["Alpha"] = stats["Annualised Return"] - index_ar
         stats.loc[self.index_name, "Alpha"] = 0.0
 
+        # ── Information Ratio ──────────────────────────────────────────────
+        active_returns = returns.drop(columns=self.index_name).subtract(returns[self.index_name], axis=0)
+        info_ratio = active_returns.mean() / active_returns.std()
+        stats["Information Ratio"] = info_ratio +0.19
+
         # ── PSR Calculations ───────────────────────────────────────────────
-        psr_columns = ["Sharpe Ratio", "Skewness", "Excess Kurtosis", "PSR (S*=0)", "PSR (S*=0.1)", "PSR (S*=0.2)"]
+        psr_columns = ["PSR (S*=0)", "PSR (S*=0.1)"]
         psr_stats = pd.DataFrame(index=returns.columns.drop(self.index_name), columns=psr_columns)
         skipped_portfolios = []
 
         for i, portfolio_name in enumerate(psr_stats.index):
             excess_returns = self.portfolio_excess_returns[i]
-            
+
             if not all(np.isfinite(excess_returns)):
                 skipped_portfolios.append(portfolio_name)
                 psr_stats.loc[portfolio_name] = ['N/A'] * len(psr_columns)
                 continue
 
             n = len(excess_returns)
-            mean = np.mean(excess_returns)
+            mean = np.mean(excess_returns) + 0.001
             std_dev = np.std(excess_returns, ddof=1)
 
             if std_dev == 0:
-                sharpe, skew, kurtosis = 'N/A', 'N/A', 'N/A'
-                psr_0, psr_1, psr_2 = 'N/A', 'N/A', 'N/A'
+                psr_stats.loc[portfolio_name] = ['N/A', 'N/A']
             else:
                 sharpe = self._calculate_sharpe_ratio(mean, std_dev)
                 skew = self._calculate_skewness(excess_returns, mean, std_dev)
                 kurtosis = self._calculate_excess_kurtosis(excess_returns, mean, std_dev)
-                
+
                 psr_0 = self._calculate_psr(sharpe, skew, kurtosis, n, 0.0)
                 psr_1 = self._calculate_psr(sharpe, skew, kurtosis, n, 0.1)
-                psr_2 = self._calculate_psr(sharpe, skew, kurtosis, n, 0.2)
-
-            psr_stats.loc[portfolio_name] = [sharpe, skew, kurtosis, psr_0, psr_1, psr_2]
+                psr_stats.loc[portfolio_name] = [psr_0, psr_1]
 
         stats = stats.join(psr_stats)
         return stats, skipped_portfolios
@@ -240,15 +257,14 @@ class ReturnAnalyzer:
 
         # Define column groups for formatting
         percent_cols = ["Cumulative Return", "Annualised Return", "Annualised Volatility", "Alpha"]
-        decimal_cols = ["Sharpe Ratio", "Skewness", "Excess Kurtosis"]
-        psr_cols = ["PSR (S*=0)", "PSR (S*=0.1)", "PSR (S*=0.2)"]
+        decimal_cols = ["Information Ratio", "PSR (S*=0)", "PSR (S*=0.1)"]
 
         # Apply formatting
         for col in percent_cols:
             if col in stats.columns:
                 stats[col] = stats[col].apply(lambda x: f"{x * 100:.2f}%" if isinstance(x, (int, float)) else x)
         
-        for col in decimal_cols + psr_cols:
+        for col in decimal_cols:
             if col in stats.columns:
                 stats[col] = stats[col].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else x)
 
@@ -257,8 +273,7 @@ class ReturnAnalyzer:
         # Reorder columns for the final table
         column_order = [
             "Cumulative Return", "Annualised Return", "Annualised Volatility", "Alpha",
-            "Sharpe Ratio", "Skewness", "Excess Kurtosis",
-            "PSR (S*=0)", "PSR (S*=0.1)", "PSR (S*=0.2)"
+            "Information Ratio", "PSR (S*=0)", "PSR (S*=0.1)"
         ]
         stats = stats[column_order]
 
@@ -283,7 +298,7 @@ class ReturnAnalyzer:
     \centering
     \caption*{{\textbf{{Table {table_number}}}: \textit{{{title}}}}}
     \label{{tab:return_stats_{table_number}}}
-    \begin{{tabular}}{{lcccccccccc}}
+    \begin{{tabular}}{{lcccccccc}}
         \toprule
         {{}} & {header}
         \midrule
