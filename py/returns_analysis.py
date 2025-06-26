@@ -207,7 +207,7 @@ class ReturnAnalyzer:
                 continue
 
             n = len(excess_returns)
-            mean = np.mean(excess_returns) + 0.001
+            mean = np.mean(excess_returns) #+ 0.001
             std_dev = np.std(excess_returns, ddof=1)
 
             if std_dev == 0:
