@@ -63,6 +63,8 @@ Finally, predictive accuracy is summarized by the root-mean-square error:
 \mathrm{RMSE} \;=\; \sqrt{\frac{1}{T}\sum_{t=1}^{T}\bigl(y_{t}-\hat y_{t}\bigr)^2}.
 \end{equation}  
 
+%todo: add MAE
+
 Each of these metrics is computed separately for the in-sample period (1998-2017) and the out-of-sample year of 2018 to gauge both explanatory power and true predictive performance. Unlike \citeA{simonian_2019}, the data in this paper is daily, therefore the implementation of the paper's method is on a daily basis instead of monthly. All of the model variations in this section are used to forecast the one day ahead return of each individual sector in 2018. 
 
 \subsubsection{Traditional OLS Factor regression models}

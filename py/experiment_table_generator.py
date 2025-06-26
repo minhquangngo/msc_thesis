@@ -124,6 +124,11 @@ class ExperimentTableGenerator:
         if data.empty:
             return ""
 
+        # Drop unwanted rsquared columns except adj and sample
+        for drop_col in ['rsquared', 'rsquared_hold', 'rsquared_holdout']:
+            if drop_col in data.columns:
+                data = data.drop(columns=drop_col)
+        
         # Create mapping for column names
         clean_columns = {col: col.replace('_', ' ').title() for col in data.columns}
         clean_to_original = {v: k for k, v in clean_columns.items()}
@@ -132,8 +137,8 @@ class ExperimentTableGenerator:
         header = list(data.columns)
         col_format = 'l' + 'c' * len(header)
         
-        latex_str = "\\begin{table}[ht]\n"
-        latex_str += f"\\caption{{\\textit{{{caption.replace('_', ' ')}}}}}\n"
+        latex_str = "\\begin{table}[H]\n"
+        latex_str += f"\\caption{{\\textit{{{caption.replace('_', ' ')}}}}}\label{{tab:{caption}}}\n"
         latex_str += "\\centering\n"
         latex_str += f"\\begin{{tabular}}{{{col_format}}}\n"
         latex_str += "\\hline\\hline\n"
