@@ -40,8 +40,13 @@ However, \citeA{ung_2023} pointed out several problems with the BW index. First,
 
 In addition to the Enhanced BW index, the Daily News Sentiment Index from the Federal Reserve Bank of San Francisco provides a high-frequency gauge of U.S. economic sentiment, capturing short-run fluctuations in public perceptions as reported by major national newspapers. Specifically, the index aggregates sentiment scores derived from economics-related articles in 24 leading U.S. newspapers, including those with nationwide reach such as the \emph{New York Times} and the \emph{Washington Post}. Articles included in the measure must contain at least 200 words and be classified by Factiva (a news aggregator) as pertaining to "economics" and the "United States". To generate the sentiment score, \citeA{shapiro_2020} combine general-purpose sentiment dictionaries with a custom, news-specific lexicon to more accurately reflect the tone and context of economic reporting. Sentiment is scored at the article level and then aggregated using a trailing weighted average, in which more recent articles receive higher weights, with geometric decay over time. This method makes sure that any adjustments for potential shifts in the composition of the newspapers within the index is accounted for.
 
-Complementing the two official sentiment indexes, this paper also utilizes a proxy for sentimet, the Volatility Index (VIX hereafter). The VIX, commonly reffered to in the finance sector as the 'fear index' computes a 30 day forward-looking estimate of market volatility by aggregating the prices of out-of-the-money S\&P 500 index options, weighted across a broad range of strike prices and interpolated to produce a constant maturity of 30 days. It uses both put and call options with expirations between 23 and 37 days, along with current U.S. Treasury rates, to accurately reflect current market expectations. The formula essentially replicates a theoretical variance swap—summing the contributions from each eligible option—then takes the square root and annualizes the result 
-%-0------------------------------TODO: VIX FORMULA-----------------------
+Complementing the two official sentiment indexes, this paper also utilizes a proxy for sentimet, the Volatility Index (VIX hereafter) by \citeA{vix_cboe}. The VIX, commonly reffered to in the finance sector as the 'fear index' computes a 30 day forward-looking estimate of market volatility by aggregating the prices of out-of-the-money S\&P 500 index options, weighted across a broad range of strike prices and interpolated to produce a constant maturity of 30 days. It uses both put and call options with expirations between 23 and 37 days, along with current U.S. Treasury rates, to accurately reflect current market expectations. The formula essentially replicates a theoretical variance swap—summing the contributions from each eligible option—then takes the square root and annualizes the result. The formula for VIX is as follows:
+\begin{equation}
+    \label{eq:vix}
+    \text{VIX} = 100 \times \sqrt{\frac{2}{T} \sum_i \frac{\Delta K_i}{K_i^2} e^{RT} Q(K_i) - \frac{1}{T} \left(\frac{F}{K_0} - 1\right)^2}
+\end{equation}
+
+where $T$ is time to expiration, $F$ is the forward index level derived from index option prices, $K_0$ is the first strike below $F$, $K_i$ is the strike price of the $i$th out-of-money option, $\Delta K_i$ is the interval between strike prices, $R$ is the risk-free interest rate to expiration, and $Q(K_i)$ is the midpoint of the bid-ask spread for each option with strike $K_i$.
 
  
 \subsection{Model training and its enhancements}
@@ -57,13 +62,18 @@ where \(y_t\) denotes the observed return, \(\hat y_t\) the model prediction, \(
 \mathrm{Adj}\,R^2 \;=\; 1 \;-\; \bigl(1 - R^2\bigr)\,\frac{T - 1}{T - p - 1}.
 \end{equation}  
 
+We also compute the mean absolute error:
+\begin{equation}
+\label{eq:mae}
+\mathrm{MAE} \;=\; \frac{1}{T}\sum_{t=1}^{T}|y_{t}-\hat y_{t}|.
+\end{equation}
+
 Finally, predictive accuracy is summarized by the root-mean-square error:  
 \begin{equation}
 \label{eq:rmse}
 \mathrm{RMSE} \;=\; \sqrt{\frac{1}{T}\sum_{t=1}^{T}\bigl(y_{t}-\hat y_{t}\bigr)^2}.
 \end{equation}  
 
-%todo: add MAE
 
 Each of these metrics is computed separately for the in-sample period (1998-2017) and the out-of-sample year of 2018 to gauge both explanatory power and true predictive performance. Unlike \citeA{simonian_2019}, the data in this paper is daily, therefore the implementation of the paper's method is on a daily basis instead of monthly. All of the model variations in this section are used to forecast the one day ahead return of each individual sector in 2018. 
 
@@ -221,9 +231,10 @@ This metric serves as an efficient proxy for out-of-sample error and can guide h
 
 Since the data used in this paper is a time series across 20 years (more about data in \ref{sec:data}), we must evaluate model performance in a time dependent context. Hence, we cannot use a simple train-test split. Instead, an extending window approach is used. Concretely, at iteration $t$ the model is trained on observations from time 1 up to $t$, then tested on the hold-out at $t+1$, after which the observation at $t+1$ is appended to the training window for the next evaluation. A visualization of this approach is shown in \ref{fig:extend_win}. Unlike a rolling window split, where the training set maintains a constant size by dropping the oldest observation as the window slides forward, the extending window approach uses the full historical dataset at each step. With this approach, by the time the model is trained on the full dataset, it has seen all the patterns in the data available up to that point. The data that the model is trained on should be stationary (Section \ref{sec:data} shows that excess returns are stationary), otherwise the model will overfit to the noise in the data.
 
-The dataset is divided into 80 sequential train-test folds, with the training window growing by one quarter at each iteration. This quarterly partitioning aligns with the benchmark portfolios of \citeA{ff5_2015}, which are also rebalanced on a quarterly basis. Although realistically using fewer folds would yield very similar predictive performance, we retain all 80 to enhance the precision of our attribution analysis.
+The dataset is divided into 5 sequential train-test folds, with the training window growing by one year at each iteration. This yearly partitioning aligns with the benchmark portfolios of \citeA{ff5_2015}, which are also rebalanced on a yearly basis. Furthermore, based ong previous iterations of this project, it is found that passing 5 train-test fold does not improve on the performance of the model. 
 
-Each test block comprises 21 consecutive trading days (one trading month), with a fixed gap of five trading days between the end of the training window and the start of the evaluation window to avoid look-ahead bias. It balances short-term predictability with realistic transaction-cost assumptions and is widely adopted in recent ML studies of return forecasting \cite{htun_2024}. Introducing a one-week (5-business-day) gap between the folds removes any overlaps between features or labels that span multiple days and the first observations in the test block, eliminating look-ahead bias. This process is called an "Embargo" and is popular in applied quantitative finance Cross Validation workflows \cite{embargo_2020}. %2nd DRAFT: MORE MOTIAVTION WHY?
+Each test block comprises 212 consecutive trading days (one trading year), with a fixed gap of five trading days between the end of the training window and the start of the evaluation window to avoid look-ahead bias. It balances short-term predictability with realistic transaction-cost assumptions and is widely adopted in recent ML studies of return forecasting \cite{htun_2024}. Introducing a one-week (5-business-day) gap between the folds removes any overlaps between features or labels that span multiple days and the first observations in the test block, eliminating look-ahead bias. This process is called an "Embargo" and is popular in applied quantitative finance Cross Validation workflows \cite{embargo_2020}. %2nd DRAFT: MORE MOTIAVTION WHY?
+
 
 
 \begin{figure}[H]
@@ -568,102 +579,112 @@ Association rule learning (ARL) is a pattern-mining technique that scans histori
 \subsection{Sector rotation strategy}
 %REWRITE THIS 2nd DRAFT
 
-For each sector $s\in\{1,\dots,11\}$ and for every trading day $t$ in 2018, we estimate the next-day excess sector return, $\widehat{r}^{\text{ex}}_{s,t+1}$, using every OLS and RF variation. Conditional on these forecasts we construct a volatility ratio%
-\[
+For each sector $s\in\{1,\dots,11\}$ and for every trading day $t$ in 2018, we estimate the next-day excess sector return, $\widehat{r}^{\text{ex}}_{s,t+1}$, using every OLS and RF variation. Conditional on these forecasts we construct a volatility ratio
+
+\begin{equation}
 \operatorname{VR}_{s,t}^{(5,21)}=\frac{\sigma_{s,t}^{\;(5)}}{\sigma_{s,t}^{\;(21)}},
-\]
+\end{equation}
+
 where $\sigma_{s,t}^{\;(h)}$ is the realised volatility of sector $s$ over the previous $h$ trading days.  A binary trading signal is issued according to
-\[
+
+\begin{equation}
 \text{Signal}_{s,t}=\mathbf{1}
 \!\bigl(
 \widehat{r}^{\text{ex}}_{s,t+1}>0
 \;\wedge\;
 \operatorname{VR}_{s,t}^{(5,21)}<1
 \bigr).
-\]
+\end{equation}
+
 The requirement $\operatorname{VR}_{s,t}^{(5,21)}<1$ ensures that the model-implied positive excess return is accompanied by a \emph{compression} of short-run volatility relative to its longer-run benchmark, a configuration empirically associated with more favourable risk-adjusted pay-offs and lower drawdown probability.  Repeating this procedure over the full calendar year yields an $(\text{days}\times\text{sectors})$ matrix of investment signals.
 
+Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is flagged, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution. Following \citeA{simonian_2019}, a constrained version of the strategy is also implemented. This strategy follows the weight attribution discussed above but is more conversative by limiting position sizes, taking lower risks on potential erroneous signals produced by the model. As also seen in \citeA{simonian_2019}, constrained strategy is likely to underperform comparing to unconstrained strategy, given its conservativeness. The detailed assignment of weights and sector weight distribution can be found in \cref{alg:sector_rotation}
 
-Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is flagged, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution.
-
-\begin{algorithm}[H]
+\begin{algorithm}[ht]
     \caption{Sector Rotation Strategy}
     \label{alg:sector_rotation}
 
     Let $T$ be the set of all observations (time periods).
-    Let $\alpha$ and $\beta$ be non-negative thresholds (e.g., $\alpha = 0$, $\beta = 0.02$).
-    Let $VR_t$ denote the volatility ratio at time $t$, defined as:
-    $$VR_t = \frac{\text{Volatility}(t-5, t)}{\text{Volatility}(t-21, t)}$$
-    where near-term volatility is smaller than long-term volatility when $VR_t < 1$.
+    Let $\alpha$ and $\beta$ be non‐negative thresholds.
+    Let $VR_t = \frac{\text{Volatility}(t-5, t)}{\text{Volatility}(t-21, t)}$.
 
-    \textbf{Input:} Historical sector returns, RF predictions $\hat{r}_{t+1}$, volatility data
-    
-    \textbf{Output:} Portfolio weights $w_i$ for each sector $i$
+    \KwIn{Historical sector returns, RF predictions $\hat{r}_{t+1}$, volatility data}
+    \KwOut{Portfolio weights $w_i$ for each sector $i$}
 
-    \Begin{
-        \textbf{Phase I: Signal Generation}
-        
-        \For{each time period $t$}{
-            Compute volatility ratio: $VR_t = \frac{\text{Volatility}(t-5, t)}{\text{Volatility}(t-21, t)}$\;
-            
-            Compute RF prediction $\hat{r}_{t+1}$ for one-month-ahead sector return\;
-            
-            \textbf{Association Rule Check:}
-            
-            Compute support: $\text{supp}((VR_t < 1, \hat{r}_{t+1} > \alpha)) = \frac{\#\text{ of months }(VR_t < 1, \hat{r}_{t+1} > \alpha)}{\text{Window Length}}$\;
-            
-            Compute lift: $\text{lift}((VR_t < 1, \hat{r}_{t+1} > \alpha) \Rightarrow r_{t+1} > \beta) = \frac{\text{supp}((VR_t < 1, \hat{r}_{t+1} > \alpha, r_{t+1} > \beta))}{\text{supp}((VR_t < 1, \hat{r}_{t+1} > \alpha)) \times \text{supp}(r_{t+1} > \beta)}$\;
-        }
-        
-        \vspace{4pt}
-        \textbf{Phase II: Trading Decision}
-        
-        \For{each sector $i$ at end of month $t$}{
-            \If{sector's $\text{lift}_{(t+1)} > 0$ \textbf{and} $VR_t < 1$ \textbf{and} $\hat{r}_{t+1} > \alpha$}{
-                Set signal $s_i = 1$ (positive signal)\;
-            }
-            \Else{
-                Set signal $s_i = 0$ (no signal)\;
-            }
-        }
-        
-        \vspace{4pt}
-        \textbf{Phase III: Portfolio Construction}
-        
-        Count number of sectors with positive signals: $N = \sum_{i} s_i$\;
-        
-        \If{$N \neq 0$}{
-            \For{each sector $i$}{
-                \If{$s_i = 1$}{
-                    $w_i = \frac{100\%}{N}$ (equal weight among selected sectors)\;
-                }
-                \Else{
-                    $w_i = 0$\;
-                }
-            }
-        }
-        \Else{
-            \For{each sector $i$}{
-                $w_i = \frac{100\%}{\#\text{Assets}}$ (equal weight across all sectors)\;
-            }
-        }
-        
-        \Return portfolio weights $\{w_i\}$\;
+    \BlankLine
+    \textbf{Phase I: Signal Generation}\;
+    \For{each time period $t$}{
+        Compute $VR_t$\;
+        Compute RF prediction $\hat{r}_{t+1}$\;
+        Compute
+        $\displaystyle
+          \text{supp}((VR_t<1,\hat r_{t+1}>\alpha))
+        $
+        and
+        $\displaystyle
+          \text{lift}((VR_t<1,\hat r_{t+1}>\alpha)\!\Rightarrow\!r_{t+1}>\beta)
+        $\;
     }
 
-    \textbf{Note:} The strategy uses association rules to identify when the combination of low volatility ratio and positive RF predictions reliably predicts positive sector performance.
+    \BlankLine
+    \textbf{Phase II: Trading Decision}\;
+    \For{each sector $i$ at end of month $t$}{
+        \If{$\text{lift}_{i,t+1}>0$ \textbf{and} $VR_t<1$ \textbf{and} $\hat{r}_{i,t+1}>\alpha$}{
+            $s_i \leftarrow 1$\;
+        }
+        \Else{
+            $s_i \leftarrow 0$\;
+        }
+    }
 
-    Source: \cite{simonian_2019}
+    \BlankLine
+    \textbf{Phase III: Portfolio Construction}\;
+    Count $N \leftarrow \sum_i s_i$\;
+    \eIf{use \emph{unconstrained} weights}{
+        \eIf{$N \neq 0$}{
+            \For{each sector $i$}{
+                \eIf{$s_i=1$}{
+                    $w_i \leftarrow \dfrac{100\%}{N}$\;
+                }{
+                    $w_i \leftarrow 0$\;
+                }
+            }
+        }{
+            \For{each sector $i$}{
+                $w_i \leftarrow \dfrac{100\%}{\#\text{Assets}}$\;
+            }
+        }
+    }{
+        \tcp{constrained weights}
+        \eIf{$N \neq 0$}{
+            \For{each sector $i$}{
+                $\displaystyle
+                  w_i \;\leftarrow\;
+                  0.30\times\frac{100\%}{N}
+                  \;+\;
+                  \frac{0.70}{\#\text{Assets}}
+                $\;
+            }
+        }{
+            \For{each sector $i$}{
+                $w_i \leftarrow \dfrac{100\%}{\#\text{Assets}}$\;
+            }
+        }
+    }
+
+    \Return{portfolio weights $\{w_i\}$}\;
+
+    \BlankLine
+    \textbf{Note:} Constrained active weight $=0.30\times(\text{unconstrained weight})+\tfrac{0.70}{\#\text{Assets}}$.
 \end{algorithm}
 
-%todo: constrained and unconstrained: why?
 
-% \subsection{Hypothesis}
+Combined with the RF training, the sector rotation strategy ideally proceeds via an expanding window backtest at annual intervals ( as previously discussed). In each fold of 212 trading days, all eight model specifications are calibrated on the current estimation window. Then, the resulting ARL rules are then applied to the next 212 trading days to generate sector rotation signals. In the second fold, the training window expands to $2\times212=424$ days, followed by another 212 days out of sample test, and so on—repeating this procedure for each year in the 1998-2018 sample. Such an approach would produce twenty sets of daily trading rules, one for each calendar year.
 
-% - OLS base : both c4f and ff5 Features significant in prediciting excess returns (EXPLAIN WHY HERE). However will not be explaining variations in the out of sample model, though high R2 in sample. Would not perform good on sector rotation strategy. Unable to adjust to market conditions (risk,liquidity, sentiment) due to OLs linearity nature (parametric) Suspect that martket excess returns will have the most effect and will always be highly statistically significant. {EXPLAIN WHY YOU SUSPECT HIGH MARKET EXCESS COULD LEAD TO HIGH EXCESS RET FOR LINEAR MODELS}. { ARGUE WHICH c4F FACTORS (['excess_mkt_ret','smb', 'hml','umd']) DO YOU THINK WILL HAVE POSITIVE/NEGATIVE EFFECT ON EXCESS RET, AND TO WHAT EXTENT} { ARGUE WHICH ff5 FACTORS ['excess_mkt_ret','smb', 'hml','rmw','cma'] DO YOU THINK WILL HAVE POSITIVE/NEGATIVE EFFECT ON EXCESS RET, AND TO WHAT EXTENT}
+However, retraining tree based models across eleven sectors and eight specifications at every fold requires on the order of $11\times4\times20\approx880$ RF estimations, each with hundreds of trees, which exceeds available computational resources. To strike a balance between methodological rigor and feasibility, this thesis implements the full expanding-window protocol as follows. The models are estimated on all data from January 1997 through December 2017, and the ARL generated sector-rotation strategy is applied exclusively to the 2018 out of sample period. Thus, focusing on 2018 allows us to demonstrate the models' rule-generation and trading performance under less computational load yet rigorous conditions, while preserving the conceptual integrity of the extending-window design.
 
-% - OLS enhanced : only c4f Features significant in prediciting excess returns (EXPLAIN WHY HERE). However, due to multicollinearity, some features (escpecially features ...) does not work in an OLS (REPHRASE THIS TO BE MORE CLEAR). Therfore expect this to perform even worse than OLS base, in terms of predictive power and variation explained. Though for attribution, Suspect it would be better than OLS base as some biases are accounted for. Still, still expect excess ret to be the most important n varaible in lienar models. However, {ARGUE WHICH VARIABLE YOU SUSPECT WILL BE REMOVED DUE TO MULTICOLLINEARITY AND WHICH WILL BE INSIGNIFICANT 'turn','turn_sd','mvel1','dolvol','daily_illq','zero_trade_ratio','baspread','enhanced_baker','vix_close','put_call_ratio','news_sent'}
-%- RF based models:
+
+
 
 
 
