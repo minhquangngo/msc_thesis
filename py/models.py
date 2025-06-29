@@ -543,7 +543,7 @@ class randomforest(BaseModel):
         # Log RFI values to MLflow
         rfi_dict = {
             feature: float(rfi_rf[i])
-            for i, feature in enumerate(X_hold.columns)
+            for i, feature in enumerate(X_fit.columns)
         }
         mlflow.log_dict(rfi_dict, 'rf_rfi.json')
 
@@ -553,11 +553,12 @@ class randomforest(BaseModel):
         # Since we don't have analytical derivatives, we use feature importance as a proxy for dY/dX
 
         elasticity_rf = {}
-        mean_pred = np.mean(np.abs(self.pred_y_hold))
+        # Use IN-SAMPLE predictions and features for elasticity calculation
+        mean_pred = np.mean(np.abs(self.pred_y_sample))
 
-        for i, col in enumerate(X_hold.columns):
-            # Get the feature values and their mean
-            feature_values = X_hold[col].to_numpy()
+        for i, col in enumerate(X_fit.columns):
+            # Get the IN-SAMPLE feature values and their mean
+            feature_values = X_fit[col].to_numpy()
             mean_feature = np.mean(np.abs(feature_values))
 
             # Use the Random Forest feature importance as a proxy for the partial derivative dY/dX
@@ -574,7 +575,7 @@ class randomforest(BaseModel):
         # Calculate pseudo-beta by weighting raw elasticity with RFI
         pseudo_beta_rf = {
             feature: float(rfi_rf[i] * elasticity_rf[feature])
-            for i, feature in enumerate(X_hold.columns)
+            for i, feature in enumerate(X_fit.columns)
         }
 
         # Log elasticity values for debugging
