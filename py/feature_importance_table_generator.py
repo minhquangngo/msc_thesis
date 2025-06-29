@@ -206,7 +206,7 @@ class FeatureImportanceTableGenerator:
                     continue
                 _logger.info("Successfully loaded feature importance vector for run %s", run_path.name)
 
-                feat_names = self._determine_feature_names(fi_vector)
+                feat_names = self._determine_feature_names(fi_vector, exp_name)
                 if feat_names is None:
                     _logger.warning("Unexpected feature list length (%d) in %s – skipping", len(fi_vector), run_path)
                     continue
@@ -256,7 +256,7 @@ class FeatureImportanceTableGenerator:
 
     # --------------------- feature name logic ------------------------
 
-    def _determine_feature_names(self, fi_vector: Sequence[float]) -> List[str] | None:
+    def _determine_feature_names(self, fi_vector: Sequence[float], exp_name: str = "") -> List[str] | None:
         """Return canonical feature names for *fi_vector* length/content or ``None``."""
         n = len(fi_vector)
         if n == 4:
@@ -264,14 +264,20 @@ class FeatureImportanceTableGenerator:
         if n == 5:
             return FEATURES_5
         if n > 5:
-            # Decide based on presence of CMA – heuristic from requirements
-            if n >= len(FEATURES_LONG_WITH_CMA):
-                # long list – try decide on vector size; fall back to CMA check
-                base = FEATURES_LONG_WITH_CMA if "cma" in FEATURES_LONG_WITH_CMA else FEATURES_LONG_WITH_UMD
-                return base[:n]
-            if "cma" in FEATURES_LONG_WITH_CMA:
+            # Determine feature set based on experiment name
+            # C4F models use UMD (Carhart 4-factor + additional features)
+            # FF5 models use CMA (Fama-French 5-factor + additional features)
+            if "c4f" in exp_name.lower():
+                _logger.info("Using FEATURES_LONG_WITH_UMD for C4F experiment '%s' with %d features", exp_name, n)
+                return FEATURES_LONG_WITH_UMD[:n]
+            elif "ff5" in exp_name.lower():
+                _logger.info("Using FEATURES_LONG_WITH_CMA for FF5 experiment '%s' with %d features", exp_name, n)
                 return FEATURES_LONG_WITH_CMA[:n]
-            return FEATURES_LONG_WITH_UMD[:n]
+            else:
+                # Fallback: if we can't determine from experiment name,
+                # default to CMA for backward compatibility
+                _logger.warning("Could not determine factor model from experiment name '%s', defaulting to CMA features", exp_name)
+                return FEATURES_LONG_WITH_CMA[:n]
         return None
 
     # ------------------- LaTeX building helpers ----------------------

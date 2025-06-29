@@ -193,24 +193,34 @@ def compare_experiments_dm_test(actual_lst, experiment1_num, experiment2_num):
                     # Extract sector number (e.g., "60" from "60_rf")
                     sector_num = extract_sector_number(sector_param)
 
-                    # Look for RF prediction series file (using glob pattern)
+                    # Look for prediction series files (RF or OLS)
                     artifacts_dir = run_dir / "artifacts"
-                    pred_files = list(artifacts_dir.glob("rf_pred_series_*.csv"))
+                    rf_pred_files = list(artifacts_dir.glob("rf_pred_series_*.csv"))
+                    ols_pred_files = list(artifacts_dir.glob("ols_pred_series_*.csv"))
 
-                    if pred_files:
-                        # Take the first matching file
-                        pred_file = pred_files[0]
+                    pred_file = None
+                    pred_type = None
+
+                    # Prioritize RF predictions, fall back to OLS
+                    if rf_pred_files:
+                        pred_file = rf_pred_files[0]
+                        pred_type = "RF"
+                    elif ols_pred_files:
+                        pred_file = ols_pred_files[0]
+                        pred_type = "OLS"
+
+                    if pred_file:
                         try:
                             pred_df = pd.read_csv(pred_file, index_col=0, parse_dates=True)
-                            print(f"Prediction file shape for sector {sector_num}: {pred_df.shape}, columns: {pred_df.columns.tolist()}")
+                            print(f"{pred_type} prediction file shape for sector {sector_num}: {pred_df.shape}, columns: {pred_df.columns.tolist()}")
                             # Filter out observations before cutoff date
                             pred_df = pred_df[pred_df.index >= cutoff_date]
                             predictions[sector_num] = pred_df
-                            print(f"Loaded predictions for sector {sector_num} from experiment {experiment_num} (after {cutoff_date.date()})")
+                            print(f"Loaded {pred_type} predictions for sector {sector_num} from experiment {experiment_num} (after {cutoff_date.date()})")
                         except Exception as e:
                             print(f"Error loading {pred_file}: {e}")
                     else:
-                        print(f"No prediction file found for sector {sector_num} (param: {sector_param}) in run {run_id}")
+                        print(f"No prediction file (RF or OLS) found for sector {sector_num} (param: {sector_param}) in run {run_id}")
 
         return predictions
 
