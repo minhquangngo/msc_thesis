@@ -177,9 +177,10 @@ class BaseModel(ABC):
         plt.xlabel('Fitted Values')
         plt.ylabel('Residuals')
         plt.axhline(y=0,linestyle='--')
-        img_path = f'{run_name}_{sample_or_hold}_residuals_plot.png'
-        plt.savefig(img_path)
-        mlflow.log_artifact(img_path)
+        # DEACTIVATED: Residual plot saving - uncomment to re-enable
+        # img_path = f'{run_name}_{sample_or_hold}_residuals_plot.png'
+        # plt.savefig(img_path)
+        # mlflow.log_artifact(img_path)
         plt.show()
         print(f"Displayed: Residuals plot for {run_name} - {sample_or_hold}")
         plt.close()
@@ -358,32 +359,42 @@ class randomforest(BaseModel):
         self.shap_values = shap_exp(X_hold)
         
         #------------Surrogate--------
-        self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
+        # DEACTIVATED: Surrogate tree training - uncomment to re-enable
+        # self.best_surrogate_model, self.surrogate_r2_sample, self.surrogate_rmse_sample, self.surrogate_r2_hold, self.surrogate_rmse_hold = self.surrogate_(X_fit, X_hold, self.pred_y_sample, self.pred_y_hold)
+
+        # Set dummy values for surrogate metrics to avoid errors
+        self.best_surrogate_model = None
+        self.surrogate_r2_sample = 0.0
+        self.surrogate_rmse_sample = 0.0
+        self.surrogate_r2_hold = 0.0
+        self.surrogate_rmse_hold = 0.0
+        self.surrogate_text = "Surrogate tree training deactivated"
         
 
-        fig, ax = plt.subplots(figsize=(18, 12))  
-        plot_tree(
-            self.best_surrogate_model,
-            feature_names=X_fit.columns.tolist(),  
-            filled=True,
-            max_depth=3,
-            fontsize=11,
-            ax=ax
-        )
-        for txt in ax.texts:
-            txt.set_text(txt.get_text().replace('≤','<='))
+        # DEACTIVATED: Surrogate tree plotting - uncomment to re-enable
+        # fig, ax = plt.subplots(figsize=(18, 12))
+        # plot_tree(
+        #     self.best_surrogate_model,
+        #     feature_names=X_fit.columns.tolist(),
+        #     filled=True,
+        #     max_depth=3,
+        #     fontsize=11,
+        #     ax=ax
+        # )
+        # for txt in ax.texts:
+        #     txt.set_text(txt.get_text().replace('≤','<='))
 
-        plt.tight_layout()
-        plt.axis('off')  # Optional: Remove axes
-        
+        # plt.tight_layout()
+        # plt.axis('off')  # Optional: Remove axes
+
         # # Save and log plot_tree
         # tree_plot_path = f"{self.run_name}_surrogate_tree_plot.png"
         # plt.savefig(tree_plot_path)
         # mlflow.log_artifact(tree_plot_path)
         # plt.show()
         # plt.close()
-        
-        self.surrogate_text = export_text(self.best_surrogate_model, max_depth=3)
+
+        # self.surrogate_text = export_text(self.best_surrogate_model, max_depth=3)
         
         return self.best_rf
     
@@ -392,22 +403,24 @@ class randomforest(BaseModel):
         rf_input_example = X_fit.iloc[:5]  # First 5 rows as a sample input
         rf_output_example = self.best_rf.predict(rf_input_example)
         rf_sig = mlflow.models.signature.infer_signature(rf_input_example,rf_output_example)
-        mlflow.sklearn.log_model(
-            sk_model   = self.best_rf,
-            artifact_path = "rf_model",
-            input_example = rf_input_example,
-            registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
-            signature=rf_sig
-    )
-        surr_output_example = self.best_surrogate_model.predict(rf_input_example)
-        surr_sig = mlflow.models.signature.infer_signature(rf_input_example,surr_output_example)
-        mlflow.sklearn.log_model(
-            sk_model= self.best_surrogate_model,
-            artifact_path= 'surr_model',
-            input_example= rf_input_example,
-            registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
-            signature= surr_sig
-        )
+        # DEACTIVATED: Random Forest model serialization - uncomment to re-enable
+        # mlflow.sklearn.log_model(
+        #     sk_model   = self.best_rf,
+        #     artifact_path = "rf_model",
+        #     input_example = rf_input_example,
+        #     registered_model_name = f"rf_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
+        #     signature=rf_sig
+        # )
+        # DEACTIVATED: Surrogate model logging - uncomment to re-enable
+        # surr_output_example = self.best_surrogate_model.predict(rf_input_example)
+        # surr_sig = mlflow.models.signature.infer_signature(rf_input_example,surr_output_example)
+        # mlflow.sklearn.log_model(
+        #     sk_model= self.best_surrogate_model,
+        #     artifact_path= 'surr_model',
+        #     input_example= rf_input_example,
+        #     registered_model_name = f"surr_{self.fama_french_ver}_{self.run_name}_{self.experiment_name}",
+        #     signature= surr_sig
+        # )
 
         #--------------Logging metrics---------------
 
@@ -424,13 +437,15 @@ class randomforest(BaseModel):
             'out_of_bag_score':self.best_rf.oob_score_,
             'adf_stats': self.adf_stat,
             'adf_pval': self.adf_p,
-            'surrogate_rmse_sample': self.surrogate_rmse_sample,
-            'surrogate_r2_sample': self.surrogate_r2_sample,
-            'surrogate_rmse_hold': self.surrogate_rmse_hold,
-            'surrogate_r2_hold': self.surrogate_r2_hold 
+            # DEACTIVATED: Surrogate metrics - uncomment to re-enable
+            # 'surrogate_rmse_sample': self.surrogate_rmse_sample,
+            # 'surrogate_r2_sample': self.surrogate_r2_sample,
+            # 'surrogate_rmse_hold': self.surrogate_rmse_hold,
+            # 'surrogate_r2_hold': self.surrogate_r2_hold
         }
         mlflow.log_metrics(metrics)
-        mlflow.log_text(self.surrogate_text, 'surrogate_tree.txt')
+        # DEACTIVATED: Surrogate text logging - uncomment to re-enable
+        # mlflow.log_text(self.surrogate_text, 'surrogate_tree.txt')
         # --------------------VIF---------------
         #TODO: explain in the paper why vif is calc this way
         # 1. Extract the raw values and standardize each column
@@ -459,9 +474,10 @@ class randomforest(BaseModel):
             self.best_rf, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=1
         ) #TODO: adjust number of repeats
 
-        perm_result_surr = permutation_importance(
-            self.best_surrogate_model, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=-1
-        )
+        # DEACTIVATED: Surrogate permutation importance - uncomment to re-enable
+        # perm_result_surr = permutation_importance(
+        #     self.best_surrogate_model, X_hold, y_hold, n_repeats=20, random_state=seed, n_jobs=-1
+        # )
         raw_perm_imp_rf = self.plot_and_log_permutation_importance(
             perm_result_rf,
             X_hold,
@@ -479,10 +495,11 @@ class randomforest(BaseModel):
         self.plot_residuals(self.pred_y_hold,self.resid_hold, self.run_name, sample_or_hold='hold') #'RF Hold out: Residuals vs Fitted Values'
 
         #------------Residuals-Surr----------
-        surr_pred_sample = self.best_surrogate_model.predict(X_fit)
-        surr_pred_hold = self.best_surrogate_model.predict(X_hold)
-        surr_resid_sample = y_fit - surr_pred_sample
-        surr_resid_hold = y_hold - surr_pred_hold
+        # DEACTIVATED: Surrogate residuals calculations - uncomment to re-enable
+        # surr_pred_sample = self.best_surrogate_model.predict(X_fit)
+        # surr_pred_hold = self.best_surrogate_model.predict(X_hold)
+        # surr_resid_sample = y_fit - surr_pred_sample
+        # surr_resid_hold = y_hold - surr_pred_hold
         # self.plot_residuals(surr_pred_sample,surr_resid_sample,self.run_name, sample_or_hold='sample') #' Surrogate Sample: Residuals vs Fitted Values'
         # self.plot_residuals(surr_pred_hold,surr_resid_hold,self.run_name, sample_or_hold='hold') #' Surrogate Hold out: Residuals vs Fitted Values'
 
@@ -490,14 +507,46 @@ class randomforest(BaseModel):
         plt.style.use(['science','ieee','apa_custom.mplstyle'])
         plt.figure(figsize=(10,6))
         shap.plots.beeswarm(self.shap_values, show=False)
-        plt.savefig(f'{run_name}_shap_plot.png') 
-        mlflow.log_artifact(f'{run_name}_shap_plot.png')
+        # DEACTIVATED: SHAP plot saving - uncomment to re-enable
+        # plt.savefig(f'{run_name}_shap_plot.png')
+        # mlflow.log_artifact(f'{run_name}_shap_plot.png')
         plt.show()
         print(f"Displayed: SHAP beeswarm plot for {run_name}")
         plt.close()
 
         #-----------Simonian coefficient- RF-----------
-        rfi_rf = raw_perm_imp_rf/raw_perm_imp_rf.sum()
+        # Calculate RFI (Relative Feature Importance) following the normalization approach:
+        # 1. Get feature importance from each tree in the Random Forest
+        # 2. Normalize feature importance within each tree (NFI)
+        # 3. Average NFI across all trees to get RFI
+
+        # Extract feature importances from each tree
+        tree_feature_importances = []
+        for tree in self.best_rf.estimators_:
+            tree_feature_importances.append(tree.feature_importances_)
+
+        # Convert to numpy array for easier manipulation
+        tree_fi_array = np.array(tree_feature_importances)  # Shape: (n_trees, n_features)
+
+        # Calculate NFI: normalize feature importance within each tree
+        # For each tree, divide each feature's importance by the sum of all feature importances in that tree
+        tree_fi_sums = tree_fi_array.sum(axis=1, keepdims=True)  # Sum of FI for each tree
+        nfi_array = tree_fi_array / tree_fi_sums  # Normalized Feature Importance for each tree
+
+        # Calculate RFI: average NFI across all trees
+        rfi_rf = nfi_array.mean(axis=0)  # Average across trees (axis=0)
+
+        # Verify that RFI sums to 1.0 and all values are in [0, 1]
+        assert np.isclose(rfi_rf.sum(), 1.0), f"RFI sum is {rfi_rf.sum()}, should be 1.0"
+        assert np.all((rfi_rf >= 0) & (rfi_rf <= 1)), "RFI values should be in range [0, 1]"
+
+        # Log RFI values to MLflow
+        rfi_dict = {
+            feature: float(rfi_rf[i])
+            for i, feature in enumerate(X_hold.columns)
+        }
+        mlflow.log_dict(rfi_dict, 'rf_rfi.json')
+
         elasticity_rf = {
             col: np.mean(self.pred_y_hold / (X_hold[col].to_numpy() + 1e-8))
             for col in X_hold.columns
@@ -548,8 +597,9 @@ class randomforest(BaseModel):
             fig.delaxes(ax[j])
 
         plt.tight_layout()
-        fig.savefig(f"{run_name}_rf_pdp.png")
-        mlflow.log_artifact(f"{run_name}_rf_pdp.png")
+        # DEACTIVATED: Partial dependence plot saving - uncomment to re-enable
+        # fig.savefig(f"{run_name}_rf_pdp.png")
+        # mlflow.log_artifact(f"{run_name}_rf_pdp.png")
         plt.show()
 
         #TODO: Delete later
@@ -605,9 +655,10 @@ class randomforest(BaseModel):
         plt.boxplot(boxplot_data, vert=True, labels=labels)
         plt.ylabel("Permutation Importance (mean decrease accuracy)")
         plt.tight_layout()
-        img_path = f"{surr_or_rf}_{run_name}_permutation_importance.png"
-        plt.savefig(img_path)
-        mlflow.log_artifact(img_path)
+        # DEACTIVATED: Permutation importance plot saving - uncomment to re-enable
+        # img_path = f"{surr_or_rf}_{run_name}_permutation_importance.png"
+        # plt.savefig(img_path)
+        # mlflow.log_artifact(img_path)
         plt.show()
         print(f"Displayed: Permutation Importance plot for {surr_or_rf} - {run_name}")
         plt.close()
