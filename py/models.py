@@ -554,12 +554,12 @@ class randomforest(BaseModel):
 
         elasticity_rf = {}
         # Use IN-SAMPLE predictions and features for elasticity calculation
-        mean_pred = np.mean(np.abs(self.pred_y_sample))
+        mean_pred = np.mean(self.pred_y_sample)
 
         for i, col in enumerate(X_fit.columns):
             # Get the IN-SAMPLE feature values and their mean
             feature_values = X_fit[col].to_numpy()
-            mean_feature = np.mean(np.abs(feature_values))
+            mean_feature = np.mean(feature_values)
 
             # Use the Random Forest feature importance as a proxy for the partial derivative dY/dX
             # This represents how much the prediction changes when this feature changes
@@ -567,8 +567,8 @@ class randomforest(BaseModel):
 
             # Calculate elasticity: (feature_importance) * (mean_feature / mean_pred)
             # This gives us the percentage change in prediction per percentage change in feature
-            if mean_pred > 1e-8:  # Avoid division by zero
-                elasticity_rf[col] = mean_feature / mean_pred
+            if mean_feature != 0:  # Avoid division by zero
+                elasticity_rf[col] = mean_pred/mean_feature
             else:
                 elasticity_rf[col] = 0.0
 
