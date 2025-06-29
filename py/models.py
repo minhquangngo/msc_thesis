@@ -547,15 +547,52 @@ class randomforest(BaseModel):
         }
         mlflow.log_dict(rfi_dict, 'rf_rfi.json')
 
-        elasticity_rf = {
-            col: np.mean(self.pred_y_hold / (X_hold[col].to_numpy() + 1e-8))
-            for col in X_hold.columns
-        }
+        # Calculate raw elasticity for each feature
+        # Elasticity measures the responsiveness of the target variable to changes in each predictor
+        # Formula: elasticity = (dY/dX) * (mean(X) / mean(Y))
+        # Since we don't have analytical derivatives, we use feature importance as a proxy for dY/dX
+
+        elasticity_rf = {}
+        mean_pred = np.mean(np.abs(self.pred_y_hold))
+
+        for i, col in enumerate(X_hold.columns):
+            # Get the feature values and their mean
+            feature_values = X_hold[col].to_numpy()
+            mean_feature = np.mean(np.abs(feature_values))
+
+            # Use the Random Forest feature importance as a proxy for the partial derivative dY/dX
+            # This represents how much the prediction changes when this feature changes
+            feature_importance = self.best_rf.feature_importances_[i]
+
+            # Calculate elasticity: (feature_importance) * (mean_feature / mean_pred)
+            # This gives us the percentage change in prediction per percentage change in feature
+            if mean_pred > 1e-8:  # Avoid division by zero
+                elasticity_rf[col] = mean_feature / mean_pred
+            else:
+                elasticity_rf[col] = 0.0
+
+        # Calculate pseudo-beta by weighting raw elasticity with RFI
         pseudo_beta_rf = {
             feature: float(rfi_rf[i] * elasticity_rf[feature])
             for i, feature in enumerate(X_hold.columns)
-}
+        }
+
+        # Log elasticity values for debugging
+        mlflow.log_dict(elasticity_rf, 'rf_elasticity.json')
         mlflow.log_dict(pseudo_beta_rf, 'rf_pseudo_beta.json')
+
+        # Log summary statistics for debugging
+        elasticity_stats = {
+            'elasticity_mean': float(np.mean(list(elasticity_rf.values()))),
+            'elasticity_std': float(np.std(list(elasticity_rf.values()))),
+            'elasticity_min': float(np.min(list(elasticity_rf.values()))),
+            'elasticity_max': float(np.max(list(elasticity_rf.values()))),
+            'pseudo_beta_mean': float(np.mean(list(pseudo_beta_rf.values()))),
+            'pseudo_beta_std': float(np.std(list(pseudo_beta_rf.values()))),
+            'pseudo_beta_min': float(np.min(list(pseudo_beta_rf.values()))),
+            'pseudo_beta_max': float(np.max(list(pseudo_beta_rf.values())))
+        }
+        mlflow.log_dict(elasticity_stats, 'rf_elasticity_stats.json')
 
         # rfi_surr = raw_perm_imp_surr/raw_perm_imp_surr.sum()
         # elasticity_surr = {
