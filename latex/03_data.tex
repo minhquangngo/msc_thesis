@@ -138,67 +138,63 @@ Table \cref{tab:descr_stats,tab:descr_stats2,tab:descr_stats3} shows the descrip
     \label{fig:avgprice_avgvol}
 \end{figure}
 
-\begin{table}[H]
-  \centering
-  \caption{\textit{Descriptive Statistics (1/3)}}
-  \label{tab:descr_stats}
-  
-  \begin{tabular}{lcccc}
-  \toprule
-  Statistic & $prc$ & $ret$ & $vol$ & $put\_call\_ratio$ \\\midrule
-  N & 2646071 & 2645995 & 2646067 & 2631963 \\
-  Mean & 56.690 & 0.000 & 4644742.786 & 2.451 \\
-  SD & 70.228 & 0.025 & 14088422.298 & 35.811 \\
-  Min & -116.812 & -0.942 & 0.000 & 0.000 \\
-  Q1 & 27.660 & -0.010 & 915800.000 & 0.259 \\
-  Median & 43.380 & 0.000 & 1987272.000 & 0.626 \\
-  Q3 & 65.570 & 0.010 & 4372000.000 & 1.208 \\
-  Max & 2206.090 & 1.024 & 1897900032.000 & 20979.000 \\
-  \bottomrule
-  \end{tabular}
-  \end{table}
-  
-  \begin{table}[H]
-  \centering
-  \caption{Descriptive Statistics (2/3)}
-  \label{tab:descr_stats2}
-  
-  \begin{tabular}{lcccccc}
-  \toprule
-  Statistic & $mktrf$ & $smb$ & $hml$ & $rmw$ & $umd$ & $cma$ \\\midrule
-  N & 2646081 & 2646081 & 2646081 & 2646081 & 2646081 & 2646081 \\
-  Mean & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 \\
-  SD & 0.012 & 0.006 & 0.007 & 0.005 & 0.010 & 0.004 \\
-  Min & -0.089 & -0.042 & -0.044 & -0.030 & -0.082 & -0.059 \\
-  Q1 & -0.005 & -0.003 & -0.003 & -0.002 & -0.004 & -0.002 \\
-  Median & 0.001 & 0.000 & -0.000 & 0.000 & 0.001 & 0.000 \\
-  Q3 & 0.006 & 0.004 & 0.003 & 0.003 & 0.005 & 0.002 \\
-  Max & 0.114 & 0.045 & 0.049 & 0.045 & 0.071 & 0.025 \\
-  \bottomrule
-  \end{tabular}
-  \end{table}
-  
-  \begin{table}[H]
-  \centering
-  \caption{Descriptive Statistics (3/3)}
-  \label{tab:descr_stats3}
-  
-  \begin{tabular}{lccc}
-  \toprule
-  Statistic & $rf$ & $enhanced\_baker$ & $vix\_close$ \\\midrule
-  N & 2646081 & 2646081 & 2645576 \\
-  Mean & 0.000 & -0.264 & 20.197 \\
-  SD & 0.000 & 2.023 & 8.497 \\
-  Min & 0.000 & -5.085 & 9.140 \\
-  Q1 & 0.000 & -1.567 & 13.870 \\
-  Median & 0.000 & -0.287 & 18.530 \\
-  Q3 & 0.000 & 0.980 & 24.030 \\
-  Max & 0.000 & 5.254 & 80.860 \\
-  \bottomrule
-  \end{tabular}
-  \end{table}
-  
-  
+\begin{table}[ht]
+\centering
+\caption{Descriptive Statistics (1/3)}
+\label{tab:descr_stats}
+\begin{tabular}{lcccccc}
+\toprule
+Statistic & $prc$ & $ret$ & $excess_ret$ & $vol$ & $baspread$ & $put_call_ratio$ \\\midrule
+N & 2631384 & 2631384 & 2631384 & 2631384 & 2631384 & 2631384 \\
+Mean & 56.481 & 0.000 & 0.000 & 4668611.128 & 1.336 & 2.451 \\
+SD & 69.484 & 0.025 & 0.025 & 14162846.197 & 1.836 & 35.814 \\
+Min & 0.210 & -0.942 & -0.943 & 700.000 & 0.010 & 0.000 \\
+Q1 & 27.660 & -0.010 & -0.010 & 927600.000 & 0.550 & 0.259 \\
+Median & 43.390 & 0.000 & 0.000 & 2001971.500 & 0.910 & 0.626 \\
+Q3 & 65.560 & 0.010 & 0.010 & 4392677.250 & 1.520 & 1.208 \\
+Max & 2206.090 & 1.024 & 1.024 & 1897900032.000 & 170.738 & 20979.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Descriptive Statistics (2/3)}
+\label{tab:descr_stats2}
+\begin{tabular}{lcccccc}
+\toprule
+Statistic & $mktrf$ & $smb$ & $hml$ & $rmw$ & $umd$ & $cma$ \\\midrule
+N & 2631384 & 2631384 & 2631384 & 2631384 & 2631384 & 2631384 \\
+Mean & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 \\
+SD & 0.012 & 0.006 & 0.007 & 0.005 & 0.010 & 0.004 \\
+Min & -0.089 & -0.042 & -0.044 & -0.030 & -0.082 & -0.059 \\
+Q1 & -0.005 & -0.003 & -0.003 & -0.002 & -0.004 & -0.002 \\
+Median & 0.001 & 0.000 & -0.000 & 0.000 & 0.001 & 0.000 \\
+Q3 & 0.006 & 0.004 & 0.003 & 0.003 & 0.005 & 0.002 \\
+Max & 0.114 & 0.045 & 0.049 & 0.045 & 0.071 & 0.025 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Descriptive Statistics (3/3)}
+\label{tab:descr_stats3}
+
+\begin{tabular}{lcccc}
+\toprule
+Statistic & $rf$ & $enhanced_baker$ & $vix_close$ & $news_sent$ \\\midrule
+N & 2631384 & 2631384 & 2631384 & 2631384 \\
+Mean & 0.000 & -0.266 & 20.185 & 0.039 \\
+SD & 0.000 & 2.023 & 8.502 & 0.187 \\
+Min & 0.000 & -5.085 & 9.140 & -0.490 \\
+Q1 & 0.000 & -1.567 & 13.860 & -0.090 \\
+Median & 0.000 & -0.287 & 18.500 & 0.050 \\
+Q3 & 0.000 & 0.980 & 24.020 & 0.190 \\
+Max & 0.000 & 5.254 & 80.860 & 0.430 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 The late-2018 equity downturn was precipitated by escalating US-China trade tensions, as each new round of tariffs eroded investor confidence in global supply chains. Simultaneously, the Federal Reserve's fourth rate hike of the year and the brief inversion of the Treasury yield curve heightened recession fears among market participants. Signs of a synchronized global slowdown—particularly in Europe and emerging markets—further weighed on equity valuations as growth forecasts were revised downward. Finally, profit-taking in the technology sector, driven by concerns over maturing growth trajectories and mounting regulatory scrutiny, amplified the overall market sell-off \cite{reuters_2018}.
 

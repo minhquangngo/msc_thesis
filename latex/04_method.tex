@@ -401,14 +401,49 @@ Model performance further depends on the choice of several tuning parameters.  K
 Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively C4F-RF, C4F-RFE, FF5-RF, FF5-RFE. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
 
 
-A downside of RF (and most other ML models) is their “black-box” nature, capturing complex, non-linear relationships between predictors that resist the intuitive loading interpretation of common financial methods such as OLS or PCA. In traditional asset-pricing frameworks, each factor's loading or exposure is represented by its beta, measuring the elasticity of a security's returns with respect to that factor, while alpha is the number that indicates the percentage difference between the chosen index and the stock's actual performance. Practitioners routinely estimate betas to gauge exposures to market, size, and value factors, and interpret alphas as indicators of manager skill or persistent mispricing. With RF, Feature Importance (FI) is often used as a substitue for feature attribution. To calculate this variable, the calculated OOB predictions are substracted from randomly permuted OOB predictions. Taking the mean square root of the difference between the two predictions gives us the OOB MSE. The FI is calculated using the average of the OOB MSE over all observations. Its specific procedures is outlined in Algorithm \ref{alg:fi}. However, FI is not a good indicator of the traditional beta that is commonly used in the finance sector. That is why \citeA{simonian_2019} used Relative Feature Importance to construct 'pseudo-betas'. RFI is often employed to rank predictors by their contribution to out-of-sample predictive performance. RFI weighs all of the factors within the RF according to their predictive robustness.“pseudo-betas” are defined as  RFI-weighted elasticities analogous to traditional factor loadings. Since "betas" in linear models is the elasticity of one variable to another, therefore a RFI-weighted elasticity, or "psuedo-beta" is constructed as follows:
-
+A downside of RF (and most other ML models) is their “black-box” nature, capturing complex, non-linear relationships between predictors that resist the intuitive loading interpretation of common financial methods such as OLS or PCA. In traditional asset-pricing frameworks, each factor's loading or exposure is represented by its beta, measuring the elasticity of a security's returns with respect to that factor, while alpha is the number that indicates the percentage difference between the chosen index and the stock's actual performance. Financial practitioners routinely estimate betas to gauge exposures to market, size, and value factors, and interpret alphas as indicators of manager skill or persistent mispricing. With RF, Feature Importance (FI) is often used as a substitue for feature attribution. To calculate this variable, the calculated OOB predictions are substracted from randomly permuted OOB predictions. Taking the mean square root of the difference between the two predictions gives us the OOB MSE. The FI is calculated using the average of the OOB MSE over all observations. Its specific procedures is outlined in Algorithm \ref{alg:fi}. However, FI is not a good indicator of the traditional beta that is commonly used in the finance sector. That is why \citeA{simonian_2019} used Relative Feature Importance to construct 'pseudo-betas'. In a RF regression each tree \(j=1,\dots,J\) is grown on its own bootstrap sample. After a tree is fit, the values of predictor \(x_k\) are randomly permuted in the corresponding OOB observations and the MSE is recomputed. The FI for that tree is the increase in OOB error that the permutation creates:
 \begin{equation}
-    \label{eq:psuedo}
-    \frac{\text{Target Variable value}}{\text{{Feature value}}}* \text{RFI}
+\mathrm{FI}^{(j)}_{k}
+\;=\;
+\mathrm{MSE}^{(j)}_{\mathrm{OOB,\,Perm}}
+\;-\;
+\mathrm{MSE}^{(j)}_{\mathrm{OOB}},
+\end{equation}
+so variables whose shuffling affects predictive accuracy most receive high \(\mathrm{FI}^{(j)}_{k}\). Because the raw values are on an arbitrary scale, each tree's vector of importances is normalised so that the numbers sum to 1 (within a range of $[0,1]$), and the averages across the forest give the Relative Feature Importance (RFI):
+\begin{equation}
+\mathrm{RFI}_{k}
+\;=\;
+\frac{1}{J}
+\sum_{j=1}^{J}
+\frac{\mathrm{FI}^{(j)}_{k}}
+     {\sum_{l=1}^{p}\mathrm{FI}^{(j)}_{l}}
+\quad k=1,\dots,p,
+\quad
+\sum_{k=1}^{p}\mathrm{RFI}_{k}=1.
+\end{equation}
+Hence RFI can be read as a weight that ranks factors by their marginal contribution to out-of-sample predictive power. Because the weights sum to one, RFIs from different forests or tuning settings are directly comparable. This normalization makes it possible for practitioners to make direct comparisons of variable importance across models. By relying on permutation rather than coefficient estimates, RFI is far less sensitive to correlated predictors than OLS betas, and as a result it provides robustness to multicollinearity that traditional beta estimates lack. 
+
+Building on these advantages, we can therefore translate RFI weights into “pseudo-betas” that mirror the familiar concept of linear model betas. Financial practitioners are accustomed to linear model betas elasticities or PCA loadings that summarise how a one-unit change in a factor affects expected returns This 'pseudo-betas' approach by \citeA{simonian_2019} preserve this intuition while incorporating the predictive relevance captured by RFI.  The hierarchical splits that underlie RF predictions do not produce a single slope coefficient, so \citeA{simonian_2019} propose a translation device that keeps the intuition of betas while respecting the non linear, interaction capable advantage of the forest. Fix a prediction point \((x_{1},\dots,x_{p})\) and denote by \(\hat{y}\) the RF-predicted excess return at that point.  For the purpose of a diagnostic elasticity measure,one may assume that each factor acts independently, yielding a raw elasticity for factor \(k\) defined as
+\begin{equation}
+    \varepsilon_{k} \;=\; \frac{\hat{y}}{x_{k}}.
 \end{equation}
 
-By utilizing this method, the interpretation of the RF models could be communicated with investment professionals who are more familiar with OLS betas or PCA loadings. 
+This quantity captures the proportional sensitivity of the predicted return to a unit change in \(x_{k}\), albeit without accounting for differences in predictive relevance across factors.
+
+To incorporate each factor's out of sample importance, the raw elasticities are adjusted by \(\mathrm{RFI}_{k}\). Specifically, the 'pseudo-beta' for factor \(k\) is defined as:
+\begin{equation}
+\tilde{\beta}_{k} \;=\; \varepsilon_{k} \times \mathrm{RFI}_{k}.    
+\end{equation}
+
+% \paragraph{Suggested talking points for the thesis.}
+% \begin{itemize}
+%   \item Clarify that FI—and hence RFI—is rooted in \emph{predictive} rather than \emph{explanatory} relevance; this distinction justifies why FI alone is not a beta surrogate.
+%   \item Discuss the normalisation step explicitly; emphasise that without it FI scales with the noise level of the outcome and thus lacks a natural upper bound.
+%   \item Highlight the conceptual bridge: RFI recovers the “weight” dimension of a beta, while the elasticity recovers its “slope,” yielding an interpretable hybrid measure.
+%   \item Note that alternative importance metrics (e.g., mean-absolute-error, Gini, entropy) are available and may influence the pseudo-betas; justify your choice of MSE-based FI as per Simonian et al.\ (2019).
+%   \item Consider reporting bootstrapped confidence intervals for pseudo-betas to convey estimation uncertainty, paralleling the probabilistic Sharpe-ratio diagnostics that Simonian et al.\ provide for performance evaluation.
+% \end{itemize}
+
 
 \begin{algorithm}[H]
     \caption{Permutation Variable Importance}
@@ -594,13 +629,13 @@ Association rule learning (ARL) is a pattern-mining technique that scans histori
 \subsection{Sector rotation strategy}
 %REWRITE THIS 2nd DRAFT
 
-For each sector $s\in\{1,\dots,11\}$ and for every trading day $t$ in 2018, we estimate the next-day excess sector return, $\widehat{r}^{\text{ex}}_{s,t+1}$, using every OLS and RF variation. Conditional on these forecasts we construct a volatility ratio
+For each sector and for every trading day $t$ in 2018, we estimate the next-day excess sector return, $\widehat{r}^{\text{ex}}_{s,t+1}$, using every OLS and RF variation. Conditional on these forecasts we construct a volatility ratio
 
 \begin{equation}
 \operatorname{VR}_{s,t}^{(5,21)}=\frac{\sigma_{s,t}^{\;(5)}}{\sigma_{s,t}^{\;(21)}},
 \end{equation}
 
-where $\sigma_{s,t}^{\;(h)}$ is the realised volatility of sector $s$ over the previous $h$ trading days.  A binary trading signal is issued according to
+where $\sigma_{s,t}^{\;(h)}$ is the realised volatility of sector $s$ over the previous $h$ trading days. A 5 days annd 21 days short-long run ratio is simply the weekly and monthly choice in practical implementations of this ratio. A trading week is most sensitive to recent shocks, while a month window represents slower moving risk averages. A binary trading signal is generated based on:
 
 \begin{equation}
 \text{Signal}_{s,t}=\mathbf{1}
@@ -611,9 +646,10 @@ where $\sigma_{s,t}^{\;(h)}$ is the realised volatility of sector $s$ over the p
 \bigr).
 \end{equation}
 
-The requirement $\operatorname{VR}_{s,t}^{(5,21)}<1$ ensures that the model-implied positive excess return is accompanied by a \emph{compression} of short-run volatility relative to its longer-run benchmark, a configuration empirically associated with more favourable risk-adjusted pay-offs and lower drawdown probability.  Repeating this procedure over the full calendar year yields an $(\text{days}\times\text{sectors})$ matrix of investment signals.
+The requirement $\operatorname{VR}_{s,t}^{(5,21)}<1$ shows that the short term volatility is lower than the long term average, which indicates a stable and calm trading market. By trading in a stable market, we avoid sudden spikes in the market that can cause large losses. The condition of $\widehat{r}^{\text{ex}}_{s,t+1}>0$ shows that the model predicts a positive excess return for the sector for the following day. Only when the following day satisfy the two conditions we take a long position.
 
-Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is flagged, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution. Following \citeA{simonian_2019}, a constrained version of the strategy is also implemented. This strategy follows the weight attribution discussed above but is more conversative by limiting position sizes, taking lower risks on potential erroneous signals produced by the model. As also seen in \citeA{simonian_2019}, constrained strategy is likely to underperform comparing to unconstrained strategy, given its conservativeness. The detailed assignment of weights and sector weight distribution can be found in \cref{alg:sector_rotation}
+
+Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is signalled, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution. Following \citeA{simonian_2019}, a constrained version of the strategy is also implemented. This strategy follows the weight attribution discussed above but is more conversative by limiting position sizes, taking lower risks on potential erroneous signals produced by the model. As also seen in \citeA{simonian_2019}, constrained strategy is likely to underperform comparing to unconstrained strategy, given its conservativeness. The detailed assignment of weights and sector weight distribution can be found in \cref{alg:sector_rotation}
 
 \begin{algorithm}[H]
     \caption{Sector Rotation Strategy}
