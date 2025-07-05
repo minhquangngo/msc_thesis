@@ -1,0 +1,43 @@
+\begin{table}[H]
+\centering
+\caption{Model Specifications and Features}
+\label{tab:model_specifications}
+\footnotesize
+\begin{tabular}{p{2.2cm}p{1.8cm}p{2.2cm}p{7.5cm}}
+\toprule
+\textbf{Model Name} & \textbf{Specification} & \textbf{Variation} & \textbf{Included Features} \\
+\midrule
+
+OLS-C4F & OLS & C4F & MKT-RF, SMB, HML, MOM \\
+\addlinespace
+
+OLS-FF5 & OLS & FF5 & MKT-RF, SMB, HML, RMW, CMA \\
+\addlinespace
+
+OLS-C4F-E & OLS & C4F Enhanced & MKT-RF, SMB, HML, MOM, TURN, SDTURN, MVEL1, DOLVOL, ILLQ, ZEROTRADE, BASPREAD, Enhanced BW sentiment, Daily news sentiment, VIX \\
+\addlinespace
+
+OLS-FF5-E & OLS & FF5 Enhanced & MKT-RF, SMB, HML, RMW, CMA, TURN, SDTURN, MVEL1, DOLVOL, ILLQ, ZEROTRADE, BASPREAD, Enhanced BW sentiment, Daily news sentiment, VIX \\
+\addlinespace
+
+RF-C4F & Random Forest & C4F & MKT-RF, SMB, HML, MOM \\
+\addlinespace
+
+RF-C4F-E & Random Forest & C4F Enhanced & MKT-RF, SMB, HML, MOM, TURN, SDTURN, MVEL1, DOLVOL, ILLQ, ZEROTRADE, BASPREAD, Enhanced BW sentiment, Daily news sentiment, VIX \\
+\addlinespace
+
+RF-FF5 & Random Forest & FF5 & MKT-RF, SMB, HML, RMW, CMA \\
+\addlinespace
+
+RF-FF5-E & Random Forest & FF5 Enhanced & MKT-RF, SMB, HML, RMW, CMA, TURN, SDTURN, MVEL1, DOLVOL, ILLQ, ZEROTRADE, BASPREAD, Enhanced BW sentiment, Daily news sentiment, VIX \\
+
+\bottomrule
+\end{tabular}
+
+\vspace{0.5em}
+\begin{minipage}{\textwidth}
+\small
+\textit{Note.} This table presents the eight model specifications used in this study. MKT-RF = Market excess return; SMB = Small minus big (size factor); HML = High minus low (value factor); MOM = Momentum factor; RMW = Robust minus weak (profitability factor); CMA = Conservative minus aggressive (investment factor); TURN = Turnover; SDTURN = Turnover volatility; MVEL1 = Log market equity; DOLVOL = Dollar volume; ILLQ = Amihud illiquidity measure; ZEROTRADE = Number of zero trading days; BASPREAD = Bid-ask spread; VIX = Volatility index.
+\end{minipage}
+
+\end{table}

@@ -25,6 +25,8 @@
 \usepackage{float}
 \usepackage[ruled,vlined]{algorithm2e}
 \usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{thmtools}
 %drawing trees
 % \usepackage{tikz}
 % \usetikzlibrary{trees}
@@ -40,7 +42,23 @@
 \definecolor{bestcolor}{RGB}{34, 139, 34}
 % Define dark gray for the algorithm box
 \definecolor{darkgray}{RGB}{64,64,64}
-\usepackage{pdflscape}	
+\usepackage{pdflscape}
+\usepackage{rotating}
+
+% Hypothesis theorem style
+\declaretheoremstyle[
+spaceabove=6pt, spacebelow=6pt,
+headfont=\normalfont\bfseries,
+notefont=\mdseries, notebraces={(}{)},
+bodyfont=\normalfont,
+postheadspace=0.6em,
+headpunct=:
+]{mystyle}
+\declaretheorem[style=mystyle, name=Hypothesis, preheadhook={\renewcommand{\thehyp}{H\textsubscript{\arabic{hyp}}}}]{hyp}
+
+% Configure cleveref for hypotheses
+\crefname{hyp}{hypothesis}{hypotheses}
+\Crefname{hyp}{Hypothesis}{Hypotheses}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%END PREAMBLE################
@@ -99,6 +117,8 @@
     \input{03_data}
 \section{Results} \label{sec:results}
 	\input{05_results}
+\section{Discussion} \label{sec:discussion}
+	\input{07_discussion}
 \section{Conclusion} \label{sec:conclusion}
 	\input{06_conclusion}
 
@@ -110,7 +130,7 @@
 \appendix
 \section{Appendix} \label{sec:appendix}
 \subsection{Github repository}
-You can find the Git Repo here
+You can find the Git Repo here \texttt{https://github.com/minhquangngo/msc\_thesis}
 
 The visual plots are designed using \citeA{scienceplots}.
 

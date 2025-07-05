@@ -117,7 +117,7 @@ This thesis will employ two CAPM variants: the C4F of \citeA{cahart_1997} and FF
 
 where \cref{eq:c4f} is the C4F and \cref{eq:ff5} is the FF5. $R_{i,t}$ is the return on security and $R_{f,t}$ is the risk-free return; which makes $R_{i,t} - R_{f,t}$ is the excess return on a security. $SMB$ (small minus big) is the size factor, capturing the excess returns of small-cap stocks over large-cap stocks, reflecting how higher volatility and growth potential could cause smaller firms to yield higher average returns. $HML$ (high minus low), or the value factor, accounts for the premium earned by stocks with high book-to-market ratios, often associated with underperforming firms that carry higher risk and, consequently, higher expected returns \cite{ff3_1993}. $MOM$ is the one year momentum factor \footnote{In literature, researchers can refer to this factor as PR1YR, UMD (ups minus downs), or WML (winners minus losers.)} \cite{cahart_1997}. In response to \citeA{titman_2004} and \citeA{novymarx_2013} criticisms, two additional factors were added in to the FF3 model \cite{ff5_2015}. $RMW$ (robust minus weak) is the profitability factor, which derives from the empirical observation that firms with higher operating profitability tend to earn higher average returns. $CMA$ (conservative minus aggressive) is the investment factor, which captures the tendency of firms to aggressively invest in new assets, expecting higher returns in the long run. Investors may overpay for such firms due to optimism, which results in lower subsequent returns \cite{titman_2004}.
 
-The empirical analysis will begin by establishing a baseline for each asset pricing variant using time series regressions, employing Ordinary Least Squares (OLS) as outlined by \citeA{simonian_2019}. \cref{eq:c4f} and \cref{eq:ff5}, the two baseline variants will be referred to as C4F-B and FF5-B hereafter. Subsequently, liquidity risk and sentiment indicators will be integrated into these variants, thereby forming an enhanced baseline. The following are the enhanced baseline models:
+The empirical analysis will begin by establishing a baseline for each asset pricing variant using time series regressions, employing Ordinary Least Squares (OLS) as outlined by \citeA{simonian_2019}. \cref{eq:c4f} and \cref{eq:ff5}, the two baseline variants will be referred to as OLS-C4F and OLS-FF5 hereafter. Subsequently, liquidity risk and sentiment indicators will be integrated into these variants, thereby forming an enhanced baseline models referred to as OLS-C4F-E and OLS-FF5-E. The following are the enhanced baseline models:
 
 \begin{equation}
     \label{eq:c4f_expanded}
@@ -145,7 +145,7 @@ The empirical analysis will begin by establishing a baseline for each asset pric
     \end{split}
 \end{equation}
 
-where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:ff5_expanded} the enhanced FF5 enhanced baseline (FF5-BE). 
+where \cref{eq:c4f_expanded} is the enhanced C4F baseline (OLS-C4F-E) and \cref{eq:ff5_expanded} the enhanced FF5 enhanced baseline (OLS-FF5-E).
 
 
 
@@ -156,9 +156,9 @@ where \cref{eq:c4f_expanded} is the enhanced C4F baseline (C4F-BE) and \cref{eq:
 
 
 %%%%%%%%%%ACTUAL%%%%%%%%%%%%%%%
-The C4F-B, C4F-BE, FF5-B and FF5-BE, since based on OLS, are linear in nature. These models are favored by finance practitioners because they produce interpretable results. The main results that the practitioners look for is the sensitivities of the factor within the models, or the beta coefficients within the OLS. However, the method is restricted to several assumptions. The features and the target variables of this method are assumed to be linear and the features themselves are not multicollinear. Furthermore, homoskedacity is assumed, where the residuals have constant variance at every level of the features. The residuals should also be independent.
+The OLS-C4F, OLS-C4F-E, OLS-FF5 and OLS-FF5-E, since based on OLS, are linear in nature. These models are favored by finance practitioners because they produce interpretable results. The main results that the practitioners look for is the sensitivities of the factor within the models, or the beta coefficients within the OLS. However, the method is restricted to several assumptions. The features and the target variables of this method are assumed to be linear and the features themselves are not multicollinear. Furthermore, homoskedacity is assumed, where the residuals have constant variance at every level of the features. The residuals should also be independent.
 
-Decision tree based models such as RF offers a more robust and flexible framework.This robustness stems from the model's ensemble approach, which imposes no linearity or homoscedasticity assumptions and thus captures complex nonlinear relationships and interactions that OLS would miss.With regression based problems like asset pricing, decision trees start from a root node and splits into branches. Each branch contains a condition to be full-filled (for example $turn > 10$ or $turn \leq 10$). A tree can have a number of these branches, leading to a complex model that can take into account non-linearity and interactions. The leaf of the decision tree, or the final prediction where the tree does not split further, is a real number that is predicted given all of the previous conditions in the branches are true \cite{cutler_2012}. This method ressembles multiple nested if-then statements, where each if-then statement is a branch of the tree. An example of a decision tree (pruned at depth 3) can be observed in Figure \cref{fig:decision_tree_viz}.
+Decision tree based models such as RF offers a more robust and flexible framework.This robustness stems from the model's ensemble approach, which imposes no linearity or homoscedasticity assumptions and thus captures complex nonlinear relationships and interactions that OLS would miss.With regression based problems like asset pricing, decision trees start from a root node and splits into branches. Each branch contains a condition to be full-filled (for example $turn > 10$ or $turn \leq 10$). A tree can have a number of these branches, leading to a complex model that can take into account non-linearity and interactions. The leaf of the decision tree, or the final prediction where the tree does not split further, is a real number that is predicted given all of the previous conditions in the branches are true \cite{cutler_2012}. This method ressembles multiple nested if-then statements, where each if-then statement is a branch of the tree. An example of a decision tree (pruned at depth 3) can be observed in \cref{fig:decision_tree_viz}.
 
 \begin{figure}[H]
     \centering
@@ -313,7 +313,7 @@ Each test block comprises 212 consecutive trading days (one trading year), with 
     \caption{Extending Window Time Series Cross-Validation: Training window grows while test window size remains constant}
     \end{figure}
 
-Model performance further depends on the choice of several tuning parameters.  Key hyperparameters are the number of trees $J$, the number of features to consider at each split, the minimum leaf size, and the maximum tree depth, among others.  However, because both bootstrapping and feature sub-sampling introduce stochasticity, selecting an appropriate combination of these parameters is essential to achieve optimal bias-variance tradeoffs and overall predictive accuracy. Therefore, this paper utilizes Random Search, randomly sampling a set of hyperparameters (with a defined number of iterations) to find the optimal hyperparameters. With five iterations of Randomized Search, it is ensured that model performance is assessed on hold out folds. Out-of-bag scores will also be tracked for each model specification, and the selection criteria for the final hyperparamter grid is based on the lowest out of bag score, mitigating overfitting.
+Model performance further depends on the choice of several tuning parameters.  Key hyperparameters are the number of trees $J$, the number of features to consider at each split, the minimum leaf size, and the maximum tree depth, among others.  However, because both bootstrapping and feature sub-sampling introduce stochasticity, selecting an appropriate combination of these parameters is essential to achieve optimal bias-variance tradeoffs and overall predictive accuracy. Therefore, this paper utilizes Random Search, randomly sampling a set of hyperparameters (with a defined number of iterations) to find the optimal hyperparameters. With five iterations of Randomized Search, it is ensured that model performance is assessed on hold out folds. Out-of-bag scores will also be tracked for each model specification, and the selection criteria for the final hyperparameter grid is based on the lowest out of bag score, mitigating overfitting.
 
 \begin{figure}[H]
     \centering
@@ -404,7 +404,7 @@ Model performance further depends on the choice of several tuning parameters.  K
 
     
 
-Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively C4F-RF, C4F-RFE, FF5-RF, FF5-RFE. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
+Non-linear relationships can be captured and multicollinearity could be dealt with. Furthermore, unlike OLS, RF models are estimated without the inversion of the covariance matrix. Parametric assumptions are not required, therefore heteroskedacity and non-independence of errors are accepted. The following RF implementation follows \citeA{simonian_2019}. In the RF model, each factor in \cref{eq:c4f,eq:c4f_expanded,eq:ff5,eq:ff5_expanded} can be represented as a feature to predict the excess return of the security. The baseline equivalent for the RF are named, respectively RF-C4F, RF-C4F-E, RF-FF5, RF-FF5-E. Stock returns forecasts are then aggregated by sector, which will then be divided into 10th, 25th, 50th, 75th, and 90th percentile. According to \citeA{simonian_2019}, this divide often show assymetric relationships within a set of observations. For example, certain features are more prevalent with low return portfolios than high return portfolios.
 
 
 A downside of RF (and most other ML models) is their “black-box” nature, capturing complex, non-linear relationships between predictors that resist the intuitive loading interpretation of common financial methods such as OLS or PCA. In traditional asset-pricing frameworks, each factor's loading or exposure is represented by its beta, measuring the elasticity of a security's returns with respect to that factor, while alpha is the number that indicates the percentage difference between the chosen index and the stock's actual performance. Financial practitioners routinely estimate betas to gauge exposures to market, size, and value factors, and interpret alphas as indicators of manager skill or persistent mispricing. With RF, Feature Importance (FI) is often used as a substitue for feature attribution. To calculate this variable, the calculated OOB predictions are substracted from randomly permuted OOB predictions. Taking the mean square root of the difference between the two predictions gives us the OOB MSE. The FI is calculated using the average of the OOB MSE over all observations. Its specific procedures is outlined in Algorithm \ref{alg:fi}. However, FI is not a good indicator of the traditional beta that is commonly used in the finance sector. That is why \citeA{simonian_2019} used Relative Feature Importance to construct 'pseudo-betas'. In a RF regression each tree \(j=1,\dots,J\) is grown on its own bootstrap sample. After a tree is fit, the values of predictor \(x_k\) are randomly permuted in the corresponding OOB observations and the MSE is recomputed. The FI for that tree is the increase in OOB error that the permutation creates:
@@ -484,6 +484,10 @@ To incorporate each factor's out of sample importance, the raw elasticities are 
     }
     Source: \cite{cutler_2012}
     \end{algorithm}
+
+The following table summarises the specifications and variants of all models used in this paper.
+
+\input{model_specifications_table}
 
 
 \subsection{Diebold-Mariano Test: Statistically compare forecasting performance.}
@@ -656,7 +660,7 @@ The requirement $\operatorname{VR}_{s,t}^{(5,21)}<1$ shows that the short term v
 The exact procedure of how these two conditions enter into ARL and how the algorithm mine these conditions into trading signals is explained in \cref{alg:arl} along with how there are intergrated into the Sector Rotation Strategy in \cref{alg:sector_rotation}. In plain terms, the algorithm first scans every day's data to identify patterns in which two simple conditions, put simply as “recent volatility is unusually low ($<1$)” and “the RF's return forecast exceeds a threshold (0)”, occur together in statiscally significant frequency. For each such pattern it computes support, the fraction of days when both conditions hold, to weed out coincidental or very rare events, and lift, which tells us how much more often a positive next day return actually follows these conditions compared to a baseline expectation. By requiring a minimum support level we ensure statistical reliability, and by selecting the rule with the highest lift we focus on the signal that delivers the greatest predictive improvement. Finally, whenever today's volatility and forecast match that best rule, the model issues a long signal for the following day's trading. This procedure is replicated across each of the four OLS and four RF model specifications for all eleven sectors.
 
 %----------------------
-Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is signalled, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution. Following \citeA{simonian_2019}, a constrained version of the strategy is also implemented. This strategy follows the weight attribution discussed above but is more conversative by limiting position sizes, taking lower risks on potential erroneous signals produced by the model. As also seen in \citeA{simonian_2019}, constrained strategy is likely to underperform comparing to unconstrained strategy, given its conservativeness. The detailed assignment of weights and sector weight distribution can be found in \cref{alg:sector_rotation}
+Portfolio rebalancing occurs at the close of day $t$ using the signal information available at that time.  If no sector satisfies the entry criterion, the strategy holds an equal-weighted position across all sectors (naive risk diversification).  If exactly one sector is signalled, the portfolio allocates its entire weight to that single sector, capturing the highest conviction view.  When multiple sectors exhibit concurrent signals, capital is split equally among the signalled sectors and set to zero for the remainder. These allocation rules preserve transparency, satisfy budget constraints $\sum_{s}w_{s,t}=1$, and minimise estimation risk because weights depend solely on the discrete signal rather than on the scale of $\widehat{r}^{\text{ex}}_{s,t+1}$.  Daily repetition of this mechanism converts model forecasts into a fully specified sector-rotation trading strategy ready for back-testing and subsequent performance attribution. Following \citeA{simonian_2019}, a constrained version of the strategy is also implemented. This strategy follows the weight attribution discussed above but is more conversative by limiting position sizes, taking lower risks on potential erroneous signals produced by the model. As also seen in \citeA{simonian_2019}, constrained strategy is likely to underperform comparing to unconstrained strategy, given its conservativeness. The detailed assignment of weights and sector weight distribution can be found in \cref{alg:sector_rotation}. To be sure that the rule-based weight distribution is not better than naively equally distributing weights across all sectors, we also implement an equal-weighted portfolio as a benchmark. The equal-weighted portfolio assigns equal weight to each sector, every trading day. 
 
 \begin{algorithm}[H]
     \caption{Sector Rotation Strategy}
@@ -742,9 +746,61 @@ Combined with the RF training, the sector rotation strategy ideally proceeds via
 However, retraining tree based models across eleven sectors and eight specifications at every fold requires on the order of $11\times4\times20\approx880$ RF estimations, each with hundreds of trees, which exceeds available computational resources. To strike a balance between methodological rigor and feasibility, this thesis implements the full expanding-window protocol as follows. The models are estimated on all data from January 1997 through December 2017, and the ARL generated sector-rotation strategy is applied exclusively to the 2018 out of sample period. Thus, focusing on 2018 allows us to demonstrate the models' rule-generation and trading performance under less computational load yet rigorous conditions, while preserving the conceptual integrity of the extending-window design.
 
 
+To gauge risk-adjusted performance of the strategy, we report each portfolio's cumulative return, its active return relative to the S\&P500 (or 'Alpha'), and two spread sensitive statistics: the Information Ratio (IR) and the probabilistic Sharpe Ratio (PSR) at benchmark Sharpe thresholds $S^{*}=0$ and $S^{*}=0.1$. The IR evaluates excess return per unit of tracking-error volatility,
+
+\begin{equation}
+\mathrm{IR}=\frac{\mathbb{E}\left[R_{p}-R_{b}\right]}{\sigma\left(R_{p}-R_{b}\right)},
+\end{equation}
+
+where $R_{p}$ and $R_{b}$ are portfolio and benchmark returns, respectively, and a higher value signals more efficient investment relative to the risk taken by the investor. For example, an IR of below 0.1 means the strategy generates less than 0.1 units of excess return per unit of tracking error volatility, signaling that its returns are too small relative to their risk to justify strategy implementation. The PSR estimates the posterior probability that the true Sharpe ratio of a strategy exceeds a user-defined benchmark $S^{*}$,
+
+\begin{equation}
+\mathrm{PSR}= \Phi\left[\frac{\left(\hat{S}-S^{*}\right)\sqrt{T-1}}{\sqrt{1-\hat{S}^{2}/2}}\right],
+\end{equation}
+with $\hat{S}$ the sample Sharpe, $T$ the number of observations, and $\Phi(\cdot)$ the standard-normal cdf. Following \citeA{simonian_2019}, we report the PSR at $S^{*}=0$ and $S^{*}=0.1$.
 
 
+\subsection{Hypotheses}
+\label{subsec:hypotheses}
 
+This study examines two primary questions.  First, we ask whether enhancing the $C4F$ and the $FF5$ with liquidity and sentiment measures, and estimating both versions with RF rather than ordinary least squares (OLS), leads to more accurate return forecasts.  To test this, we compare the MSE loss of each pair of models.  Denote by \(L(e_t)\) the squared prediction error at time \(t\). For any two models “A” and “B” we consider the loss differential \(d_t = L(e^{A}_t) - L(e^{B}_t)\).  We then test whether the expected value of \(d_t\) is zero (no difference) or negative (model B outperforms A) at the 5\% significance level with the DM test.
+
+The following hypothesis evaluates whether a RF can deliver superior out-of-sample forecasting performance in asset pricing compared to the conventional OLS benchmark.  By directly comparing MSE losses between RF and OLS for the same set of factor models, we test the hypothesis that RF's ability to capture nonlinearities and interactions translates into measurable gains in predictive accuracy.
+\setcounter{hyp}{0}
+
+\begin{hyp}[Random Forest and OLS comparison] \label{hyp:dm2}
+We compare Random Forest against OLS for the same factor set:
+\[
+H_{0}:\;\mathbb{E}\bigl[d^{\mathrm{OLS,RF}}_{t}\bigr]=0
+\quad\text{and}\quad
+H_{\alpha}:\;\mathbb{E}\bigl[d^{\mathrm{OLS,RF}}_{t}\bigr]<0.
+\]
+\end{hyp}
+
+Having established whether RF alone outperforms its linear counterpart, we then assess the incremental value of enriching the RF specification with additional liquidity and sentiment factors.  This next test determines if augmenting the RF model leads to further reductions in MSE beyond those achieved by the baseline RF.
+
+\begin{hyp}[Enhanced RF and baseline RF comparison] \label{hyp:dm3}
+We test whether enhanced Random Forest models outperform baseline Random Forest models:
+\[
+H_{0}:\;\mathbb{E}\bigl[d^{\mathrm{RF\text{-}base,RF\text{-}enh}}_{t}\bigr]=0
+\quad\text{and}\quad
+H_{\alpha}:\;\mathbb{E}\bigl[d^{\mathrm{RF\text{-}base,RF\text{-}enh}}_{t}\bigr]<0.
+\]
+\end{hyp}
+
+For economic interpretability, we will inspect the RF feature effects through pseudo-beta estimates and compare these to established claims in the literature, thereby testing whether the nonlinear coefficients generated by RF corroborate or challenge conventional asset-pricing insights.
+
+Second, we investigate whether the out-of-sample forecasts produced by the RF models can be translated into actionable trading rules using ARL to generate sector rotation signals. The following hypotheses evaluate the second sub research question and examines whether the sector rotation signals generated by the RF models statistically outperforms the S\&P500 index.
+
+\begin{hyp}[Probability Sharpe-Ratio test] \label{hyp:psr}
+
+Let \(S\) denote the true annualized Sharpe ratio of the ARL sector-rotation strategy. We test
+\[
+H_{0}:\;S \le 0,\quad H_{A}:\;S > 0.
+\]
+\end{hyp}
+
+Statistical significance of the estimated Sharpe ratio is assessed via the PSR test. We reject \(H_{0}\) at the 5\% level whenever the PSR p-value falls below 0.1.
 
 
 

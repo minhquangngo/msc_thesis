@@ -1,0 +1,58 @@
+% Example of how to use the hypothesis format in your thesis
+% This content can be integrated into your 02_litrev.tex or other sections
+
+% Set the hypothesis counter to start from H1 (if you want to start from H0, use \setcounter{hyp}{-1})
+\setcounter{hyp}{0}
+
+% First set of hypotheses - Diebold-Mariano tests
+\begin{hyp}[Enhanced versus baseline linear models] \label{hyp:dm1}
+We test whether enhanced linear models provide superior forecasting performance compared to baseline models:
+\[
+H_{1,0}:\;\mathbb{E}[\,d^{\mathrm{base,enh}}_{t}\,]=0
+\quad\text{versus}\quad
+H_{1,A}:\;\mathbb{E}[\,d^{\mathrm{base,enh}}_{t}\,]<0.
+\]
+\end{hyp}
+
+\begin{hyp}[Random Forest versus OLS comparison] \label{hyp:dm2}
+We compare Random Forest against OLS for the same factor set:
+\[
+H_{2,0}:\;\mathbb{E}[\,d^{\mathrm{OLS,RF}}_{t}\,]=0
+\quad\text{versus}\quad
+H_{2,A}:\;\mathbb{E}[\,d^{\mathrm{OLS,RF}}_{t}\,]<0.
+\]
+\end{hyp}
+
+\begin{hyp}[Enhanced RF versus baseline RF] \label{hyp:dm3}
+We test whether enhanced Random Forest models outperform baseline Random Forest models:
+\[
+H_{3,0}:\;\mathbb{E}[\,d^{\mathrm{RF\text{-}base,RF\text{-}enh}}_{t}\,]=0
+\quad\text{versus}\quad
+H_{3,A}:\;\mathbb{E}[\,d^{\mathrm{RF\text{-}base,RF\text{-}enh}}_{t}\,]<0.
+\]
+\end{hyp}
+
+% Second set of hypotheses - Trading strategy performance
+\begin{hyp}[Unconstrained ARL strategy performance] \label{hyp:trading1}
+We investigate whether the superior forecasts produced by the RF models can be converted into trading rules that deliver abnormal returns. We test the unconstrained Association-Rule Learning (ARL) strategy versus benchmark:
+\[
+H_{4,0}:\;\alpha = 0,\ \mathrm{IR} = 0
+\quad\text{versus}\quad
+H_{4,A}:\;\alpha > 0,\ \mathrm{IR} > 0.
+\]
+\end{hyp}
+
+\begin{hyp}[Constrained versus unconstrained strategy] \label{hyp:trading2}
+We assess the impact of imposing a constraint that limits each sector's weight to within $\pm10\%$ of its benchmark allocation:
+\[
+H_{5,0}:\;\Delta\alpha = 0,\ \Delta\sigma = 0
+\quad\text{versus}\quad
+H_{5,A}:\;\frac{\Delta\alpha}{\Delta\sigma} > 0,
+\]
+where $\Delta\alpha$ and $\Delta\sigma$ denote the changes in alpha and portfolio volatility due to the weight constraint.
+\end{hyp}
+
+% Example of referencing hypotheses
+In this study, we evaluate multiple hypotheses regarding forecasting performance and trading strategy effectiveness. \Cref{hyp:dm1,hyp:dm2,hyp:dm3} focus on the comparative forecasting accuracy using Diebold-Mariano tests, while \Cref{hyp:trading1,hyp:trading2} examine the economic significance of the forecasting improvements through portfolio performance metrics.
+
+All hypotheses are evaluated over eleven GICS sectors using an expanding-window sample from January 1990 through December 2018.
