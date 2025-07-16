@@ -1,60 +1,60 @@
 % 4 Data
 
 % 4.1 Data Sources and Sample Period
-%   4.1.1 CRSP/Compustat via WRDS – stock returns, volume, market equity, bid–ask spreads
-%   4.1.2 Fama–French factor series (MKT, SMB, HML, RMW, CMA) from Kenneth French’s library
-%   4.1.3 Liquidity proxies from CRSP daily files (turnover, Amihud ILLQ, zero‐trade days)
-%   4.1.4 Sentiment index (STV) from Ung et al. (2024) supplemental data
-%   4.1.5 Sector classification via Compustat’s comp.company (SIC/NAICS codes)
-%   Table 4.1: Data sources, sample periods, update frequencies
+%   4.1.1 CRSP/Compustat via WRDS – stock returns, volume, market equity, bid–ask spreads
+%   4.1.2 Fama–French factor series (MKT, SMB, HML, RMW, CMA) from Kenneth French's library
+%   4.1.3 Liquidity proxies from CRSP daily files (turnover, Amihud ILLQ, zero‐trade days)
+%   4.1.4 Sentiment index (STV) from Ung et al. (2024) supplemental data
+%   4.1.5 Sector classification via Compustat's comp.company (SIC/NAICS codes)
+%   Table 4.1: Data sources, sample periods, update frequencies
 
 % 4.2 Sample Selection and Coverage
-%   4.2.1 Chronology: January 1990–December 2018 (pre-COVID)
-%   4.2.2 Stock inclusion criteria: PERMNO universe, liquidity thresholds, delisting handling
-%   4.2.3 Survivorship bias mitigation (CRSP historical constituents)
-%   4.2.4 Matching factor, liquidity and sentiment series to equity returns
+%   4.2.1 Chronology: January 1990–December 2018 (pre-COVID)
+%   4.2.2 Stock inclusion criteria: PERMNO universe, liquidity thresholds, delisting handling
+%   4.2.3 Survivorship bias mitigation (CRSP historical constituents)
+%   4.2.4 Matching factor, liquidity and sentiment series to equity returns
 
 % 4.3 Variable Construction
-%   4.3.1 Monthly excess returns:  
+%   4.3.1 Monthly excess returns: 
 
 %   (CRSP return minus 1-month T-bill)
-%   4.3.2 Fama–French factors: construction and alignment with return data
-%   4.3.3 Liquidity measures:
-%     
+%   4.3.2 Fama–French factors: construction and alignment with return data
+%   4.3.3 Liquidity measures:
+%      
 % ∙
 % ∙ Amihud illiquidity (ILLQ) formula and scaling
-%     
+%      
 % ∙
 % ∙ Turnover, turnover volatility, zero-trade days, bid–ask spread
-%     — cross-sectional ranking and standardization to [–1, 1]
-%   4.3.4 Investor sentiment (STV): rolling‐window PCA on six Baker–Wurgler proxies; orthogonalization to business-cycle factors
-%   4.3.5 Normalization and winsorization procedures
+%     — cross-sectional ranking and standardization to [–1, 1]
+%   4.3.4 Investor sentiment (STV): rolling‐window PCA on six Baker–Wurgler proxies; orthogonalization to business-cycle factors
+%   4.3.5 Normalization and winsorization procedures
 
 % 4.4 Sector Classification
-%   4.4.1 Mapping PERMNO ↔ SIC/NAICS codes → GICS sectors
-%   4.4.2 Aggregation to 10 major sectors
-%   Table 4.2: Sector definitions and ticker counts by sector
+%   4.4.1 Mapping PERMNO ↔ SIC/NAICS codes → GICS sectors
+%   4.4.2 Aggregation to 10 major sectors
+%   Table 4.2: Sector definitions and ticker counts by sector
 
 % 4.5 Data Cleaning and Pre-processing
-%   4.5.1 Treatment of missing observations (listwise deletion vs. interpolation)
-%   4.5.2 Outlier handling: winsorization at 1st/99th percentiles
-%   4.5.3 Lagging variables and alignment (e.g., sentiment(t–1), ILLQ(t))
-%   4.5.4 Final panel construction: balanced vs. unbalanced tests
+%   4.5.1 Treatment of missing observations (listwise deletion vs. interpolation)
+%   4.5.2 Outlier handling: winsorization at 1st/99th percentiles
+%   4.5.3 Lagging variables and alignment (e.g., sentiment(t–1), ILLQ(t))
+%   4.5.4 Final panel construction: balanced vs. unbalanced tests
 
 % 4.6 Descriptive Statistics and Preliminary Visualizations
-%   4.6.1 Summary statistics for all variables (mean, SD, skew, kurtosis)
-%   Table 4.3: Descriptive statistics of returns, factors, liquidity, sentiment
-%   4.6.2 Histograms of ILLQ, turnover, sentiment index—assess distributional shape
-%   Figure 4.1: Histogram grid of liquidity proxies and STV
-%   4.6.3 Time‐series plots of aggregate liquidity and sentiment indices (1990–2018)
-%   Figure 4.2: Overlay of monthly Amihud ILLQ and STV series
-%   4.6.4 Cross‐variable correlation heatmap (factors vs. liquidity vs. sentiment)
-%   Figure 4.3: Correlation matrix heatmap
+%   4.6.1 Summary statistics for all variables (mean, SD, skew, kurtosis)
+%   Table 4.3: Descriptive statistics of returns, factors, liquidity, sentiment
+%   4.6.2 Histograms of ILLQ, turnover, sentiment index—assess distributional shape
+%   Figure 4.1: Histogram grid of liquidity proxies and STV
+%   4.6.3 Time‐series plots of aggregate liquidity and sentiment indices (1990–2018)
+%   Figure 4.2: Overlay of monthly Amihud ILLQ and STV series
+%   4.6.4 Cross‐variable correlation heatmap (factors vs. liquidity vs. sentiment)
+%   Figure 4.3: Correlation matrix heatmap
 
 % 4.7 Data Summary and Key Takeaways
-%   4.7.1 Coverage and quality of main variables
-%   4.7.2 Observed stylized facts (e.g., liquidity spikes in crises, sentiment cycles)
-%   4.7.3 Implications for subsequent modeling chapters
+%   4.7.1 Coverage and quality of main variables
+%   4.7.2 Observed stylized facts (e.g., liquidity spikes in crises, sentiment cycles)
+%   4.7.3 Implications for subsequent modeling chapters
 
 % Placement of Figures/Tables
 
@@ -72,11 +72,11 @@
 
 This study integrates equity, option, and macro factor information from several well-established WRDS libraries. Daily common-share returns, risk free rate, market returns, share volume, shares outstanding, equity prices, and intraday high/low quotes are drawn from the \emph{CRSP Daily Stock File} \cite{crsp_dsf}. Corporate identifiers (PERMNO) are matched to tickers, historical company names, and exchange codes table, ensuring that delisted and renamed firms remain in the final analysis. The initial CRSP extraction contains every ordinary common share listed on the NYSE, NYSE MKT, NASDAQ and Arca exchanges between 1998 and 2018. 
 
-The returns of this dataset value weighted and is extracted without dividends.To mitigate microstructure noise, daily returns are discarded if any of the following conditions hold: (i) the absolute price is below \$1; (ii) share volume is missing; or (iii) CRSP marks the observation with a non-regular return code.
+The returns of this dataset are value weighted and is extracted without dividends. To mitigate microstructure noise, daily returns are discarded if any of the following conditions hold: (i) the absolute price is below \$1; (ii) share volume is missing; or (iii) CRSP marks the observation with a non-regular return code.
 
 To filter out the stocks within the \emph{CRSP Daily Stock File}  that are not members of the SP500 index, the table is intersected with the historical \emph{S\&P 500 Constituents List} \cite{compstat}. The list provides the member entry  and member exit dates for every constituent since 1990. Merging the two datasets on PERMNO and calendar date yields a time-varying panel that includes each firm only during its actual index membership window, which eliminates survivorship bias arising from back-filling non-constituent observations. This means that companies that enters the S\&P500 is only included in their entry date onwards, while those that either went bankrupt, removed from the index or that got acquired after 2018 remains in the analysis. After intersecting with the S\&P500 membership file, the total number of companies remaining in the analysis is limited to 1063 unique firms that have belonged to the index at least once during the sample period. Each security contributes observations only for the days on which it is an official constituent, thereby mirroring the investable set faced by index-tracking portfolios (such as the publicly traded S\&P500 index) in real time.
 
-Sector classification information is sourced from the \emph{Compustat North America} header table, which reports each firm's \texttt{gsector}, a two-digit sector code consistent with the Global Industry Classification Standard (GICS) \cite{compstat}. This differs from the other datasets, which primarily identify firms using the \texttt{permno} variable. Because CRSP and Compustat utilizes different primary keys, firm-level observations are linked via a CRSP-Compustat bridge table. This particular link enable one-to-one mappings between CRSP's PERMNO and Compustat's \textsc{gvkey}. Daily macro-risk factors are sourced from Kenneth French's library,also available from WRDS, providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$) and momentum ($UMD$) \cite{ff_wrds}. These series are merged to the equity panel on the trading date.
+Sector classification information is sourced from the \emph{Compustat North America} header table, which reports each firm's \texttt{gsector}, a two-digit sector code consistent with the Global Industry Classification Standard (GICS) \cite{compstat}. This differs from the other datasets, which primarily identify firms using the \texttt{permno} variable. Because CRSP and Compustat utilize different primary keys, firm-level observations are linked via a CRSP-Compustat bridge table. This particular link enables one-to-one mappings between CRSP's PERMNO and Compustat's \textsc{gvkey}. Daily macro-risk factors are sourced from Kenneth French's library, also available from WRDS, providing the market excess return ($RF_{MKT}$), size ($SMB$), value ($HML$), profitability ($RMW$), investment ($CMA$) and momentum ($UMD$) \cite{ff_wrds}. These series are merged to the equity panel on the trading date.
 
 Finally, index-level option activity is captured through \citeA{optionsmetrics}. Put and call trading volumes for each security identifier (\textsc{secid}) are aggregated to the daily level. The WRDS-supplied correspondence file maps each \textsc{secid} to its CRSP PERMNO over time. OptionMetrics coverage is less complete than CRSP coverage, particularly prior to 2000 when listed index options were thinly traded, or the data was not recorded properly. This could corrupt the dataset as both zero value and unavailable/corrupted call or put volume is registered in WRDS as 0.0. Nonetheless, a large portion of put-call pairs possess at least one non-missing put or call volume observation. For days in which one side of the market is absent, the Laplace adjustment preserves logarithmic ratios while preventing undefined values (division by zero). The function is outlined as:
 
@@ -90,7 +90,7 @@ In addition to the above, investor sentiment is measured using the index from \c
  
 
 \subsection{Variable Construction}\label{sec:var_construct}
-The feature-engineering stage transforms the raw inputs described in Sections~\ref{sec:data_sources} into a set of features\footnote{See the accompanying Jupyter notebook in the replication repository for full transformation code.}. Unless noted otherwise, variables are computed at the \emph{daily} horizon. The feature transformation can be found in the Appendix, Section \ref{sec:feature_engineering}.
+The feature engineering stage transforms the raw inputs described in Sections~\ref{sec:data_sources} into a set of features\footnote{See the accompanying Jupyter notebook in the replication repository for full transformation code.}. Unless noted otherwise, variables are computed at the \emph{daily} horizon. The feature transformation can be found in the Appendix, Section \ref{sec:feature_engineering}.
 
 
 Each firm is assigned to its two-digit GICS sector, and sector-level indicators are then calculated as the market-capitalization-weighted averages of the corresponding stock-level features.  The sectors and their associated GICS codes are summarized in Table \ref{tab:sectors_mapp}.  
@@ -196,7 +196,7 @@ Max & 0.000 & 5.254 & 80.860 & 0.430 \\
 \end{tabular}
 \end{table}
 
-We take a closer look at the 2018 period, which is the hold out period for the sector rotation strategy. The late 2018 equity downturn was largely influenced by escalating US-China trade tensions, as each new round of tariffs eroded investor confidence in global supply chains. Simultaneously, the Federal Reserve's fourth rate hike of the year and the brief inversion of the Treasury yield curve heightened recession fears among market participants. Signs of a synchronized global slowdown, particularly in Europe and emerging markets, further have heavy weight on equity valuations as growth forecasts were revised downward. Finally, the extreme profitability of the technology sector, driven by concerns over maturing growth trajectories and mounting regulatory scrutiny, amplified the overall market sell-off \cite{reuters_2018}.
+We take a closer look at the 2018 period, which is the hold out period for the sector rotation strategy. The late 2018 equity downturn was largely influenced by escalating US-China trade tensions, as each new round of tariffs eroded investor confidence in global supply chains. Simultaneously, the Federal Reserve's fourth rate hike of the year and the brief inversion of the Treasury yield curve heightened recession fears among market participants. Signs of a global recession, particularly in Europe and emerging markets, further have heavy weight on equity valuations as growth forecasts were revised downward. Finally, the extreme profitability of the technology sector, driven by concerns over maturing growth trajectories and regulatory scrutiny, amplified the overall market sell-off \cite{reuters_2018}.
 
 \begin{figure}[H]
      \centering
@@ -271,7 +271,7 @@ We take a closer look at the 2018 period, which is the hold out period for the s
         \label{fig:avgprice_avgvol_2018}
     \end{figure}
 
- Figure \ref{fig:his_mktrf_ret_rf} suggest that individual stock returns and broad market returns both oscillate around a constant mean of zero with roughly stable variance over time, indicating weak stationarity. Meanwhile, the risk-free rate appears as a near-point mass at zero, further confirming its stationary behavior given its negligible volatility. However, to formally verify stationarity we apply the Augmented Dickey-Fuller (ADF) test. It tests the null hypothesis that a time series contains a unit root (i.e.\ is non-stationary) against the alternative of stationarity. The resulting ADF statistic, done on a full panel OLS regression shows an ADF statistic of -30.6 with a p-value below 0.001, which decisively rejects the null, confirming that all three return series are stationary.
+ Figure \ref{fig:his_mktrf_ret_rf} suggest that individual stock returns and broad market returns both oscillate around a constant mean of zero with roughly stable variance over time, indicating weak stationarity. Meanwhile, the risk-free rate appears highly concentrated at zero, further confirming its stationary behavior given its negligible volatility. However, to formally verify stationarity we apply the Augmented Dickey-Fuller (ADF) test. It tests the null hypothesis that a time series contains a unit root (i.e.\ is non-stationary) against the alternative of stationarity. The resulting ADF statistic, done on a full panel OLS regression shows an ADF statistic of -30.6 with a p-value below 0.001, which decisively rejects the null, confirming that all three return series are stationary.
 
 
 \begin{figure}[H]
@@ -325,14 +325,14 @@ The Communication Service (50) sector demonstrates significant volatility, with 
  
 
 % 4.6 Descriptive Statistics and Preliminary Visualizations
-%   4.6.1 Summary statistics for all variables (mean, SD, skew, kurtosis)
-%   Table 4.3: Descriptive statistics of returns, factors, liquidity, sentiment
-%   4.6.2 Histograms of ILLQ, turnover, sentiment index—assess distributional shape
-%   Figure 4.1: Histogram grid of liquidity proxies and STV
-%   4.6.3 Time‐series plots of aggregate liquidity and sentiment indices (1990–2018)
-%   Figure 4.2: Overlay of monthly Amihud ILLQ and STV series
-%   4.6.4 Cross‐variable correlation heatmap (factors vs. liquidity vs. sentiment)
-%   Figure 4.3: Correlation matrix heatmap
+%   4.6.1 Summary statistics for all variables (mean, SD, skew, kurtosis)
+%   Table 4.3: Descriptive statistics of returns, factors, liquidity, sentiment
+%   4.6.2 Histograms of ILLQ, turnover, sentiment index—assess distributional shape
+%   Figure 4.1: Histogram grid of liquidity proxies and STV
+%   4.6.3 Time‐series plots of aggregate liquidity and sentiment indices (1990–2018)
+%   Figure 4.2: Overlay of monthly Amihud ILLQ and STV series
+%   4.6.4 Cross‐variable correlation heatmap (factors vs. liquidity vs. sentiment)
+%   Figure 4.3: Correlation matrix heatmap
 
 
 

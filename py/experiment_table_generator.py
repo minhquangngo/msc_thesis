@@ -19,7 +19,7 @@ class ExperimentTableGenerator:
         """
         self.output_file = output_file
         self.rf_metrics = [
-            'mae', 'out_of_bag_score', 'rf_mse_fitsample',
+            'mae', 'rf_mse_fold', 'rf_mse_fitsample',
             'rf_mse_hold', 'rsquared_holdout', 'rsquared_sample'
         ]
         self.ols_metrics = [

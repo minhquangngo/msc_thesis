@@ -16,6 +16,10 @@ py/__pycache__
 mlruns/
 mlartifacts/
 py/mlruns/
+py/mlartifacts/
+py/rfi_mlartifacts/
+py/rfi_mlruns/
 py/*.png
-
+*.json
+*.txt
 latex/appendix.aux

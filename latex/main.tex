@@ -3,36 +3,41 @@
 
 % FILL OUT THE DETAILS BELOW:
 \author{Minh Quang Ngo}
-\title{Machine Learning Approach to Asset Pricing Models: An Empirical Rule-Based Approach}
+\title{Machine Learning Asset Pricing Models: An Empirical Rule-Based Approach}
 % \date{An optional custom date, the default is today}
 \newcommand{\studentnumber}{597115}
 \newcommand{\program}{Data Science and Marketing Analytics}
 \newcommand{\supervisor}{Hakan Akyuz}
-\newcommand{\secondassesor}{Name of your second assessor}
+\newcommand{\secondassesor}{Martijn de Jong}
 
-\usepackage[british]{babel} % Use British English
+\usepackage[british]{babel}           % Use British English
 \usepackage[onehalfspacing]{setspace} % Increase line spacing
-\usepackage[margin=2.5cm]{geometry} % Modify margins
-\usepackage{graphicx,booktabs,apacite} % Packages for images, tables, and APA citations
+\usepackage[margin=2.5cm]{geometry}   % Modify margins
+
+\usepackage{graphicx,booktabs}        % Packages for images and tables
 
 % ADD YOUR OWN PACKAGES HERE
-% Hint: \usepackage{amsmath,amsfonts,hyperref} imports some frequently used packages
-
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{bbm}
 \usepackage{threeparttable}
 \usepackage{float}
+
+% HYPERREF must come before algorithm2e (and before apacite if you use that)
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue]{hyperref}
+\usepackage{cleveref}
+
+\usepackage{apacite}                  % APA citations
+
 \usepackage[ruled,vlined]{algorithm2e}
 \usepackage{amssymb}
 \usepackage{amsthm}
 \usepackage{thmtools}
-%drawing trees
+
+% drawing trees (uncomment if needed)
 % \usepackage{tikz}
 % \usetikzlibrary{trees}
 
-%cleverref
-\usepackage{cleveref} 
 \usepackage{tikz}
 \usepackage{xcolor}
 \definecolor{traincolor}{RGB}{70, 130, 180}
@@ -42,23 +47,29 @@
 \definecolor{bestcolor}{RGB}{34, 139, 34}
 % Define dark gray for the algorithm box
 \definecolor{darkgray}{RGB}{64,64,64}
+
 \usepackage{pdflscape}
 \usepackage{rotating}
 
 % Hypothesis theorem style
 \declaretheoremstyle[
-spaceabove=6pt, spacebelow=6pt,
-headfont=\normalfont\bfseries,
-notefont=\mdseries, notebraces={(}{)},
-bodyfont=\normalfont,
-postheadspace=0.6em,
-headpunct=:
+  spaceabove=6pt, spacebelow=6pt,
+  headfont=\normalfont\bfseries,
+  notefont=\mdseries, notebraces={(}{)},
+  bodyfont=\normalfont,
+  postheadspace=0.6em,
+  headpunct=:
 ]{mystyle}
-\declaretheorem[style=mystyle, name=Hypothesis, preheadhook={\renewcommand{\thehyp}{H\textsubscript{\arabic{hyp}}}}]{hyp}
+\declaretheorem[
+  style=mystyle,
+  name=Hypothesis,
+  preheadhook={\renewcommand{\thehyp}{H\textsubscript{\arabic{hyp}}}}
+]{hyp}
 
 % Configure cleveref for hypotheses
 \crefname{hyp}{hypothesis}{hypotheses}
 \Crefname{hyp}{Hypothesis}{Hypotheses}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%END PREAMBLE################
@@ -86,7 +97,8 @@ headpunct=:
 		\toprule
 		Supervisor: & \supervisor\\
 		Second assessor: & \secondassesor\\
-		Date final version: & \@date\\
+		% Date final version: & \@date\\
+		Date final version: & 15/07/2025\\
 		\bottomrule
 	\end{tabular}
 	
@@ -96,11 +108,52 @@ headpunct=:
 \makeatother
 \end{titlepage}
 
-\begin{abstract}
-	
-\end{abstract}
+% Acknowledgments page
 \newpage
+\section*{Acknowledgments}
+I would like to express my sincere gratitude to my supervisor, Hakan Akyuz, for his invaluable guidance, support, and encouragement throughout the course of this thesis. I am also grateful to my second assessor, Martijn de Jong, and the faculty at Erasmus School of Economics for their constructive feedback and academic inspiration. Most importantly, I owe everything to my family. Their constant encouragement and firm belief in me have kept me going through all the tough times and doubts. Their support has always been my anchor, constantly inspiring me and reminding me of the joy and love that motivate my studies. Thank you all for your indispensable contributions to my Masters' thesis.
 
+
+\newpage
+\begin{abstract}
+This thesis investigates whether augmenting classical multi-factor asset-pricing frameworks with liquidity risk and investor sentiment factors can improve return forecasts and yield an actionable, transparent sector-rotation strategy. Daily data for all S\&P500 constituents from 1998-2018 are combined with a set of liquidity proxies and three sentiment indices. Four model families are estimated: the Carhart four-factor and Fama-French five-factor benchmarks and their enhanced counterparts that embed liquidity risk and sentiment measures. The paper uses the traditional asset pricing framework of ordinary least squares and Random Forest estimators in an expanding window design with rigorous out-of-sample validation. Random Forest boosts explanatory power, raising average in-sample $R^{2}$ from $<1\%$ under OLS to about $60\%$ and cutting hold-out mean squared error by up to two orders of magnitude. Diebold-Mariano tests confirm that forecast accuracy improves significantly ($p<0.01$) when moving from ordinary least squares to Random Forest, and improves again when augmenting Random Forest with the enhanced feature set for select sectors. Due to Random Forest's black-box nature, interpretability must be restored through pseudo-betas: elasticity estimates weighted by relative feature importance. This substitution for OLS betas in RF reveals that the Amihud Illiquidity measure and news sentiment dominate. Feeding all of the created models into Association Rule Learning yields if-then signals that aid daily sector-rotation strategies. In the 2018 hold-out year, the unconstrained strategy from the Carhart four-factor model enhanced with liquidity and sentiment earns a cumulative return of 5.2\% and an active return of 12.3\%, while the S\&P500 loses 7.03\%. A turnover-capped variant still outperforms both the index and a naïve equal-weight benchmark after trading costs. However, the sector-rotation profits are not statistically significant, as we cannot demonstrate that the strategy's Sharpe ratio is statistically greater than zero. The findings demonstrate that machine-learning asset pricing models can combine predictive accuracy with financial interpretability, enrich the Fama-French framework with economically motivated factors, and translate statistical gains into a transparent tool of direct relevance to asset managers, risk officers, and marketing strategists. However, statistical tests of the strategy's Sharpe ratio fail to reject the null hypothesis of zero, indicating that its performance relative to the S\&P500 cannot be demonstrated with statistical significance.
+
+
+\end{abstract}
+
+% List of Abbreviations page
+\newpage
+\section*{List of Abbreviations}
+\begin{tabular}{@{}ll}
+\textbf{Abbreviation} & \textbf{Meaning} \\
+\midrule
+OLS & Ordinary Least Squares \\
+RF & Random Forest \\
+ARL & Association Rule Learning \\
+CAPM & Capital Asset Pricing Model \\
+FF3 & Fama-French Three-Factor Model \\
+FF5 & Fama-French Five-Factor Model \\
+C4F & Carhart Four-Factor Model \\
+MAE & Mean Absolute Error \\
+RMSE & Root Mean Squared Error \\
+RFI & Relative Feature Importance \\
+PCA & Principal Component Analysis \\
+VIX & Volatility Index \\
+S\&P500 & Standard and Poor's 500 Index \\
+OOB & Out-of-Bag \\
+MSE & Mean Squared Error \\
+SMB & Small Minus Big (size factor) \\
+HML & High Minus Low (value factor) \\
+MOM & Momentum Factor \\
+RMW & Robust Minus Weak (profitability factor) \\
+CMA & Conservative Minus Aggressive (investment factor) \\
+BW & Baker-Wurgler (sentiment index) \\
+PSR & Probabilistic Sharpe Ratio \\
+IR & Information Ratio \\
+OOS & Out-of-Sample \\
+\end{tabular}
+
+\newpage
 \tableofcontents
 \newpage
 
@@ -117,7 +170,7 @@ headpunct=:
     \input{03_data}
 \section{Results} \label{sec:results}
 	\input{05_results}
-\section{Discussion} \label{sec:discussion}
+\section{Discussion: Limitations and Future Research} \label{sec:discussion}
 	\input{07_discussion}
 \section{Conclusion} \label{sec:conclusion}
 	\input{06_conclusion}

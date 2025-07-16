@@ -39,8 +39,13 @@ class ReturnAnalyzer:
         A tuple where each element is a list of portfolio returns.  Each list
         **must** be the same length as *index_returns* and correspond 1-to-1 by
         date.
+    portfolio_excess_returns
+        A tuple where each element is a list of portfolio excess returns.
     annualisation_factor
         Number of periods per year (defaults to 252 for trading days).
+    equal_weight
+        If True, the legend will show only "S&P500" and "Equal weight" items.
+        If False or blank, shows all portfolio lines in the legend (default behavior).
     """
 
     def __init__(
@@ -50,16 +55,18 @@ class ReturnAnalyzer:
         portfolio_excess_returns: tuple[list[float], ...],
         *,
         annualisation_factor: int = _ANNUALISATION_FACTOR,
+        equal_weight: bool = False,
     ) -> None:
         self.annualisation_factor: int = annualisation_factor
         self.index_name: str = "S\&P500"
+        self.equal_weight: bool = equal_weight
 
         # ─── Validate & Combine Inputs ────────────────────────────────────────
         self._validate_inputs(index_returns, weighted_portfolio_returns, portfolio_excess_returns)
         self.returns, sorted_indices = self._combine_inputs(
             index_returns, weighted_portfolio_returns
         )
-        
+
         # Reorder the excess returns to match the sorted portfolio returns
         self.portfolio_excess_returns = tuple(portfolio_excess_returns[i] for i in sorted_indices)
 
@@ -91,11 +98,27 @@ class ReturnAnalyzer:
             fig = ax.figure
 
         # Plot each series with custom styles for the index
-        for col in cumulative.columns:
-            if col == self.index_name:
-                ax.plot(cumulative.index, cumulative[col], color='black', linewidth=2, label=col, zorder=5)
-            else:
-                ax.plot(cumulative.index, cumulative[col], alpha=0.75, label=col)
+        if self.equal_weight:
+            # When equal_weight=True, show only S&P500 and Equal weight lines in legend
+            equal_weight_shown = False
+            for col in cumulative.columns:
+                if col == self.index_name:
+                    ax.plot(cumulative.index, cumulative[col], color='black', linewidth=2, label=col, zorder=5)
+                else:
+                    if not equal_weight_shown:
+                        # Show the first portfolio as "Equal weight" in the legend
+                        ax.plot(cumulative.index, cumulative[col], alpha=0.75, label="Equal weight", color='#8c564b')
+                        equal_weight_shown = True
+                    else:
+                        # Plot other portfolios but without labels (so they don't appear in legend)
+                        ax.plot(cumulative.index, cumulative[col], alpha=0.75)
+        else:
+            # Default behavior: show all lines with their original labels
+            for col in cumulative.columns:
+                if col == self.index_name:
+                    ax.plot(cumulative.index, cumulative[col], color='black', linewidth=2, label=col, zorder=5)
+                else:
+                    ax.plot(cumulative.index, cumulative[col], alpha=0.75, label=col)
 
         ax.set_xlabel("Date")
         ax.set_ylabel("Cumulative Return")
