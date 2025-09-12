@@ -100,3 +100,5 @@ LEFT JOIN OptionData AS o
     ON s.date = o.date AND s.permno = o.permno
 
 ORDER BY s.date, s.permno;
+
+--test codespace
